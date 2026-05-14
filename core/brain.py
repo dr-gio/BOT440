@@ -233,17 +233,38 @@ PASO 4 — Preguntar meta:
 → Reafirmar y tonificar
 → Recuperación post-cirugía"
 
-PASO 5 — Cuando responde meta:
-"¡Perfecto [nombre]! 💖
-La consulta inicial con la
-Dra. Sharon vale $150.000.
-En ella evalúa tu caso y diseña
-tu programa personalizado.
+PASO 5 — Cuando responde meta — CONVERSAR ANTES DE PEDIR DATOS:
+ANTES de hablar de la consulta o
+notificar al equipo, haz 2-3 preguntas
+para entender mejor el caso del paciente.
+Una pregunta por mensaje.
 
-SI CANAL = WHATSAPP:
-"¿Quieres que te contactemos
-para coordinar tu consulta? 😊"
-Cuando dice sí:
+5.1 — Tras recibir la meta:
+"¡Perfecto [nombre]! 💖
+¿Hace cuánto tiempo llevas
+con esa meta? ¿Has intentado
+algún tratamiento antes? 😊"
+
+5.2 — Tras responder historial/intentos:
+"Entiendo [nombre] 💖
+¿Tienes alguna condición médica
+que debamos tener en cuenta?
+(diabetes, hipertensión, embarazo,
+medicamentos, etc.)"
+
+5.3 — Tras responder condición médica:
+"¡Perfecto! Con toda esa información
+la Dra. Sharon puede diseñar tu
+programa ideal 💖
+
+La consulta inicial vale $150.000.
+¿Prefieres:
+1️⃣ Agendar tu consulta ($150.000)
+2️⃣ Que una asesora te contacte
+   para más información"
+
+5.4 — Cuando elige 1️⃣ o 2️⃣:
+SI CANAL = WHATSAPP (ya tenemos teléfono):
 "¡Listo [nombre]! 💖
 En breve te contactamos.
 ¡Hasta pronto! ✨ 440 Clinic"
@@ -255,10 +276,13 @@ servicio: Body Sculpt 440 - Consulta Dra. Sharon
 valor: $150.000
 meta: [meta]
 ciudad: [ciudad]
+historial: [resumen 1 línea: tiempo + intentos previos]
+condicion_medica: [resumen 1 línea]
+opcion: [1=agendar / 2=info]
 accion: CONTACTAR YA
 <<<END>>>
 
-SI CANAL = INSTAGRAM:
+SI CANAL = INSTAGRAM (pedir número primero):
 "¿Cuál es tu número de WhatsApp
 para coordinarte? 📱"
 Cuando da número:
@@ -273,8 +297,17 @@ servicio: Body Sculpt 440 - Consulta Dra. Sharon
 valor: $150.000
 meta: [meta]
 ciudad: [ciudad]
+historial: [resumen 1 línea]
+condicion_medica: [resumen 1 línea]
+opcion: [1=agendar / 2=info]
 accion: CONTACTAR YA
 <<<END>>>
+
+⚠️ REGLA CRÍTICA Body Sculpt:
+NO emitas <<<NOTIFY>>> hasta haber
+completado los 3 sub-pasos (meta +
+historial + condición médica + elección
+de opción 1 o 2). Una pregunta por mensaje.
 
 PREGUNTAS FRECUENTES BODY SCULPT:
 
@@ -816,5 +849,51 @@ class Brain:
 
     def _notify_admin(self, data, sender_id):
         admin = os.environ.get('ADMIN_WHATSAPP', '573181800130')
-        msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
+        fields = self._parse_notify_fields(data)
+        servicio = (fields.get('servicio') or '').lower()
+
+        if 'body sculpt' in servicio or 'sharon' in servicio:
+            msg = self._build_body_sculpt_notify(fields, sender_id)
+        else:
+            msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
         self.whapi.send_text(admin, msg)
+
+    @staticmethod
+    def _parse_notify_fields(data):
+        """Extract key: value pairs from a NOTIFY block body."""
+        out = {}
+        for line in (data or '').splitlines():
+            line = line.strip()
+            if not line or ':' not in line:
+                continue
+            k, _, v = line.partition(':')
+            out[k.strip().lower()] = v.strip()
+        return out
+
+    @staticmethod
+    def _build_body_sculpt_notify(fields, sender_id):
+        nombre = fields.get('nombre', '—')
+        telefono = fields.get('telefono', sender_id)
+        meta = fields.get('meta', '—')
+        historial = fields.get('historial', '—')
+        condicion = fields.get('condicion_medica') or fields.get('condicion', '—')
+        info_parts = []
+        if historial and historial != '—':
+            info_parts.append(historial)
+        if condicion and condicion != '—':
+            info_parts.append(condicion)
+        info = ' | '.join(info_parts) if info_parts else '—'
+        valor = fields.get('valor', '$150.000')
+        ciudad = fields.get('ciudad', '—')
+        return (
+            "🔔 LEAD BODY SCULPT 440\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Nombre: {nombre}\n"
+            f"📱 Tel: {telefono}\n"
+            f"🎯 Meta: {meta}\n"
+            f"📋 Info: {info}\n"
+            f"💰 Consulta: {valor}\n"
+            f"📍 Ciudad: {ciudad}\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "CONTACTAR YA 📞"
+        )
