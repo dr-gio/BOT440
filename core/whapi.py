@@ -4,7 +4,12 @@ class WhapiClient:
     def __init__(self):
         self.base = os.environ.get('WHAPI_URL','https://gate.whapi.cloud')
         self.token = os.environ.get('WHAPI_TOKEN','')
-        self.headers = {'Authorization':f'Bearer {self.token}','Content-Type':'application/json'}
+        self.headers = {
+            'Authorization': f'Bearer {self.token}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; BOT440/1.0; +https://440clinic.com)'
+        }
         print(f"[WHAPI INIT] base={self.base!r} token_len={len(self.token)}", flush=True)
 
     def send_text(self, to, text):
