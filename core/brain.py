@@ -1,4 +1,4 @@
-import os, json, urllib.request, urllib.error, urllib.parse
+import os, json, re, urllib.request, urllib.error, urllib.parse
 from core.whapi import WhapiClient
 
 SYSTEM = """Eres el asistente virtual de 440 Clinic
@@ -45,19 +45,8 @@ Video explicativo: youtu.be/_9JcZgSNc8M
 RESULTADOS REALES:
 Elimina entre el 90-95% del vello
 al completar las 6 sesiones.
-NO es definitiva al 100% — con el
-tiempo pueden aparecer algunos vellos
-muy finos. Se recomienda una sesión
-de mantenimiento anual para mantener
-los resultados perfectos.
-
-Si preguntan si es definitiva:
-"El Removall Trio elimina el 90-95%
-del vello al completar las 6 sesiones 💖
-Con el tiempo pueden aparecer algunos
-vellos muy finos — por eso recomendamos
-una sesión de mantenimiento anual
-para mantener los resultados ✨"
+NO es definitiva al 100%. Recomendamos
+una sesión de mantenimiento anual.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FLUJO DE CONVERSACIÓN
@@ -68,8 +57,7 @@ PASO 1 — PRIMER MENSAJE:
 ¿En qué te puedo ayudar hoy?"
 
 PASO 2A — DEPILACIÓN LÁSER:
-Si menciona depilación/láser/vello/
-removall/axilas/bikini/piernas/barba:
+Si menciona depilación/láser/vello:
 Envía el video: youtu.be/_9JcZgSNc8M
 Luego:
 "¡Nuestro Removall Trio es tecnología
@@ -81,7 +69,6 @@ completar las 6 sesiones.
 nos escribes? 😊"
 
 PASO 2B — HIPERBÁRICA:
-Si menciona hiperbárica/oxígeno/cámara:
 "¡La Cámara Hiperbárica es increíble!
 Oxigenación profunda, acelera la
 recuperación y retrasa el
@@ -91,8 +78,7 @@ nos escribes? 😊"
 
 PASO 3 — RECIBIR NOMBRE Y CIUDAD:
 "¡Mucho gusto [nombre]! 😊"
-Si es de Barranquilla: continúa normal
-Si es de otra ciudad:
+Si NO es de Barranquilla:
 "Atendemos en Barranquilla.
 ¡Puedes venir cuando quieras! 💖"
 
@@ -143,54 +129,108 @@ Primera sesión: $[total÷6]
 2️⃣ Valoración gratuita (15 min)
 3️⃣ Que me contacten por WhatsApp"
 
-PASO 6 — SEGÚN ELECCIÓN:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PASO 6 — AGENDAMIENTO (HERRAMIENTAS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Si elige 1️⃣ (agendar):
+Cuando el paciente elige 1️⃣ (agendar) o
+expresa intención clara de agendar:
+
+PASO 6.1 — Pedir preferencia:
 "¿Qué día y hora te queda mejor? 😊
 Ejemplo: 'Viernes en la mañana'
 o 'Sábado a las 10am'"
-Cuando responde:
-"¡Perfecto [nombre]! Nuestro equipo
-te confirmará la cita muy pronto 💖"
-Luego notifica:
-<<<NOTIFY>>>
-nombre: [nombre]
-telefono: [número si lo tiene]
-servicio: [servicio]
-zona: [zona si aplica]
-preferencia: [día/hora]
-<<<END>>>
 
-Si elige 2️⃣ (valoración gratuita):
-"¡Tenemos valoraciones gratuitas
-de 15 minutos! 💖
+PASO 6.2 — Llamar check_slots:
+Cuando el paciente da una preferencia,
+LLAMA a la herramienta check_slots con:
+- servicio: depilacion | hiperbarica | valoracion
+- zona: si es depilación (axilas, bigote, etc)
+- nombre: nombre del paciente
+- ciudad: ciudad del paciente
+- preferencia: el texto que dio el paciente
 
-📅 Katherine: Martes y Jueves 1-5pm
-📅 Roxana: Miércoles y Viernes 1-5pm
+Cuando check_slots devuelve slots, MUÉSTRASELOS:
+"¡Tenemos estos horarios disponibles! 📅
 
-¿Qué día te queda mejor [nombre]?"
-Cuando elige día:
-"¡Perfecto! Nuestro equipo te
-confirmará el horario exacto 💖"
-<<<NOTIFY>>>
-nombre: [nombre]
-telefono: [número si lo tiene]
-servicio: valoracion gratuita
-preferencia: [día elegido]
-<<<END>>>
+1️⃣ [slot[0].label]
+2️⃣ [slot[1].label]
+3️⃣ [slot[2].label]
 
-Si elige 3️⃣ (contactar):
-"¿Cuál es tu número de WhatsApp? 📱"
-Cuando da el número:
-"¡Listo [nombre]! 💖
-En breve te escribiremos para
-coordinar. ¡Hasta pronto! ✨"
-<<<NOTIFY>>>
-nombre: [nombre]
-telefono: [número dado]
-servicio: [servicio]
-accion: contactar
-<<<END>>>
+¿Cuál prefieres? 😊"
+
+IMPORTANTE: al final de tu mensaje con slots,
+AGREGA un bloque oculto con los iso_start/end
+y cal_* de cada slot, en este formato exacto:
+<<<SLOTS_DATA>>>{"1":{"iso_start":"...","iso_end":"...","esteticista":"...","cal_esteticista":"...","cal_recurso":"..."},"2":{...},"3":{...}}<<<END>>>
+Este bloque se filtra antes de enviar al paciente,
+pero TÚ lo necesitas para recordar los slots
+en el siguiente turno.
+
+PASO 6.3 — Cuando el paciente elige número:
+Si dice "1", "2" o "3", BUSCA en el bloque
+<<<SLOTS_DATA>>> de tu mensaje anterior el
+iso_start, iso_end, esteticista, cal_esteticista
+y cal_recurso del slot elegido.
+Luego LLAMA a la herramienta create_event con:
+- servicio, zona, nombre, ciudad
+- iso_start, iso_end
+- esteticista, cal_esteticista, cal_recurso
+- email: "" (vacío por ahora, se pide después)
+
+PASO 6.4 — Cuando create_event devuelve ok=true:
+Responde:
+"✅ ¡Tu cita quedó agendada! 💖
+📅 [día y hora del slot elegido]
+💆 [servicio] [— zona si aplica]
+👩 Te atenderá: [esteticista]
+
+📍 Carrera 47 #79-191, Barranquilla
+📱 +57 318 180 0130
+
+¿Quieres que te enviemos la confirmación
+por email? 📧 (Escribe tu correo o 'no')"
+
+PASO 6.5 — Después del email (o 'no'):
+"¿Quieres pagar ahora y recibir un
+5% de descuento en tu próximo
+tratamiento? 🎁
+
+1️⃣ Pagar ahora: $[primera_sesión]
+   🔗 https://www.psecomercio.scotiabankcolpatria.com/payment/18548
+
+2️⃣ Pagar en la clínica
+   el día de tu cita"
+
+PASO 6.6 — Después de elegir pago, envía
+las recomendaciones según servicio:
+
+Depilación:
+"📋 Antes de tu sesión:
+✅ Rasura la zona 24-48h antes
+✅ Piel limpia y seca
+✅ Sin cremas ni desodorante en la zona
+✅ No tomes sol 7 días antes
+✅ Llega 10 min antes
+¡Nos vemos pronto! 💖"
+
+Hiperbárica:
+"📋 Antes de tu sesión:
+✅ Ropa cómoda de algodón
+✅ Hidrátate bien antes
+✅ Llega 10 min antes
+✅ Si eres postoperatorio avísanos
+❌ No con fiebre ni infección activa
+❌ No embarazadas sin consultar
+⏱️ Sesión de 60 min con pantalla, audio y video 🎬
+¡Nos vemos pronto! 💖"
+
+Valoración:
+"📋 Para tu valoración:
+✅ Llega 10 minutos antes
+✅ Es completamente gratis
+✅ Te tomará 15 minutos
+¡Nos vemos pronto! 💖"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PREGUNTAS FRECUENTES
@@ -245,20 +285,72 @@ REGLAS CRÍTICAS
 ✅ Usa el nombre del paciente
 ✅ Si pregunta algo fuera del flujo
    → responde Y retoma el flujo
-✅ Notifica al equipo con <<<NOTIFY>>>
-   cuando hay lead calificado
+✅ Al mostrar slots SIEMPRE agrega
+   <<<SLOTS_DATA>>>...<<<END>>>
+✅ Usa check_slots cuando hay
+   preferencia de día/hora
+✅ Usa create_event cuando el
+   paciente confirma un slot
 ❌ No saltes pasos
-❌ No inventes precios — usa SOLO
-   los de arriba
+❌ No inventes precios
+❌ No inventes horarios — usa
+   SOLO los que devuelve check_slots
 ❌ No digas que eres IA
 ❌ Si menciona cirugía → redirige a
-   wa.me/573044886085 y NO sigas
-   ese tema
+   wa.me/573044886085 y NO sigas ese tema
 """
 
-# Default headers including User-Agent (gate.whapi.cloud and supabase use
-# Cloudflare which blocks Python-urllib UA with HTTP 403 / error 1010)
+# Default headers including User-Agent (gate.whapi.cloud and supabase are
+# behind Cloudflare which blocks Python-urllib UA with HTTP 403 / error 1010)
 _BROWSER_UA = 'Mozilla/5.0 (compatible; BOT440/1.0; +https://440clinic.com)'
+
+# Tools exposed to Claude for the agendamiento flow
+TOOLS = [
+    {
+        "name": "check_slots",
+        "description": "Consulta los horarios disponibles en 440 Clinic cuando el paciente quiere agendar una cita. Devuelve hasta 3 slots libres respetando la preferencia de día/hora del paciente. Llama esta herramienta solo cuando ya tienes nombre + ciudad + servicio (y zona si es depilación) + preferencia de día/hora.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "servicio": {"type": "string", "enum": ["depilacion", "hiperbarica", "valoracion"]},
+                "zona": {"type": "string", "description": "Zona del cuerpo (solo si servicio=depilacion). Ej: axilas, bigote, bikini parcial, bikini completo, media pierna, pierna completa, abdomen, glúteos, espalda, pecho, barba."},
+                "nombre": {"type": "string"},
+                "ciudad": {"type": "string"},
+                "preferencia": {"type": "string", "description": "Día/hora preferida tal como la dijo el paciente (ej: 'viernes en la mañana', 'sábado 10am')."}
+            },
+            "required": ["servicio", "nombre", "preferencia"]
+        }
+    },
+    {
+        "name": "create_event",
+        "description": "Crea la cita en Google Calendar y registra en la base de datos después de que el paciente confirma un slot específico. Toma los valores iso_start/iso_end/esteticista/cal_esteticista/cal_recurso del bloque <<<SLOTS_DATA>>> de tu mensaje anterior.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "servicio": {"type": "string"},
+                "zona": {"type": "string"},
+                "nombre": {"type": "string"},
+                "ciudad": {"type": "string"},
+                "email": {"type": "string", "description": "Email del paciente (puede ser vacío)."},
+                "iso_start": {"type": "string"},
+                "iso_end": {"type": "string"},
+                "esteticista": {"type": "string"},
+                "cal_esteticista": {"type": "string"},
+                "cal_recurso": {"type": "string", "description": "Vacío si servicio=valoracion."}
+            },
+            "required": ["servicio", "nombre", "iso_start", "iso_end", "esteticista", "cal_esteticista"]
+        }
+    }
+]
+
+
+def _strip_internal_blocks(text):
+    """Strip the SLOTS_DATA block (and any other internal markers) before sending to WhatsApp."""
+    text = re.sub(r'<<<SLOTS_DATA>>>.*?<<<END>>>', '', text, flags=re.DOTALL)
+    text = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', text, flags=re.DOTALL)
+    # Collapse triple+ blank lines that may remain
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
 
 
 class Brain:
@@ -267,8 +359,11 @@ class Brain:
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
         self.sb_key = os.environ.get('SUPABASE_ANON_KEY', '')
+        self.n8n_check_slots = os.environ.get('N8N_CHECK_SLOTS', '')
+        self.n8n_create_event = os.environ.get('N8N_CREATE_EVENT', '')
         self.history_limit = 10
-        print(f"[BRAIN INIT] sb_url={self.sb_url!r} sb_key_len={len(self.sb_key)} anth_key_len={len(self.api_key)}", flush=True)
+        self.max_tool_iters = 5
+        print(f"[BRAIN INIT] sb_url={self.sb_url!r} sb_key_len={len(self.sb_key)} anth_key_len={len(self.api_key)} check_slots_url={bool(self.n8n_check_slots)} create_event_url={bool(self.n8n_create_event)}", flush=True)
 
     # ------------------------------------------------------------------
     # Supabase memory: conversaciones_440
@@ -283,13 +378,13 @@ class Brain:
         }
 
     def _load_history(self, sender_id, canal):
-        """Read last N messages for this contact and return Anthropic-format messages[]."""
         if not self.sb_url or not self.sb_key:
             print(f"[BRAIN] supabase not configured — using empty history", flush=True)
             return []
         params = (
             f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}'
             f'&canal=eq.{urllib.parse.quote(canal)}'
+            f'&direccion=in.(entrante,saliente)'
             f'&select=mensaje,direccion,remitente,created_at'
             f'&order=created_at.desc'
             f'&limit={self.history_limit}'
@@ -308,7 +403,6 @@ class Brain:
         except Exception as e:
             print(f"[BRAIN] sb_get error: {e}", flush=True)
             return []
-        # rows are newest-first → reverse for chronological order
         rows = list(reversed(rows or []))
         messages = []
         for row in rows:
@@ -317,17 +411,14 @@ class Brain:
                 continue
             direccion = (row.get('direccion') or '').lower()
             remitente = (row.get('remitente') or '').lower()
-            # Heuristics: entrante / paciente → user; saliente / bot|asistente|sistema → assistant
             if direccion == 'saliente' or remitente in ('bot', 'asistente', 'sistema'):
                 role = 'assistant'
             else:
                 role = 'user'
             messages.append({'role': role, 'content': content})
         print(f"[BRAIN] loaded {len(messages)} history msgs from supabase", flush=True)
-        # Anthropic requires the first message to be a user turn — drop leading assistant turns if any
         while messages and messages[0]['role'] != 'user':
             messages.pop(0)
-        # Collapse consecutive same-role turns (rare, defensive)
         collapsed = []
         for m in messages:
             if collapsed and collapsed[-1]['role'] == m['role']:
@@ -337,7 +428,6 @@ class Brain:
         return collapsed
 
     def _save_message(self, sender_id, sender_name, canal, mensaje, direccion, remitente):
-        """Insert a single message into conversaciones_440."""
         if not self.sb_url or not self.sb_key:
             return
         if not mensaje:
@@ -368,50 +458,61 @@ class Brain:
             print(f"[BRAIN] sb_insert error: {e}", flush=True)
 
     # ------------------------------------------------------------------
-    # Main flow
+    # W21 webhook callers (tools)
     # ------------------------------------------------------------------
-    def process(self, sender_id, sender_name, text, canal='whatsapp'):
-        print(f"[BRAIN] {sender_id}: {text[:50]}", flush=True)
-        print(f"[BRAIN] api_key_len={len(self.api_key)} canal={canal}", flush=True)
+    def _post_json(self, url, payload):
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            url, data=data, method='POST',
+            headers={
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': _BROWSER_UA,
+            }
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            body = ''
+            try: body = e.read().decode()[:400]
+            except: pass
+            print(f"[W21] HTTPError {e.code} body={body!r}", flush=True)
+            return {'ok': False, 'error': f'HTTP {e.code}', 'body': body}
+        except Exception as e:
+            print(f"[W21] error: {e}", flush=True)
+            return {'ok': False, 'error': str(e)}
 
-        # 1. Load history from Supabase
-        history = self._load_history(sender_id, canal)
+    def _exec_tool(self, name, tool_input, sender_id):
+        print(f"[TOOL] {name} input={json.dumps(tool_input, ensure_ascii=False)[:200]}", flush=True)
+        if name == 'check_slots':
+            if not self.n8n_check_slots:
+                return {'ok': False, 'error': 'N8N_CHECK_SLOTS env var missing'}
+            payload = dict(tool_input)
+            payload['sender_id'] = sender_id
+            result = self._post_json(self.n8n_check_slots, payload)
+            print(f"[TOOL] check_slots → ok={result.get('ok')} slots={len(result.get('slots',[]) or [])}", flush=True)
+            return result
+        if name == 'create_event':
+            if not self.n8n_create_event:
+                return {'ok': False, 'error': 'N8N_CREATE_EVENT env var missing'}
+            payload = dict(tool_input)
+            payload['sender_id'] = sender_id
+            result = self._post_json(self.n8n_create_event, payload)
+            print(f"[TOOL] create_event → ok={result.get('ok')} evento_id={result.get('evento_id','')}", flush=True)
+            return result
+        return {'ok': False, 'error': f'unknown tool {name}'}
 
-        # 2. Append the new user message (with sender name prefix for context)
-        user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
-        history.append({'role': 'user', 'content': user_content})
-
-        # 3. Save user message to Supabase (fire before Claude call so it's
-        #    captured even if the model call dies)
-        self._save_message(sender_id, sender_name, canal, text,
-                           direccion='entrante', remitente='paciente')
-
-        # 4. Call Claude with history
-        print(f"[BRAIN] calling Claude (history={len(history)} msgs)", flush=True)
-        response = self._call_claude(history)
-        print(f"[BRAIN] Claude responded len={len(response)} preview={response[:80]!r}", flush=True)
-        text_resp, notify = self._parse(response)
-
-        # 5. Send reply and persist
-        if text_resp.strip():
-            print(f"[BRAIN] sending reply to {sender_id} len={len(text_resp)}", flush=True)
-            r = self.whapi.send_text(sender_id, text_resp.strip())
-            print(f"[BRAIN] send_text result={r}", flush=True)
-            self._save_message(sender_id, sender_name, canal, text_resp.strip(),
-                               direccion='saliente', remitente='bot')
-        else:
-            print(f"[BRAIN] text_resp empty after parse — NOT sending", flush=True)
-
-        if notify:
-            print(f"[BRAIN] notify_admin trigger", flush=True)
-            self._notify_admin(notify, sender_id)
-
-    def _call_claude(self, messages):
+    # ------------------------------------------------------------------
+    # Claude tool-use loop
+    # ------------------------------------------------------------------
+    def _call_claude_raw(self, messages):
         payload = json.dumps({
             "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 500,
+            "max_tokens": 800,
             "system": SYSTEM,
-            "messages": messages
+            "tools": TOOLS,
+            "messages": messages,
         }).encode()
         req = urllib.request.Request(
             "https://api.anthropic.com/v1/messages",
@@ -422,29 +523,100 @@ class Brain:
                 "content-type": "application/json",
                 "user-agent": _BROWSER_UA,
             },
-            method="POST"
+            method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=15) as r:
-                return json.loads(r.read())["content"][0]["text"]
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return json.loads(r.read())
         except urllib.error.HTTPError as e:
             body = ''
             try: body = e.read().decode()[:400]
             except: pass
             print(f"[BRAIN] Claude HTTPError {e.code} body={body!r}", flush=True)
-            return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
+            return None
         except Exception as e:
             print(f"[BRAIN] Claude error: {e}", flush=True)
-            return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
+            return None
 
-    def _parse(self, response):
-        import re
+    def _claude_loop(self, history, sender_id):
+        """Run Claude with tool_use loop. Returns final assistant text."""
+        messages = [dict(m) for m in history]  # shallow copy
+        for it in range(self.max_tool_iters):
+            print(f"[BRAIN] Claude iter {it} (history={len(messages)})", flush=True)
+            resp = self._call_claude_raw(messages)
+            if not resp:
+                return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
+            stop = resp.get('stop_reason')
+            content = resp.get('content', [])
+            print(f"[BRAIN] Claude stop={stop} blocks={[b.get('type') for b in content]}", flush=True)
+            # Append the assistant turn with the FULL content (text + tool_use blocks)
+            messages.append({'role': 'assistant', 'content': content})
+
+            if stop == 'tool_use':
+                tool_results = []
+                for block in content:
+                    if block.get('type') == 'tool_use':
+                        tname = block.get('name', '')
+                        tinput = block.get('input', {}) or {}
+                        result = self._exec_tool(tname, tinput, sender_id)
+                        tool_results.append({
+                            'type': 'tool_result',
+                            'tool_use_id': block.get('id', ''),
+                            'content': json.dumps(result, ensure_ascii=False),
+                        })
+                if not tool_results:
+                    # malformed — bail out
+                    break
+                messages.append({'role': 'user', 'content': tool_results})
+                continue
+
+            # end_turn or other → extract text
+            final_text = ''.join(
+                b.get('text', '') for b in content if b.get('type') == 'text'
+            )
+            return final_text
+        return "Disculpa, tuve un problema agendando. ¿Quieres reintentar? 😊"
+
+    # ------------------------------------------------------------------
+    # Main flow
+    # ------------------------------------------------------------------
+    def process(self, sender_id, sender_name, text, canal='whatsapp'):
+        print(f"[BRAIN] {sender_id}: {text[:50]}", flush=True)
+
+        history = self._load_history(sender_id, canal)
+
+        user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
+        history.append({'role': 'user', 'content': user_content})
+
+        self._save_message(sender_id, sender_name, canal, text,
+                           direccion='entrante', remitente='paciente')
+
+        full_response = self._claude_loop(history, sender_id)
+        print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
+
+        # NOTIFY block (legacy lead notifications still supported)
         notify = None
-        match = re.search(r'<<<NOTIFY>>>(.*?)<<<END>>>', response, re.DOTALL)
+        match = re.search(r'<<<NOTIFY>>>(.*?)<<<END>>>', full_response, re.DOTALL)
         if match:
             notify = match.group(1).strip()
-            response = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', response, flags=re.DOTALL).strip()
-        return response, notify
+
+        # Strip internal blocks before sending to the patient via WhApi
+        user_facing = _strip_internal_blocks(full_response)
+
+        if user_facing:
+            print(f"[BRAIN] sending reply len={len(user_facing)}", flush=True)
+            r = self.whapi.send_text(sender_id, user_facing)
+            print(f"[BRAIN] send_text result={r}", flush=True)
+            # Save the FULL response (with SLOTS_DATA) to Supabase so the
+            # next turn can decode slot picks.
+            self._save_message(sender_id, sender_name, canal, full_response,
+                               direccion='saliente', remitente='bot')
+        else:
+            print(f"[BRAIN] empty response after strip — NOT sending", flush=True)
+
+        if notify:
+            print(f"[BRAIN] notify_admin trigger", flush=True)
+            self._notify_admin(notify, sender_id)
 
     def _notify_admin(self, data, sender_id):
         admin = os.environ.get('ADMIN_WHATSAPP', '573181800130')
