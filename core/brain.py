@@ -1,5 +1,6 @@
 import os, json, re, urllib.request, urllib.error, urllib.parse
 from core.whapi import WhapiClient
+from core.instagram import InstagramClient
 
 SYSTEM = """Eres el asistente virtual de 440 Clinic
 by Dr. Giovanni Fuentes.
@@ -613,6 +614,7 @@ def _strip_internal_blocks(text):
 class Brain:
     def __init__(self):
         self.whapi = WhapiClient()
+        self.instagram = InstagramClient()
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
         self.sb_key = os.environ.get('SUPABASE_ANON_KEY', '')
@@ -900,8 +902,9 @@ class Brain:
         user_facing = _strip_internal_blocks(full_response)
 
         if user_facing:
-            print(f"[BRAIN] sending reply len={len(user_facing)}", flush=True)
-            r = self.whapi.send_text(sender_id, user_facing)
+            print(f"[BRAIN] sending reply len={len(user_facing)} via {canal}", flush=True)
+            client = self.instagram if canal == 'instagram' else self.whapi
+            r = client.send_text(sender_id, user_facing)
             print(f"[BRAIN] send_text result={r}", flush=True)
             # Save the FULL response (with SLOTS_DATA) to Supabase so the
             # next turn can decode slot picks.
