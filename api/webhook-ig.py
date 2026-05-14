@@ -16,6 +16,17 @@ import json, os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.brain import Brain
 
+# Map IG page IDs → slug (matches the value W20 writes and CORE440 reads).
+# Keep in sync with CORE440's IG_CUENTAS map.
+_IG_PAGE_TO_SLUG = {
+    '17841457278507530': '440clinic',
+    '27130606726557229': '440clinic',
+    '35111588048488167': '440clinic',
+    '26640901062231544': 'drgiovannifuentes',
+    '26562617856680827': 'drgiovannifuentes',
+    '17841400339315123': 'drgiovannifuentes',
+}
+
 
 def _extract_event(payload):
     """Return list of (igsid, page_id, text, from_name) tuples extracted from a Meta IG payload."""
@@ -91,9 +102,19 @@ class handler(BaseHTTPRequestHandler):
                 if expected_account and ev['page_id'] and ev['page_id'] != expected_account:
                     print(f"[WEBHOOK-IG] skip — page_id={ev['page_id']} != expected {expected_account}", flush=True)
                     continue
-                print(f"[WEBHOOK-IG] igsid={ev['igsid']} text={ev['text'][:60]!r}", flush=True)
+                # Slug for cuenta_receptora — matches what W20 writes and what
+                # the CORE440 frontend filters by. Fall back to expected_account
+                # if the map doesn't know this page_id, then to '440clinic'
+                # since this BOT serves only @440clinic.
+                cuenta = (
+                    _IG_PAGE_TO_SLUG.get(ev['page_id'])
+                    or _IG_PAGE_TO_SLUG.get(expected_account)
+                    or '440clinic'
+                )
+                print(f"[WEBHOOK-IG] igsid={ev['igsid']} cuenta={cuenta!r} text={ev['text'][:60]!r}", flush=True)
                 if ev['text'] and ev['igsid']:
-                    Brain().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram')
+                    Brain().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram',
+                                    cuenta_receptora=cuenta)
             print(f"[WEBHOOK-IG] Procesado OK", flush=True)
             self._ok({'status': 'ok'})
         except Exception as e:

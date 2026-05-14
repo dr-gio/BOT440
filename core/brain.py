@@ -686,7 +686,7 @@ class Brain:
                 collapsed.append(dict(m))
         return collapsed
 
-    def _save_message(self, sender_id, sender_name, canal, mensaje, direccion, remitente):
+    def _save_message(self, sender_id, sender_name, canal, mensaje, direccion, remitente, cuenta_receptora=None):
         if not self.sb_url or not self.sb_key:
             return
         if not mensaje:
@@ -700,6 +700,8 @@ class Brain:
             'remitente': remitente,
             'leido': direccion == 'saliente',
         }
+        if cuenta_receptora:
+            body['cuenta_receptora'] = cuenta_receptora
         url = f'{self.sb_url}/rest/v1/conversaciones_440'
         headers = self._sb_headers()
         headers['Prefer'] = 'return=minimal'
@@ -876,8 +878,10 @@ class Brain:
     # ------------------------------------------------------------------
     # Main flow
     # ------------------------------------------------------------------
-    def process(self, sender_id, sender_name, text, canal='whatsapp'):
-        print(f"[BRAIN] {sender_id}: {text[:50]}", flush=True)
+    def process(self, sender_id, sender_name, text, canal='whatsapp', cuenta_receptora=None):
+        """cuenta_receptora — slug del IG account ('440clinic'/'drgiovannifuentes')
+        cuando canal=='instagram'. Para WhatsApp queda None."""
+        print(f"[BRAIN] {sender_id}: {text[:50]} canal={canal} cuenta={cuenta_receptora!r}", flush=True)
 
         history = self._load_history(sender_id, canal)
         is_first_time = len(history) == 0
@@ -887,7 +891,8 @@ class Brain:
         history.append({'role': 'user', 'content': user_content})
 
         self._save_message(sender_id, sender_name, canal, text,
-                           direccion='entrante', remitente='paciente')
+                           direccion='entrante', remitente='paciente',
+                           cuenta_receptora=cuenta_receptora)
 
         full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time, canal=canal)
         print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
@@ -909,7 +914,8 @@ class Brain:
             # Save the FULL response (with SLOTS_DATA) to Supabase so the
             # next turn can decode slot picks.
             self._save_message(sender_id, sender_name, canal, full_response,
-                               direccion='saliente', remitente='bot')
+                               direccion='saliente', remitente='bot',
+                               cuenta_receptora=cuenta_receptora)
         else:
             print(f"[BRAIN] empty response after strip — NOT sending", flush=True)
 
