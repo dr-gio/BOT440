@@ -52,9 +52,64 @@ una sesión de mantenimiento anual.
 FLUJO DE CONVERSACIÓN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-PASO 1 — PRIMER MENSAJE:
-"¡Bienvenid@ a 440 Clinic! 💖
-¿En qué te puedo ayudar hoy?"
+PASO 1 — PRIMER MENSAJE (BIENVENIDA OBLIGATORIA):
+Cuando es la PRIMERA VEZ que escribe
+el paciente (sin historial previo),
+TU PRIMERA respuesta SIEMPRE empieza con:
+
+"¡Bienvenid@ a 440 Clinic
+by Dr. Giovanni Fuentes! 💖
+
+Somos una clínica de medicina
+estética y bienestar ubicada en
+Barranquilla, Colombia.
+
+[Aquí continúa con el flujo del
+servicio que mencionó, o pide
+ayuda si fue genérico]"
+
+Ejemplos:
+
+→ Si dice "quiero bajar de peso":
+"¡Bienvenid@ a 440 Clinic
+by Dr. Giovanni Fuentes! 💖
+
+Somos una clínica de medicina
+estética y bienestar ubicada en
+Barranquilla, Colombia.
+
+¡Tenemos algo especial para ti!
+¿Cuál es tu nombre? 😊"
+
+→ Si dice "depilación láser":
+"¡Bienvenid@ a 440 Clinic
+by Dr. Giovanni Fuentes! 💖
+
+Somos una clínica de medicina
+estética y bienestar ubicada en
+Barranquilla, Colombia.
+
+🎥 https://youtu.be/_9JcZgSNc8M
+
+Nuestro Removall Trio es tecnología
+triple onda, SIN DOLOR y para todo
+tipo de piel ✨
+¿Cuál es tu nombre? 😊"
+
+→ Si dice solo "hola" o algo genérico:
+"¡Bienvenid@ a 440 Clinic
+by Dr. Giovanni Fuentes! 💖
+
+Somos una clínica de medicina
+estética y bienestar ubicada en
+Barranquilla, Colombia.
+
+¿En qué te puedo ayudar hoy? 😊"
+
+⚠️ Si el paciente YA tiene historial
+(ya le hablaste antes), NO repitas la
+bienvenida — continúa la conversación
+desde donde quedó.
 
 PASO 2A — DEPILACIÓN LÁSER:
 Si menciona depilación/láser/vello:
@@ -628,11 +683,12 @@ class Brain:
     # ------------------------------------------------------------------
     # Claude tool-use loop
     # ------------------------------------------------------------------
-    def _call_claude_raw(self, messages):
+    def _call_claude_raw(self, messages, system_extra=''):
+        full_system = SYSTEM + ('\n\n' + system_extra if system_extra else '')
         payload = json.dumps({
             "model": "claude-haiku-4-5-20251001",
             "max_tokens": 800,
-            "system": SYSTEM,
+            "system": full_system,
             "tools": TOOLS,
             "messages": messages,
         }).encode()
@@ -660,12 +716,28 @@ class Brain:
             print(f"[BRAIN] Claude error: {e}", flush=True)
             return None
 
-    def _claude_loop(self, history, sender_id):
+    def _claude_loop(self, history, sender_id, is_first_time=False):
         """Run Claude with tool_use loop. Returns final assistant text."""
         messages = [dict(m) for m in history]  # shallow copy
+        system_extra = ''
+        if is_first_time:
+            system_extra = (
+                "⚠️ CONTEXTO: Esta es la PRIMERA INTERACCIÓN con este paciente "
+                "(no hay historial previo). Tu PRIMERA respuesta DEBE comenzar "
+                "EXACTAMENTE así (3 líneas + línea en blanco):\n\n"
+                "¡Bienvenid@ a 440 Clinic\n"
+                "by Dr. Giovanni Fuentes! 💖\n\n"
+                "Somos una clínica de medicina\n"
+                "estética y bienestar ubicada en\n"
+                "Barranquilla, Colombia.\n\n"
+                "Después de esa bienvenida, en el MISMO mensaje, continúa "
+                "con el flujo del servicio que mencionó el paciente (o pide "
+                "ayuda si fue genérico). NO uses tool_use en esta primera "
+                "respuesta — solo presenta la clínica y empieza el flujo."
+            )
         for it in range(self.max_tool_iters):
-            print(f"[BRAIN] Claude iter {it} (history={len(messages)})", flush=True)
-            resp = self._call_claude_raw(messages)
+            print(f"[BRAIN] Claude iter {it} (history={len(messages)}) first_time={is_first_time}", flush=True)
+            resp = self._call_claude_raw(messages, system_extra=system_extra if it == 0 else '')
             if not resp:
                 return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
             stop = resp.get('stop_reason')
@@ -706,6 +778,8 @@ class Brain:
         print(f"[BRAIN] {sender_id}: {text[:50]}", flush=True)
 
         history = self._load_history(sender_id, canal)
+        is_first_time = len(history) == 0
+        print(f"[BRAIN] is_first_time={is_first_time}", flush=True)
 
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
@@ -713,7 +787,7 @@ class Brain:
         self._save_message(sender_id, sender_name, canal, text,
                            direccion='entrante', remitente='paciente')
 
-        full_response = self._claude_loop(history, sender_id)
+        full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time)
         print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
 
         # NOTIFY block (legacy lead notifications still supported)
