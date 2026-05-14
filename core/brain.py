@@ -14,6 +14,28 @@ PERSONALIDAD:
 → Usa emojis moderadamente 💖
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGLA CRÍTICA — CANAL DEL PACIENTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SI CANAL = whatsapp:
+✅ Ya tenemos su número (es el sender_id).
+❌ NUNCA preguntes "¿Cuál es tu número
+   de WhatsApp?" ni similar. ES ABSURDO
+   pedírselo porque ya nos está escribiendo
+   por WhatsApp.
+✅ En cualquier <<<NOTIFY>>> el campo
+   "telefono" = sender_id automáticamente.
+✅ Sólo puedes pedir su nombre y, si
+   aplica, su correo (opcional).
+
+SI CANAL = instagram:
+✅ SÍ pregunta su número de WhatsApp,
+   porque es la única forma de contactarlo
+   fuera del DM.
+✅ En el <<<NOTIFY>>> el campo "telefono"
+   es el número que el paciente te dio.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SERVICIOS QUE ATIENDES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -508,6 +530,10 @@ REGLAS CRÍTICAS
 ❌ No digas que eres IA
 ❌ Si menciona cirugía → redirige a
    wa.me/573044886085 y NO sigas ese tema
+❌ Si canal=whatsapp, NUNCA pidas el
+   número de teléfono. Ya lo tenemos.
+✅ Si canal=instagram, sí pídelo —
+   es la única forma de contactarlo.
 """
 
 # Default headers including User-Agent (gate.whapi.cloud and supabase are
@@ -749,13 +775,31 @@ class Brain:
             print(f"[BRAIN] Claude error: {e}", flush=True)
             return None
 
-    def _claude_loop(self, history, sender_id, is_first_time=False):
+    def _claude_loop(self, history, sender_id, is_first_time=False, canal='whatsapp'):
         """Run Claude with tool_use loop. Returns final assistant text."""
         messages = [dict(m) for m in history]  # shallow copy
-        system_extra = ''
+        # Always tell Claude the channel + sender_id explicitly so it
+        # follows the canal-specific rules (e.g. don't ask for phone on WA).
+        canal_note = (
+            f"\n\nCONTEXTO RUNTIME:\n"
+            f"- Canal actual: {canal}\n"
+            f"- sender_id (teléfono/IGSID): {sender_id}\n"
+        )
+        if canal == 'whatsapp':
+            canal_note += (
+                "- El paciente ya nos escribe por WhatsApp → NO le preguntes "
+                "su número de teléfono bajo NINGUNA circunstancia. "
+                f"En cualquier <<<NOTIFY>>> usa telefono: {sender_id}.\n"
+            )
+        else:
+            canal_note += (
+                "- El paciente nos escribe por Instagram → para coordinarlo "
+                "fuera del DM SÍ debes pedirle su número de WhatsApp.\n"
+            )
+        system_extra = canal_note
         if is_first_time:
-            system_extra = (
-                "⚠️ CONTEXTO: Esta es la PRIMERA INTERACCIÓN con este paciente "
+            system_extra += (
+                "\n\n⚠️ CONTEXTO: Esta es la PRIMERA INTERACCIÓN con este paciente "
                 "(no hay historial previo). Tu PRIMERA respuesta DEBE comenzar "
                 "EXACTAMENTE así (3 líneas + línea en blanco):\n\n"
                 "¡Bienvenid@ a 440 Clinic\n"
@@ -769,8 +813,10 @@ class Brain:
                 "respuesta — solo presenta la clínica y empieza el flujo."
             )
         for it in range(self.max_tool_iters):
-            print(f"[BRAIN] Claude iter {it} (history={len(messages)}) first_time={is_first_time}", flush=True)
-            resp = self._call_claude_raw(messages, system_extra=system_extra if it == 0 else '')
+            print(f"[BRAIN] Claude iter {it} (history={len(messages)}) first_time={is_first_time} canal={canal}", flush=True)
+            # Always inject canal_note; first-time block only on iter 0.
+            iter_extra = system_extra if it == 0 else canal_note
+            resp = self._call_claude_raw(messages, system_extra=iter_extra)
             if not resp:
                 return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
             stop = resp.get('stop_reason')
@@ -820,7 +866,7 @@ class Brain:
         self._save_message(sender_id, sender_name, canal, text,
                            direccion='entrante', remitente='paciente')
 
-        full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time)
+        full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time, canal=canal)
         print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
 
         # NOTIFY block (legacy lead notifications still supported)
