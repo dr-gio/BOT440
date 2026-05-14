@@ -163,7 +163,7 @@ PASO 4A — DEPILACIÓN → MOSTRAR ZONAS:
 "¿Qué zona te interesa [nombre]? 💕
 
 ZONAS PEQUEÑAS:
-• Axilas x6: $540.000 (1ra: $90.000)
+• Axilas x6: $620.000 (1ra: $103.000)
 • Bigote x6: $570.000 (1ra: $95.000)
 
 ZONA ÍNTIMA:
@@ -449,7 +449,7 @@ tratamiento? 🎁
 
 ⚠️ En la línea de pago usa SIEMPRE los valores
 reales del paquete elegido (ej: para axilas
-"$90.000 de $540.000", para barba
+"$103.000 de $620.000", para barba
 "$200.000 de $1.200.000", etc.).
 Para hiperbárica: "$150.000 (sesión individual)
 o $700.000 (paquete x5)".
