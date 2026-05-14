@@ -79,18 +79,26 @@ class Brain:
         self.history = {}
 
     def process(self, sender_id, sender_name, text, canal='whatsapp'):
-        print(f"[BRAIN] {sender_id}: {text[:50]}")
+        print(f"[BRAIN] {sender_id}: {text[:50]}", flush=True)
+        print(f"[BRAIN] api_key_len={len(self.api_key)} canal={canal}", flush=True)
         if sender_id not in self.history:
             self.history[sender_id] = []
         self.history[sender_id].append({"role":"user","content":f"[{sender_name or sender_id}]: {text}"})
         if len(self.history[sender_id]) > 20:
             self.history[sender_id] = self.history[sender_id][-20:]
+        print(f"[BRAIN] calling Claude (history={len(self.history[sender_id])} msgs)", flush=True)
         response = self._call_claude(self.history[sender_id])
+        print(f"[BRAIN] Claude responded len={len(response)} preview={response[:80]!r}", flush=True)
         text_resp, notify = self._parse(response)
         self.history[sender_id].append({"role":"assistant","content":text_resp})
         if text_resp.strip():
-            self.whapi.send_text(sender_id, text_resp.strip())
+            print(f"[BRAIN] sending reply to {sender_id} len={len(text_resp)}", flush=True)
+            r = self.whapi.send_text(sender_id, text_resp.strip())
+            print(f"[BRAIN] send_text result={r}", flush=True)
+        else:
+            print(f"[BRAIN] text_resp empty after parse — NOT sending", flush=True)
         if notify:
+            print(f"[BRAIN] notify_admin trigger", flush=True)
             self._notify_admin(notify, sender_id)
 
     def _call_claude(self, messages):
@@ -114,7 +122,7 @@ class Brain:
             with urllib.request.urlopen(req, timeout=15) as r:
                 return json.loads(r.read())["content"][0]["text"]
         except Exception as e:
-            print(f"[BRAIN] Claude error: {e}")
+            print(f"[BRAIN] Claude error: {e}", flush=True)
             return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
 
     def _parse(self, response):

@@ -5,23 +5,29 @@ from core.brain import Brain
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        print(f"[WEBHOOK] POST recibido", flush=True)
         try:
             length = int(self.headers.get('Content-Length', 0))
             payload = json.loads(self.rfile.read(length))
             messages = payload.get('messages', [])
             if not messages:
+                print(f"[WEBHOOK] no_messages", flush=True)
                 self._ok({'status': 'no_messages'}); return
             msg = messages[0]
             if msg.get('from_me'):
+                print(f"[WEBHOOK] echo (from_me)", flush=True)
                 self._ok({'status': 'echo'}); return
             sender_id = msg.get('from','').replace('@s.whatsapp.net','')
             text = msg.get('text',{}).get('body','') if msg.get('type')=='text' else '[MEDIA]'
             name = msg.get('from_name','')
+            print(f"[WEBHOOK] sender={sender_id} name={name!r} text={text[:60]!r}", flush=True)
             if text and sender_id:
                 Brain().process(sender_id, name, text, 'whatsapp')
+            print(f"[WEBHOOK] Procesado OK", flush=True)
             self._ok({'status': 'ok'})
         except Exception as e:
-            print(f"Error: {e}"); self._ok({'error': str(e)})
+            print(f"[WEBHOOK] Error: {e}", flush=True)
+            self._ok({'error': str(e)})
     def do_GET(self):
         self._ok({'status': 'BOT440 running'})
     def _ok(self, data):
