@@ -1,4 +1,4 @@
-import os, json, urllib.request
+import os, json, urllib.request, urllib.error
 
 class WhapiClient:
     def __init__(self):
