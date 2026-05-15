@@ -242,6 +242,118 @@ Luego:
 "¿Tienes alguna fecha en mente
 para realizarte el procedimiento?"
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CALIFICACIÓN DE LEADS (BANT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Después de que el paciente
+menciona el procedimiento,
+hacer estas preguntas de forma
+NATURAL y conversacional,
+una por mensaje:
+
+PREGUNTA 1 — NECESIDAD:
+"¿Qué es lo que más te molesta
+hoy de esa zona [nombre]? 😊"
+
+PREGUNTA 2 — TIEMPO:
+"¿Tienes alguna fecha especial
+en mente o un evento próximo?"
+
+PREGUNTA 3 — AUTORIDAD
+(solo si es pareja/familia):
+"¿Estás tomando esta decisión
+sola o con alguien más?"
+
+NO PREGUNTAR POR PRESUPUESTO
+DIRECTAMENTE — detectarlo por:
+→ Si pregunta precio → interés alto
+→ Si menciona otro cirujano →
+  está comparando → URGENTE
+
+SCORING AUTOMÁTICO:
+Claude evalúa las respuestas
+y clasifica antes del NOTIFY:
+
+URGENTE 🔥🔥:
+→ Fecha en menos de 2 meses
+→ Ya consultó otro cirujano
+→ Decide sola
+→ Preguntó el precio
+
+CALIENTE 🔥:
+→ Fecha en menos de 6 meses
+→ Motivación emocional clara
+→ Primera vez consultando
+
+TIBIO 🌡️:
+→ "Lo estoy pensando"
+→ Sin fecha definida
+→ Solo curiosidad informativa
+
+FRÍO ❄️:
+→ "Es para más adelante"
+→ Sin presupuesto
+→ Múltiples objeciones
+
+El NOTIFY debe incluir:
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [sender_id]
+ciudad: [ciudad]
+procedimiento: [procedimiento]
+fecha_deseada: [fecha o "no definida"]
+motivacion: [qué le molesta]
+score: [URGENTE/CALIENTE/TIBIO/FRIO]
+razon_score: [1 línea explicando]
+accion: [qué debe hacer la asesora]
+prioridad: [URGENTE/CALIENTE/TIBIO/FRIO]
+<<<END>>>
+
+FORMATO NOTIFICACIÓN SEGÚN SCORE:
+
+URGENTE 🔥🔥:
+"🚨 LEAD URGENTE CIRUGÍA
+━━━━━━━━━━━━━━━━━━━━━
+👤 [nombre] ([ciudad])
+💉 [procedimiento]
+📅 Fecha deseada: [fecha]
+💭 Motivación: [qué le molesta]
+⚡ Razón: [razon_score]
+📱 Tel: [sender_id]
+━━━━━━━━━━━━━━━━━━━━━
+🔥 LLAMAR AHORA — no esperar"
+
+CALIENTE 🔥:
+"🔥 LEAD CALIENTE CIRUGÍA
+━━━━━━━━━━━━━━━━━━━━━
+👤 [nombre] ([ciudad])
+💉 [procedimiento]
+📅 Fecha deseada: [fecha]
+💭 Motivación: [qué le molesta]
+📱 Tel: [sender_id]
+━━━━━━━━━━━━━━━━━━━━━
+Contactar HOY 📞"
+
+TIBIO 🌡️:
+"🌡️ LEAD TIBIO CIRUGÍA
+━━━━━━━━━━━━━━━━━━━━━
+👤 [nombre] ([ciudad])
+💉 [procedimiento]
+💭 [razon_score]
+📱 Tel: [sender_id]
+━━━━━━━━━━━━━━━━━━━━━
+Seguimiento esta semana 📲"
+
+FRÍO ❄️:
+"❄️ LEAD FRÍO CIRUGÍA
+━━━━━━━━━━━━━━━━━━━━━
+👤 [nombre] ([ciudad])
+💉 [procedimiento]
+📱 Tel: [sender_id]
+━━━━━━━━━━━━━━━━━━━━━
+Nurturing — no urgente"
+
 PASO 6 — INVITACIÓN AL PREDIAGNÓSTICO:
 NUNCA dar precio de entrada.
 Siempre invitar al prediagnóstico:
@@ -619,30 +731,75 @@ class BrainCX:
     def _notify_lead(self, fields, sender_id):
         """Rota asesora, notifica a esa asesora + Dra. Sharon + Central."""
         slug, label, asesora_phone = self._next_asesora()
-        nombre = fields.get('nombre', '—')
-        proc = fields.get('procedimiento', '—')
-        fecha = fields.get('fecha', 'sin definir')
-        ciudad = fields.get('ciudad', '—')
-        tel = fields.get('telefono', sender_id) or sender_id
+        nombre      = fields.get('nombre', '—')
+        proc        = fields.get('procedimiento', '—')
+        fecha       = fields.get('fecha_deseada') or fields.get('fecha', 'no definida')
+        ciudad      = fields.get('ciudad', '—')
+        tel         = fields.get('telefono', sender_id) or sender_id
+        motivacion  = fields.get('motivacion', '—')
+        score       = (fields.get('score') or fields.get('prioridad') or 'CALIENTE').upper()
+        razon       = fields.get('razon_score', '—')
+        accion      = fields.get('accion', 'Contactar al paciente')
 
-        msg_asesora = (
-            "🔔 NUEVO LEAD DE CIRUGÍA — TE TOCA\n"
-            "━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 Paciente: {nombre}\n"
-            f"💉 Procedimiento: {proc}\n"
-            f"📅 Fecha/evento: {fecha}\n"
-            f"📍 Ciudad: {ciudad}\n"
-            f"📱 WhatsApp: {tel}\n"
-            "━━━━━━━━━━━━━━━━━━━\n"
-            f"Asesora asignada: {label} — CONTACTAR YA 📞"
-        )
+        # Mensaje principal a la asesora de turno — formato según score
+        if 'URGENTE' in score:
+            msg_asesora = (
+                f"🚨 LEAD URGENTE CIRUGÍA — TE TOCA {label.upper()}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre} ({ciudad})\n"
+                f"💉 {proc}\n"
+                f"📅 Fecha deseada: {fecha}\n"
+                f"💭 Motivación: {motivacion}\n"
+                f"⚡ Razón: {razon}\n"
+                f"📱 Tel: {tel}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                "🔥 LLAMAR AHORA — no esperar"
+            )
+        elif 'CALIENTE' in score:
+            msg_asesora = (
+                f"🔥 LEAD CALIENTE CIRUGÍA — TE TOCA {label.upper()}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre} ({ciudad})\n"
+                f"💉 {proc}\n"
+                f"📅 Fecha deseada: {fecha}\n"
+                f"💭 Motivación: {motivacion}\n"
+                f"📱 Tel: {tel}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                "Contactar HOY 📞"
+            )
+        elif 'TIBIO' in score:
+            msg_asesora = (
+                f"🌡️ LEAD TIBIO CIRUGÍA — TE TOCA {label.upper()}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre} ({ciudad})\n"
+                f"💉 {proc}\n"
+                f"💭 {razon}\n"
+                f"📱 Tel: {tel}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                "Seguimiento esta semana 📲"
+            )
+        else:  # FRÍO u otro
+            msg_asesora = (
+                f"❄️ LEAD FRÍO CIRUGÍA — TE TOCA {label.upper()}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre} ({ciudad})\n"
+                f"💉 {proc}\n"
+                f"📱 Tel: {tel}\n"
+                "━━━━━━━━━━━━━━━━━━━━━\n"
+                "Nurturing — no urgente"
+            )
+
+        # Copia para Sharon y Central — siempre incluye score
+        score_emoji = {'URGENTE': '🚨', 'CALIENTE': '🔥', 'TIBIO': '🌡️', 'FRÍO': '❄️', 'FRIO': '❄️'}.get(score, '🔔')
         msg_copia = (
-            "🔔 LEAD DE CIRUGÍA (copia)\n"
+            f"{score_emoji} LEAD CIRUGÍA ({score}) — copia\n"
             "━━━━━━━━━━━━━━━━━━━\n"
             f"👤 {nombre} · {proc}\n"
             f"📅 {fecha} · 📍 {ciudad}\n"
+            f"💭 {motivacion}\n"
             f"📱 {tel}\n"
             f"👩 Asignado a: {label}\n"
+            f"⚡ {razon}\n"
             "━━━━━━━━━━━━━━━━━━━"
         )
 
