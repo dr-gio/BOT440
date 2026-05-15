@@ -200,7 +200,8 @@ PASO 1 — BIENVENIDA (primer mensaje):
 "Bienvenid@ 💙
 Soy el asistente del Dr. Giovanni
 Fuentes, Cirujano Plástico,
-CEO & CMO de 440 Clinic, Barranquilla.
+Reconstructivo y Estético certificado,
+CEO & CMO de 440 Clinic, Colombia.
 
 Un espacio donde cada procedimiento
 es una obra maestra diseñada
