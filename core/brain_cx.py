@@ -609,10 +609,11 @@ ASESORA_LABEL = {
 
 class BrainCX:
     def __init__(self):
-        # WhApi: canal cirugía propio si WHAPI_TOKEN_CX está seteado,
-        # si no usa el canal por defecto.
-        cx_token = os.environ.get('WHAPI_TOKEN_CX', '').strip()
-        self.whapi = WhapiClient(token=cx_token or None)
+        # WhApi: usa WHAPI_TOKEN_CX si está seteado, si no cae en WHAPI_TOKEN.
+        self.whapi = WhapiClient(
+            token=os.environ.get('WHAPI_TOKEN_CX', os.environ.get('WHAPI_TOKEN', ''))
+        )
+        cx_token = os.environ.get('WHAPI_TOKEN_CX', '').strip()  # solo para el log
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
         self.sb_key = os.environ.get('SUPABASE_ANON_KEY', '')
