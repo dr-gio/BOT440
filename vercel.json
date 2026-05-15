@@ -3,6 +3,7 @@
   "builds": [{"src": "api/*.py", "use": "@vercel/python"}],
   "routes": [
     {"src": "/webhook", "dest": "/api/webhook.py"},
-    {"src": "/webhook-ig", "dest": "/api/webhook-ig.py"}
+    {"src": "/webhook-ig", "dest": "/api/webhook-ig.py"},
+    {"src": "/webhook-cx", "dest": "/api/webhook-cx.py"}
   ]
 }

@@ -1,9 +1,12 @@
 import os, json, urllib.request, urllib.error
 
 class WhapiClient:
-    def __init__(self):
-        self.base = os.environ.get('WHAPI_URL','https://gate.whapi.cloud')
-        self.token = os.environ.get('WHAPI_TOKEN','')
+    def __init__(self, token=None, base=None):
+        # token/base optional overrides — used by the cirugía channel which
+        # may have its own WhApi channel (WHAPI_TOKEN_CX). Falls back to the
+        # default estética channel env vars.
+        self.base = base or os.environ.get('WHAPI_URL', 'https://gate.whapi.cloud')
+        self.token = token or os.environ.get('WHAPI_TOKEN', '')
         self.headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
