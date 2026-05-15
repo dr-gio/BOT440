@@ -947,6 +947,7 @@ class BrainCX:
 
         sharon = os.environ.get('DRA_SHARON', '').strip()
         admin  = os.environ.get('ADMIN_CX', '').strip()
+        drgio  = os.environ.get('DRGIO_TEL', '573181800131').strip()
 
         results = {}
 
@@ -972,6 +973,8 @@ class BrainCX:
                 results['sharon'] = self.whapi.send_text(sharon, msg)
             if admin:
                 results['central'] = self.whapi.send_text(admin, msg)
+            if drgio:
+                results['drgio'] = self.whapi.send_text(drgio, msg)
             print(f"[CX] URGENTE → notificadas todas las asesoras, turno NO avanza", flush=True)
 
         elif 'CALIENTE' in score or 'TIBIO' in score:
@@ -1026,6 +1029,8 @@ class BrainCX:
                 results['sharon'] = self.whapi.send_text(sharon, msg_copia)
             if admin:
                 results['central'] = self.whapi.send_text(admin, msg_copia)
+            if drgio:
+                results['drgio'] = self.whapi.send_text(drgio, msg_copia)
 
         else:  # FRÍO
             # Solo Sharon + Central. NO avanza turno.
@@ -1042,7 +1047,9 @@ class BrainCX:
                 results['sharon'] = self.whapi.send_text(sharon, msg)
             if admin:
                 results['central'] = self.whapi.send_text(admin, msg)
-            print(f"[CX] FRÍO → solo Sharon+Central, turno NO avanza", flush=True)
+            if drgio:
+                results['drgio'] = self.whapi.send_text(drgio, msg)
+            print(f"[CX] FRÍO → solo Sharon+Central+DrGio, turno NO avanza", flush=True)
 
         sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
         print(f"[CX] notify_lead score={score} results={sent}", flush=True)
