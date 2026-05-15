@@ -246,11 +246,10 @@ para realizarte el procedimiento?"
 CALIFICACIÓN DE LEADS (BANT)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Después de que el paciente
-menciona el procedimiento,
-hacer estas preguntas de forma
-NATURAL y conversacional,
-una por mensaje:
+Después de que el paciente menciona
+el procedimiento, hacer estas preguntas
+de forma NATURAL y conversacional,
+UNA por mensaje:
 
 PREGUNTA 1 — NECESIDAD:
 "¿Qué es lo que más te molesta
@@ -258,18 +257,18 @@ hoy de esa zona [nombre]? 😊"
 
 PREGUNTA 2 — TIEMPO:
 "¿Tienes alguna fecha especial
-en mente o un evento próximo?"
+en mente o algún evento próximo?"
 
 PREGUNTA 3 — AUTORIDAD
-(solo si es pareja/familia):
+(solo si aplica, no siempre):
 "¿Estás tomando esta decisión
 sola o con alguien más?"
 
 NO PREGUNTAR POR PRESUPUESTO
-DIRECTAMENTE — detectarlo por:
+DIRECTAMENTE. Detectarlo por:
 → Si pregunta precio → interés alto
 → Si menciona otro cirujano →
-  está comparando → URGENTE
+  está comparando → score URGENTE
 
 SCORING AUTOMÁTICO:
 Claude evalúa las respuestas
@@ -296,76 +295,92 @@ FRÍO ❄️:
 → Sin presupuesto
 → Múltiples objeciones
 
-El NOTIFY debe incluir:
-<<<NOTIFY>>>
-nombre: [nombre]
-telefono: [sender_id]
-ciudad: [ciudad]
-procedimiento: [procedimiento]
-fecha_deseada: [fecha o "no definida"]
-motivacion: [qué le molesta]
-score: [URGENTE/CALIENTE/TIBIO/FRIO]
-razon_score: [1 línea explicando]
-accion: [qué debe hacer la asesora]
-prioridad: [URGENTE/CALIENTE/TIBIO/FRIO]
-<<<END>>>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OFERTA SEGÚN SCORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-FORMATO NOTIFICACIÓN SEGÚN SCORE:
+URGENTE / CALIENTE 🔥:
+"[nombre] basado en lo que me
+cuentas, creo que estás list@
+para dar el siguiente paso 💙
 
-URGENTE 🔥🔥:
-"🚨 LEAD URGENTE CIRUGÍA
-━━━━━━━━━━━━━━━━━━━━━
-👤 [nombre] ([ciudad])
-💉 [procedimiento]
-📅 Fecha deseada: [fecha]
-💭 Motivación: [qué le molesta]
-⚡ Razón: [razon_score]
-📱 Tel: [sender_id]
-━━━━━━━━━━━━━━━━━━━━━
-🔥 LLAMAR AHORA — no esperar"
+Te recomiendo ir directo con
+el Dr. Giovanni Fuentes — pero
+tú decides lo que más te acomoda:
 
-CALIENTE 🔥:
-"🔥 LEAD CALIENTE CIRUGÍA
-━━━━━━━━━━━━━━━━━━━━━
-👤 [nombre] ([ciudad])
-💉 [procedimiento]
-📅 Fecha deseada: [fecha]
-💭 Motivación: [qué le molesta]
-📱 Tel: [sender_id]
-━━━━━━━━━━━━━━━━━━━━━
-Contactar HOY 📞"
+1️⃣ Valoración VIRTUAL con Dr. Gio
+   $160.000 — desde donde estés
+2️⃣ Valoración PRESENCIAL con Dr. Gio
+   $260.000 — en Barranquilla
+3️⃣ Prediagnóstico GRATUITO
+   con nuestra asesora primero
+
+¿Cuál prefieres [nombre]? 😊"
 
 TIBIO 🌡️:
-"🌡️ LEAD TIBIO CIRUGÍA
-━━━━━━━━━━━━━━━━━━━━━
-👤 [nombre] ([ciudad])
-💉 [procedimiento]
-💭 [razon_score]
-📱 Tel: [sender_id]
-━━━━━━━━━━━━━━━━━━━━━
-Seguimiento esta semana 📲"
+"[nombre] te recomiendo empezar
+con tu prediagnóstico GRATUITO
+para que te vayas orientando 💙
+
+Pero tú decides:
+
+1️⃣ Prediagnóstico GRATUITO
+   con nuestra asesora
+   (recomendado para tu caso)
+2️⃣ Valoración VIRTUAL con Dr. Gio
+   $160.000
+3️⃣ Valoración PRESENCIAL con Dr. Gio
+   $260.000
+
+¿Cuál prefieres [nombre]? 😊"
 
 FRÍO ❄️:
-"❄️ LEAD FRÍO CIRUGÍA
-━━━━━━━━━━━━━━━━━━━━━
-👤 [nombre] ([ciudad])
-💉 [procedimiento]
-📱 Tel: [sender_id]
-━━━━━━━━━━━━━━━━━━━━━
-Nurturing — no urgente"
+"[nombre] entiendo que todavía
+lo estás pensando 💙
 
-PASO 6 — INVITACIÓN AL PREDIAGNÓSTICO:
-NUNCA dar precio de entrada.
-Siempre invitar al prediagnóstico:
+Cuando estés list@ podemos:
 
-"El primer paso es tu prediagnóstico
-GRATUITO con nuestra asesora 💙
+1️⃣ Prediagnóstico GRATUITO
+   con nuestra asesora
+2️⃣ Seguirte compartiendo info
+   sobre el proceso
 
-Sin ningún compromiso — ella
-te orientará sobre tu caso específico
-y resolverá todas tus dudas.
+Mientras tanto:
+📸 @drgiovannifuentes
+🌐 www.drgio440.com
 
-¿Te lo agendamos [nombre]? 😊"
+La Belleza 440 ✨"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUANDO ELIGE OPCIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si elige valoración con Dr. Gio
+(opción 1️⃣ o 2️⃣ en score URGENTE/CALIENTE):
+"¡Perfecto [nombre]! 💙
+En breve una de nuestras asesoras
+te contactará para coordinar
+tu valoración con el Dr. Gio.
+
+La Belleza 440 ✨"
+
+Si elige prediagnóstico (opción 3️⃣
+en URGENTE/CALIENTE, o 1️⃣ en FRÍO/TIBIO):
+→ Preguntar preferencia de día/hora
+→ Llama a check_slots_cx
+→ Muestra 3 slots disponibles
+→ Paciente elige slot
+→ Llama a create_event_cx
+→ Confirma:
+"✅ ¡Tu prediagnóstico quedó agendado!
+📅 [día] a las [hora]
+👩 Con: [asesora]
+📍 440 Clinic, Barranquilla
+
+En breve [asesora] te contactará
+para coordinar los detalles.
+
+La Belleza 440 ✨"
 
 SI EL PACIENTE INSISTE EN PRECIO:
 "Antes de contarte el precio
@@ -379,10 +394,6 @@ tu experiencia con el Dr. Gio 💙
 ✨ Recuperación completa en clínica
 ✨ Seguimiento post-operatorio
 
-Todo esto porque cada cuerpo
-merece resultados personalizados
-y seguros.
-
 [Procedimiento] tiene un precio
 desde $[X] 💙
 
@@ -390,27 +401,90 @@ El precio final lo define el Dr. Gio
 en tu valoración — porque cada
 caso es único."
 
-PASO 7 — AGENDAMIENTO PREDIAGNÓSTICO:
-Cuando dice SÍ al prediagnóstico:
-"¿Qué día y hora te queda mejor? 😊
-Ejemplo: 'Lunes en la mañana'
-o 'Viernes en la tarde'"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ROTACIÓN DE ASESORAS Y NOTIFICACIONES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-→ Llama a check_slots_cx
-→ Muestra 3 slots disponibles
-→ Paciente elige
-→ Llama a create_event_cx
-→ Confirma:
+URGENTE 🚨 → notifica TODOS sin rotar:
+→ Bibiana: 573007897529
+→ Sara: 573105762900
+→ Lucero: 573136755634
+→ Dra. Sharon: 573015135214
+→ Central: 573181800130
+→ El turno NO avanza
 
-"✅ ¡Tu prediagnóstico quedó agendado!
-📅 [día] a las [hora]
-👩 Con: [asesora]
-📍 440 Clinic, Barranquilla
+CALIENTE 🔥 → asesora en turno + rotar:
+→ Asesora que le toca (rotación)
+→ Dra. Sharon: 573015135214
+→ Central: 573181800130
+→ El turno SÍ avanza
 
-En breve [asesora] te contactará
-para coordinar los detalles.
+TIBIO 🌡️ → asesora en turno + rotar:
+→ Asesora que le toca (rotación)
+→ Dra. Sharon: 573015135214
+→ Central: 573181800130
+→ El turno SÍ avanza
 
-La Belleza 440 ✨"
+FRÍO ❄️ → solo Central y Sharon:
+→ Dra. Sharon: 573015135214
+→ Central: 573181800130
+→ El turno NO avanza
+→ No gastar turno de asesora
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATO NOTIFY SEGÚN SCORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+URGENTE 🚨:
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [sender_id]
+ciudad: [ciudad]
+procedimiento: [procedimiento]
+fecha_deseada: [fecha]
+motivacion: [qué le molesta]
+score: URGENTE
+opcion_elegida: [opción]
+accion: LLAMAR AHORA — no esperar
+prioridad: URGENTE
+<<<END>>>
+
+CALIENTE 🔥:
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [sender_id]
+ciudad: [ciudad]
+procedimiento: [procedimiento]
+fecha_deseada: [fecha]
+motivacion: [qué le molesta]
+score: CALIENTE
+opcion_elegida: [opción]
+accion: Contactar HOY
+prioridad: CALIENTE
+<<<END>>>
+
+TIBIO 🌡️:
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [sender_id]
+ciudad: [ciudad]
+procedimiento: [procedimiento]
+score: TIBIO
+opcion_elegida: [opción]
+accion: Seguimiento esta semana
+prioridad: TIBIO
+<<<END>>>
+
+FRÍO ❄️:
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [sender_id]
+ciudad: [ciudad]
+procedimiento: [procedimiento]
+score: FRIO
+accion: Nurturing — no urgente
+prioridad: FRIO
+<<<END>>>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TRIAGE URGENCIAS
@@ -729,58 +803,107 @@ class BrainCX:
         return out
 
     def _notify_lead(self, fields, sender_id):
-        """Rota asesora, notifica a esa asesora + Dra. Sharon + Central."""
-        slug, label, asesora_phone = self._next_asesora()
-        nombre      = fields.get('nombre', '—')
-        proc        = fields.get('procedimiento', '—')
-        fecha       = fields.get('fecha_deseada') or fields.get('fecha', 'no definida')
-        ciudad      = fields.get('ciudad', '—')
-        tel         = fields.get('telefono', sender_id) or sender_id
-        motivacion  = fields.get('motivacion', '—')
-        score       = (fields.get('score') or fields.get('prioridad') or 'CALIENTE').upper()
-        razon       = fields.get('razon_score', '—')
-        accion      = fields.get('accion', 'Contactar al paciente')
+        """Routing por score:
+          URGENTE  → todos (las 3 asesoras + Sharon + Central) SIN rotar turno
+          CALIENTE → asesora en turno + Sharon + Central, SÍ rota turno
+          TIBIO    → asesora en turno + Sharon + Central, SÍ rota turno
+          FRÍO     → solo Sharon + Central, NO rota turno
+        """
+        nombre     = fields.get('nombre', '—')
+        proc       = fields.get('procedimiento', '—')
+        fecha      = fields.get('fecha_deseada') or fields.get('fecha', 'no definida')
+        ciudad     = fields.get('ciudad', '—')
+        tel        = fields.get('telefono', sender_id) or sender_id
+        motivacion = fields.get('motivacion', '—')
+        opcion     = fields.get('opcion_elegida', '—')
+        score      = (fields.get('score') or fields.get('prioridad') or 'CALIENTE').upper()
 
-        # Mensaje principal a la asesora de turno — formato según score
+        sharon = os.environ.get('DRA_SHARON', '').strip()
+        admin  = os.environ.get('ADMIN_CX', '').strip()
+
+        results = {}
+
         if 'URGENTE' in score:
-            msg_asesora = (
-                f"🚨 LEAD URGENTE CIRUGÍA — TE TOCA {label.upper()}\n"
+            # Notifica a LAS TRES asesoras + Sharon + Central. NO avanza turno.
+            msg = (
+                "🚨 LEAD URGENTE CIRUGÍA\n"
                 "━━━━━━━━━━━━━━━━━━━━━\n"
                 f"👤 {nombre} ({ciudad})\n"
                 f"💉 {proc}\n"
-                f"📅 Fecha deseada: {fecha}\n"
+                f"📅 Fecha: {fecha}\n"
                 f"💭 Motivación: {motivacion}\n"
-                f"⚡ Razón: {razon}\n"
+                f"📋 Eligió: {opcion}\n"
                 f"📱 Tel: {tel}\n"
                 "━━━━━━━━━━━━━━━━━━━━━\n"
                 "🔥 LLAMAR AHORA — no esperar"
             )
-        elif 'CALIENTE' in score:
-            msg_asesora = (
-                f"🔥 LEAD CALIENTE CIRUGÍA — TE TOCA {label.upper()}\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 {nombre} ({ciudad})\n"
-                f"💉 {proc}\n"
-                f"📅 Fecha deseada: {fecha}\n"
-                f"💭 Motivación: {motivacion}\n"
-                f"📱 Tel: {tel}\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n"
-                "Contactar HOY 📞"
+            for slug in ASESORAS:
+                phone = os.environ.get(ASESORA_ENV[slug], '').strip()
+                if phone:
+                    results[slug] = self.whapi.send_text(phone, msg)
+            if sharon:
+                results['sharon'] = self.whapi.send_text(sharon, msg)
+            if admin:
+                results['central'] = self.whapi.send_text(admin, msg)
+            print(f"[CX] URGENTE → notificadas todas las asesoras, turno NO avanza", flush=True)
+
+        elif 'CALIENTE' in score or 'TIBIO' in score:
+            # Asesora de turno + Sharon + Central. SÍ avanza turno.
+            slug, label, asesora_phone = self._next_asesora()
+            emoji = '🔥' if 'CALIENTE' in score else '🌡️'
+            tag   = 'CALIENTE' if 'CALIENTE' in score else 'TIBIO'
+            cta   = 'Contactar HOY 📞' if 'CALIENTE' in score else 'Seguimiento esta semana 📲'
+
+            if 'CALIENTE' in score:
+                msg_asesora = (
+                    f"{emoji} LEAD {tag} CIRUGÍA — TE TOCA {label.upper()}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 {nombre} ({ciudad})\n"
+                    f"💉 {proc}\n"
+                    f"📅 Fecha: {fecha}\n"
+                    f"💭 Motivación: {motivacion}\n"
+                    f"📋 Eligió: {opcion}\n"
+                    f"📱 Tel: {tel}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"{cta}"
+                )
+            else:  # TIBIO
+                msg_asesora = (
+                    f"{emoji} LEAD {tag} CIRUGÍA — TE TOCA {label.upper()}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 {nombre} ({ciudad})\n"
+                    f"💉 {proc}\n"
+                    f"📋 Eligió: {opcion}\n"
+                    f"📱 Tel: {tel}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"{cta}"
+                )
+            msg_copia = (
+                f"{emoji} LEAD {tag} CIRUGÍA — copia\n"
+                "━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre} · {proc}\n"
+                f"📅 {fecha} · 📍 {ciudad}\n"
+                f"💭 {motivacion}\n"
+                f"📋 {opcion}\n"
+                f"📱 {tel}\n"
+                f"👩 Asignado a: {label}\n"
+                "━━━━━━━━━━━━━━━━━━━"
             )
-        elif 'TIBIO' in score:
-            msg_asesora = (
-                f"🌡️ LEAD TIBIO CIRUGÍA — TE TOCA {label.upper()}\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 {nombre} ({ciudad})\n"
-                f"💉 {proc}\n"
-                f"💭 {razon}\n"
-                f"📱 Tel: {tel}\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n"
-                "Seguimiento esta semana 📲"
-            )
-        else:  # FRÍO u otro
-            msg_asesora = (
-                f"❄️ LEAD FRÍO CIRUGÍA — TE TOCA {label.upper()}\n"
+            if asesora_phone:
+                results['asesora'] = self.whapi.send_text(asesora_phone, msg_asesora)
+                self._set_ultima_asesora(slug)
+                print(f"[CX] {tag} → asesora={slug} turno avanzado", flush=True)
+            else:
+                print(f"[CX] ⚠ asesora {slug} sin teléfono — no se notifica", flush=True)
+            if sharon:
+                results['sharon'] = self.whapi.send_text(sharon, msg_copia)
+            if admin:
+                results['central'] = self.whapi.send_text(admin, msg_copia)
+
+        else:  # FRÍO
+            # Solo Sharon + Central. NO avanza turno.
+            msg = (
+                "❄️ LEAD FRÍO CIRUGÍA\n"
                 "━━━━━━━━━━━━━━━━━━━━━\n"
                 f"👤 {nombre} ({ciudad})\n"
                 f"💉 {proc}\n"
@@ -788,42 +911,15 @@ class BrainCX:
                 "━━━━━━━━━━━━━━━━━━━━━\n"
                 "Nurturing — no urgente"
             )
+            if sharon:
+                results['sharon'] = self.whapi.send_text(sharon, msg)
+            if admin:
+                results['central'] = self.whapi.send_text(admin, msg)
+            print(f"[CX] FRÍO → solo Sharon+Central, turno NO avanza", flush=True)
 
-        # Copia para Sharon y Central — siempre incluye score
-        score_emoji = {'URGENTE': '🚨', 'CALIENTE': '🔥', 'TIBIO': '🌡️', 'FRÍO': '❄️', 'FRIO': '❄️'}.get(score, '🔔')
-        msg_copia = (
-            f"{score_emoji} LEAD CIRUGÍA ({score}) — copia\n"
-            "━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 {nombre} · {proc}\n"
-            f"📅 {fecha} · 📍 {ciudad}\n"
-            f"💭 {motivacion}\n"
-            f"📱 {tel}\n"
-            f"👩 Asignado a: {label}\n"
-            f"⚡ {razon}\n"
-            "━━━━━━━━━━━━━━━━━━━"
-        )
-
-        results = {}
-        # 1. Asesora de turno
-        if asesora_phone:
-            results['asesora'] = self.whapi.send_text(asesora_phone, msg_asesora)
-        else:
-            print(f"[CX] ⚠ asesora {slug} sin teléfono en env — no se notifica", flush=True)
-            results['asesora'] = {'error': f'env {ASESORA_ENV[slug]} missing'}
-        # 2. Dra. Sharon
-        sharon = os.environ.get('DRA_SHARON', '').strip()
-        if sharon:
-            results['sharon'] = self.whapi.send_text(sharon, msg_copia)
-        # 3. Central / admin
-        admin = os.environ.get('ADMIN_CX', '').strip()
-        if admin:
-            results['central'] = self.whapi.send_text(admin, msg_copia)
-
-        # Avanzar la rotación SOLO si se logró notificar a la asesora
-        if asesora_phone:
-            self._set_ultima_asesora(slug)
-        print(f"[CX] notify_lead asesora={slug} results={ {k: (v.get('sent') if isinstance(v,dict) else v) for k,v in results.items()} }", flush=True)
-        return slug, label
+        sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
+        print(f"[CX] notify_lead score={score} results={sent}", flush=True)
+        return score
 
     # ------------------------------------------------------------------
     # Flujo principal
