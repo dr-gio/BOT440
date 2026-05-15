@@ -813,11 +813,12 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Rotación de asesoras
     # ------------------------------------------------------------------
-    def _get_ultima_asesora(self):
-        """Lee asesoras_turno (canal=cirugia). Devuelve el slug en minúsculas."""
+    def _get_ultima_asesora(self, turno_canal='cirugia'):
+        """Lee asesoras_turno para el canal dado. Devuelve el slug en minúsculas."""
         if not self.sb_url or not self.sb_key:
             return None
-        url = f'{self.sb_url}/rest/v1/asesoras_turno?canal=eq.cirugia&select=ultima_asesora&limit=1'
+        url = (f'{self.sb_url}/rest/v1/asesoras_turno'
+               f'?canal=eq.{urllib.parse.quote(turno_canal)}&select=ultima_asesora&limit=1')
         try:
             req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
             with urllib.request.urlopen(req, timeout=8) as r:
@@ -825,13 +826,14 @@ class BrainCX:
             if rows:
                 return (rows[0].get('ultima_asesora') or '').strip().lower() or None
         except Exception as e:
-            print(f"[CX] get_ultima_asesora error: {e}", flush=True)
+            print(f"[CX] get_ultima_asesora({turno_canal}) error: {e}", flush=True)
         return None
 
-    def _set_ultima_asesora(self, asesora):
+    def _set_ultima_asesora(self, asesora, turno_canal='cirugia'):
         if not self.sb_url or not self.sb_key:
             return
-        url = f'{self.sb_url}/rest/v1/asesoras_turno?canal=eq.cirugia'
+        url = (f'{self.sb_url}/rest/v1/asesoras_turno'
+               f'?canal=eq.{urllib.parse.quote(turno_canal)}')
         headers = self._sb_headers()
         headers['Prefer'] = 'return=minimal'
         body = {'ultima_asesora': asesora, 'updated_at': _now_iso()}
@@ -839,20 +841,20 @@ class BrainCX:
             req = urllib.request.Request(url, data=json.dumps(body).encode(),
                                          headers=headers, method='PATCH')
             with urllib.request.urlopen(req, timeout=8) as r:
-                print(f"[CX] set_ultima_asesora={asesora} OK status={r.status}", flush=True)
+                print(f"[CX] set_ultima_asesora({turno_canal})={asesora} OK status={r.status}", flush=True)
         except Exception as e:
-            print(f"[CX] set_ultima_asesora error: {e}", flush=True)
+            print(f"[CX] set_ultima_asesora({turno_canal}) error: {e}", flush=True)
 
-    def _next_asesora(self):
-        """Determina a quién le toca. Devuelve (slug, label, phone)."""
-        ultima = self._get_ultima_asesora()
+    def _next_asesora(self, turno_canal='cirugia'):
+        """Determina a quién le toca en el canal dado. Devuelve (slug, label, phone)."""
+        ultima = self._get_ultima_asesora(turno_canal)
         if ultima in ASESORAS:
             idx = (ASESORAS.index(ultima) + 1) % len(ASESORAS)
         else:
             idx = 0  # default → bibiana
         slug = ASESORAS[idx]
         phone = os.environ.get(ASESORA_ENV[slug], '').strip()
-        print(f"[CX] rotación: ultima={ultima!r} → siguiente={slug!r} phone={'set' if phone else 'MISSING'}", flush=True)
+        print(f"[CX] rotación({turno_canal}): ultima={ultima!r} → siguiente={slug!r} phone={'set' if phone else 'MISSING'}", flush=True)
         return slug, ASESORA_LABEL[slug], phone
 
     # ------------------------------------------------------------------
@@ -907,12 +909,29 @@ class BrainCX:
             out[k.strip().lower()] = v.strip()
         return out
 
+    @staticmethod
+    def _turno_canal(opcion):
+        """Determina qué fila de asesoras_turno usar según la opción elegida.
+        Opción 1 (virtual) o 2 (presencial) → valoración con Dr. Gio → 'cirugia_valoracion'
+        Opción 3 (prediagnóstico) o cualquier otra → 'cirugia'
+        """
+        opcion_str = str(opcion or '').lower()
+        if any(k in opcion_str for k in ('1', 'virtual', '2', 'presencial', 'valoracion', 'valoración')):
+            # Solo si NO menciona 'prediagnóstico' / 'gratuito'
+            if not any(k in opcion_str for k in ('3', 'prediag', 'gratuito')):
+                return 'cirugia_valoracion'
+        return 'cirugia'
+
     def _notify_lead(self, fields, sender_id):
         """Routing por score:
           URGENTE  → todos (las 3 asesoras + Sharon + Central) SIN rotar turno
-          CALIENTE → asesora en turno + Sharon + Central, SÍ rota turno
-          TIBIO    → asesora en turno + Sharon + Central, SÍ rota turno
+          CALIENTE → asesora en turno (canal según opción) + Sharon + Central, SÍ rota
+          TIBIO    → asesora en turno (canal según opción) + Sharon + Central, SÍ rota
           FRÍO     → solo Sharon + Central, NO rota turno
+
+        Canal de turno:
+          opción 1/2 (valoración Dr. Gio) → asesoras_turno canal='cirugia_valoracion'
+          opción 3 (prediagnóstico)        → asesoras_turno canal='cirugia'
         """
         nombre     = fields.get('nombre', '—')
         proc       = fields.get('procedimiento', '—')
@@ -922,6 +941,9 @@ class BrainCX:
         motivacion = fields.get('motivacion', '—')
         opcion     = fields.get('opcion_elegida', '—')
         score      = (fields.get('score') or fields.get('prioridad') or 'CALIENTE').upper()
+
+        turno_canal = self._turno_canal(opcion)
+        print(f"[CX] _notify_lead opcion={opcion!r} turno_canal={turno_canal!r} score={score}", flush=True)
 
         sharon = os.environ.get('DRA_SHARON', '').strip()
         admin  = os.environ.get('ADMIN_CX', '').strip()
@@ -954,7 +976,7 @@ class BrainCX:
 
         elif 'CALIENTE' in score or 'TIBIO' in score:
             # Asesora de turno + Sharon + Central. SÍ avanza turno.
-            slug, label, asesora_phone = self._next_asesora()
+            slug, label, asesora_phone = self._next_asesora(turno_canal)
             emoji = '🔥' if 'CALIENTE' in score else '🌡️'
             tag   = 'CALIENTE' if 'CALIENTE' in score else 'TIBIO'
             cta   = 'Contactar HOY 📞' if 'CALIENTE' in score else 'Seguimiento esta semana 📲'
@@ -996,7 +1018,7 @@ class BrainCX:
             )
             if asesora_phone:
                 results['asesora'] = self.whapi.send_text(asesora_phone, msg_asesora)
-                self._set_ultima_asesora(slug)
+                self._set_ultima_asesora(slug, turno_canal)
                 print(f"[CX] {tag} → asesora={slug} turno avanzado", flush=True)
             else:
                 print(f"[CX] ⚠ asesora {slug} sin teléfono — no se notifica", flush=True)
