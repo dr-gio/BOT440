@@ -6,10 +6,10 @@ _BROWSER_UA = 'Mozilla/5.0 (compatible; BOT440/1.0; +https://440clinic.com)'
 class InstagramClient:
     """Outbound DM sender for @440clinic via Meta Graph Instagram API."""
 
-    def __init__(self):
+    def __init__(self, token=None, account_id=None):
         self.base = os.environ.get('IG_GRAPH_BASE', 'https://graph.instagram.com/v18.0')
-        self.token = os.environ.get('IG_PAGE_ACCESS_TOKEN', '')
-        self.account_id = os.environ.get('IG_ACCOUNT_ID', '')
+        self.token = token or os.environ.get('IG_PAGE_ACCESS_TOKEN', '')
+        self.account_id = account_id or os.environ.get('IG_ACCOUNT_ID', '')
         print(f"[IG INIT] base={self.base!r} token_len={len(self.token)} account_id={self.account_id!r}", flush=True)
 
     def _post(self, payload):

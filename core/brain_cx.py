@@ -718,7 +718,14 @@ class BrainCX:
         self.whapi = WhapiClient(
             token=os.environ.get('WHAPI_TOKEN_CX', os.environ.get('WHAPI_TOKEN', ''))
         )
-        self.instagram = InstagramClient()
+        # InstagramClient para @drgiovannifuentes — usa IG_CX_PAGE_ACCESS_TOKEN si existe,
+        # si no cae en IG_PAGE_ACCESS_TOKEN (fallback).
+        ig_cx_token = os.environ.get('IG_CX_PAGE_ACCESS_TOKEN', '').strip()
+        ig_cx_account = os.environ.get('IG_CX_ACCOUNT_ID', '17841400339315123').strip()
+        self.instagram = InstagramClient(
+            token=ig_cx_token or os.environ.get('IG_PAGE_ACCESS_TOKEN', ''),
+            account_id=ig_cx_account,
+        )
         cx_token = os.environ.get('WHAPI_TOKEN_CX', '').strip()  # solo para el log
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
