@@ -519,30 +519,51 @@ PASO A — Pedir correo electrónico:
   videollamada? 📧
   (Escribe tu correo o 'no tengo')"
 
-PASO B — Recibir correo y mostrar slots:
+PASO B — Recibir correo → elegir DÍA:
 → Cuando el paciente responde con
   un correo (o dice 'no tengo'):
   - Guarda el correo en memoria
-  - AHORA sí llama a check_slots_cx
+  - AHORA llama a check_slots_cx
     con preferencia='proximo' y sender_id
-  - Muestra todos los slots disponibles
-    agrupados por jornada así:
-    "¡Perfecto! Estos son los horarios
-    disponibles con tu asesora 💙
+    SIN dia ni jornada (primer llamado)
+  - W21-CX responde con:
+    {paso:"elegir_dia", dias:[...], asesora:...}
+  - Muestra los días disponibles así:
+    "¡Perfecto! Tenemos disponibilidad
+    estos días con tu asesora 💙
 
-    ☀️ Mañana:
-    1️⃣ [slot mañana 1]
-    2️⃣ [slot mañana 2]
+    📅 [día1]
+    📅 [día2]
+    📅 [día3]
     ...
 
-    🌙 Tarde:
-    3️⃣ [slot tarde 1]
-    4️⃣ [slot tarde 2]
+    ¿Cuál día te queda mejor? 😊"
+
+PASO C — Paciente elige día → elegir JORNADA:
+→ Cuando el paciente menciona un día:
+  - Llama check_slots_cx CON ese dia
+    (sin jornada todavía)
+  - W21-CX responde con:
+    {paso:"elegir_jornada", jornadas:[...]}
+  - Muestra:
+    "Perfecto [nombre] 💙
+    ¿Prefieres en la mañana ☀️
+    o en la tarde 🌙?"
+
+PASO D — Paciente elige jornada → elegir HORA:
+→ Cuando el paciente dice mañana o tarde:
+  - Llama check_slots_cx CON dia y jornada
+  - W21-CX responde con:
+    {paso:"elegir_hora", slots:[...]}
+  - Muestra los horarios:
+    "Estos son los horarios disponibles 💙
+
+    1️⃣ [hora1]
+    2️⃣ [hora2]
+    3️⃣ [hora3]
     ...
 
     ¿Cuál prefieres? 😊"
-  - Si todos los slots son de la misma
-    jornada, no mostrar encabezado.
 
 IMPORTANTE — Detectar correo:
 → Un correo válido contiene '@' y '.'
@@ -565,7 +586,17 @@ un bloque <<<SLOTS>>>...<<<END_SLOTS>>>:
     del slot elegido
   - NO vuelvas a llamar check_slots_cx
   - NO hagas más preguntas
-→ Confirma la cita con este formato exacto:
+→ Cuando create_event_cx devuelve {ok:true,meet_link:"...",mensaje:"..."}:
+  Confirma con este formato exacto:
+"✅ ¡Tu prediagnóstico quedó agendado!
+📅 [slot_label — día y hora]
+🎥 Link de tu videollamada: [meet_link]
+💙 [Asesora] estará contigo en esa sesión.
+
+¡Hasta pronto! ✨
+La Belleza 440"
+
+→ Si create_event_cx NO devuelve meet_link:
 "✅ ¡Tu prediagnóstico quedó agendado!
 📅 [día] a las [hora]
 💙 [Asesora] se comunicará contigo
@@ -823,6 +854,14 @@ TOOLS_CX = [
                 "sender_id": {
                     "type": "string",
                     "description": "ID del remitente del mensaje"
+                },
+                "dia": {
+                    "type": "string",
+                    "description": "Día elegido por el paciente (ej. 'lunes 18 may'). Omitir en el primer llamado (PASO B). Incluir en PASO C y D."
+                },
+                "jornada": {
+                    "type": "string",
+                    "description": "Jornada elegida: 'mañana' o 'tarde'. Omitir en PASO B y C. Incluir solo en PASO D."
                 }
             },
             "required": ["asesora", "preferencia", "sender_id"]
@@ -856,6 +895,10 @@ TOOLS_CX = [
                 "sender_name": {
                     "type": "string",
                     "description": "Nombre del paciente"
+                },
+                "correo_paciente": {
+                    "type": "string",
+                    "description": "Correo electrónico del paciente para enviar confirmación. Opcional."
                 }
             },
             "required": ["asesora", "slot_id", "sender_id"]
@@ -1039,28 +1082,36 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Slot management
     # ------------------------------------------------------------------
-    def _check_slots_cx(self, asesora: str, sender_id: str, preferencia: str = 'proximo') -> list:
-        """Consulta los próximos slots disponibles vía CHECK_SLOTS_CX_URL.
-        Devuelve lista de dicts [{id, label, asesora_label}, ...]
+    def _check_slots_cx(self, asesora: str, sender_id: str, preferencia: str = 'proximo',
+                        dia: str = '', jornada: str = ''):
+        """Consulta los slots disponibles vía CHECK_SLOTS_CX_URL.
+
+        FASE 2 — 3-step flow:
+          Sin dia/jornada → {paso:"elegir_dia", dias:[...], asesora:...}
+          Con dia → {paso:"elegir_jornada", jornadas:[...]}
+          Con dia+jornada → {paso:"elegir_hora", slots:[{id,label,...}]}
+
+        Devuelve el dict/list raw de n8n para que _call_claude() lo procese.
+        En caso de error devuelve fallback para paso="elegir_hora".
         """
-        url = os.environ.get('CHECK_SLOTS_CX_URL', '').strip()
-        if not url:
-            print(f"[CX] check_slots_cx — CHECK_SLOTS_CX_URL no configurado, usando fallback", flush=True)
-            return [
+        _FALLBACK = {
+            'paso': 'elegir_hora',
+            'slots': [
                 {'id': 'slot_1', 'label': 'Próximo lunes 10:00 AM', 'asesora_label': asesora.capitalize()},
                 {'id': 'slot_2', 'label': 'Próximo martes 11:00 AM', 'asesora_label': asesora.capitalize()},
                 {'id': 'slot_3', 'label': 'Próximo miércoles 3:00 PM', 'asesora_label': asesora.capitalize()},
-            ]
-        payload = json.dumps({
-            'asesora': asesora,
-            'preferencia': preferencia,
-            'sender_id': sender_id,
-        }).encode()
-        _FALLBACK_SLOTS = [
-            {'id': 'slot_1', 'label': 'Próximo lunes 10:00 AM', 'asesora_label': asesora.capitalize()},
-            {'id': 'slot_2', 'label': 'Próximo martes 11:00 AM', 'asesora_label': asesora.capitalize()},
-            {'id': 'slot_3', 'label': 'Próximo miércoles 3:00 PM', 'asesora_label': asesora.capitalize()},
-        ]
+            ],
+        }
+        url = os.environ.get('CHECK_SLOTS_CX_URL', '').strip()
+        if not url:
+            print(f"[CX] check_slots_cx — CHECK_SLOTS_CX_URL no configurado, usando fallback", flush=True)
+            return _FALLBACK
+        body = {'asesora': asesora, 'preferencia': preferencia, 'sender_id': sender_id}
+        if dia:
+            body['dia'] = dia
+        if jornada:
+            body['jornada'] = jornada
+        payload = json.dumps(body).encode()
         try:
             req = urllib.request.Request(
                 url, data=payload,
@@ -1069,34 +1120,52 @@ class BrainCX:
             )
             with urllib.request.urlopen(req, timeout=10) as r:
                 raw = json.loads(r.read())
-                # n8n devuelve array directo (nuevo formato W21-CX)
-                if isinstance(raw, list):
-                    slots = raw
-                # Compatibilidad con formato antiguo {slots: [...]} o {slots_array: [...]}
-                elif isinstance(raw, dict):
-                    slots = raw.get('slots_array') or raw.get('slots') or []
+            # FASE 2: dict con campo 'paso'
+            if isinstance(raw, dict) and 'paso' in raw:
+                paso = raw.get('paso', '')
+                if paso == 'elegir_hora':
+                    n = len(raw.get('slots', []))
+                elif paso == 'elegir_dia':
+                    n = len(raw.get('dias', []))
                 else:
-                    slots = []
-                print(f"[CX] check_slots_cx asesora={asesora} → {len(slots)} slots", flush=True)
-                return slots if slots else _FALLBACK_SLOTS
+                    n = len(raw.get('jornadas', []))
+                print(f"[CX] check_slots_cx paso={paso!r} n={n} asesora={asesora}", flush=True)
+                return raw
+            # Legacy: array directo o dict con slots/slots_array
+            if isinstance(raw, list):
+                slots = raw
+            elif isinstance(raw, dict):
+                slots = raw.get('slots_array') or raw.get('slots') or []
+            else:
+                slots = []
+            print(f"[CX] check_slots_cx legacy → {len(slots)} slots", flush=True)
+            if slots:
+                return {'paso': 'elegir_hora', 'slots': slots}
+            return _FALLBACK
         except Exception as e:
             print(f"[CX] check_slots_cx error (usando fallback): {e}", flush=True)
-            return _FALLBACK_SLOTS
+            return _FALLBACK
 
     def _create_event_cx(self, asesora: str, slot_id: str, sender_id: str,
-                         sender_name: str = '', slot_label: str = '') -> dict:
-        """Crea el evento de prediagnóstico vía CREATE_EVENT_CX_URL."""
+                         sender_name: str = '', slot_label: str = '',
+                         correo_paciente: str = '') -> dict:
+        """Crea el evento de prediagnóstico vía CREATE_EVENT_CX_URL.
+        Devuelve {ok, meet_link, mensaje} si W22-CX está configurado.
+        """
         url = os.environ.get('CREATE_EVENT_CX_URL', '').strip()
         if not url:
             print(f"[CX] create_event_cx — CREATE_EVENT_CX_URL no configurado, usando fallback", flush=True)
             return {'ok': True, 'slot_label': slot_label or slot_id, 'asesora': asesora}
-        payload = json.dumps({
+        body = {
             'asesora': asesora,
             'slot_id': slot_id,
             'slot_label': slot_label,
             'sender_id': sender_id,
             'sender_name': sender_name,
-        }).encode()
+        }
+        if correo_paciente:
+            body['correo_paciente'] = correo_paciente
+        payload = json.dumps(body).encode()
         try:
             req = urllib.request.Request(
                 url, data=payload,
@@ -1190,13 +1259,20 @@ class BrainCX:
                             # Obtener asesora en turno si Claude no la especificó
                             slug, _, _ = self._next_asesora('cirugia')
                             asesora = slug
-                        slots = self._check_slots_cx(
+                        raw_response = self._check_slots_cx(
                             asesora=asesora,
                             sender_id=tool_input.get('sender_id', sender_id),
                             preferencia=tool_input.get('preferencia', 'proximo'),
+                            dia=tool_input.get('dia', ''),
+                            jornada=tool_input.get('jornada', ''),
                         )
-                        last_slots = slots  # FIX 1: guardar para bloque <<<SLOTS>>>
-                        tool_result_content = json.dumps(slots, ensure_ascii=False)
+                        # FASE 2: cuando paso=elegir_hora, guardar slots para <<<SLOTS>>>
+                        if isinstance(raw_response, dict):
+                            if raw_response.get('paso') == 'elegir_hora':
+                                last_slots = raw_response.get('slots', [])
+                        elif isinstance(raw_response, list):
+                            last_slots = raw_response  # legacy
+                        tool_result_content = json.dumps(raw_response, ensure_ascii=False)
 
                     elif tool_name == 'create_event_cx':
                         result = self._create_event_cx(
@@ -1205,6 +1281,7 @@ class BrainCX:
                             slot_label=tool_input.get('slot_label', ''),
                             sender_id=tool_input.get('sender_id', sender_id),
                             sender_name=tool_input.get('sender_name', sender_name),
+                            correo_paciente=tool_input.get('correo_paciente', ''),
                         )
                         tool_result_content = json.dumps(result, ensure_ascii=False)
                     else:
