@@ -471,14 +471,25 @@ La Belleza 440 ✨"
 
 Si elige prediagnóstico (opción 3️⃣
 en URGENTE/CALIENTE, o 1️⃣ en FRÍO/TIBIO):
-→ Preguntar preferencia de día/hora
-→ Llama a check_slots_cx
-→ Muestra 3 slots disponibles
-→ Paciente elige slot
-→ Llama a create_event_cx
+→ INMEDIATAMENTE llama a check_slots_cx
+  con preferencia='proximo' y el sender_id
+  SIN hacer preguntas adicionales de día/hora
+→ Muestra los 3 slots así:
+  "¡Perfecto [nombre]! 💙
+  Estos son los próximos horarios
+  disponibles con tu asesora:
+
+  1️⃣ [slot 1 label]
+  2️⃣ [slot 2 label]
+  3️⃣ [slot 3 label]
+
+  ¿Cuál prefieres? 😊"
+→ Cuando el paciente elige número →
+  llama a create_event_cx con el slot_id
+  correspondiente
 → Confirma:
 "✅ ¡Tu prediagnóstico quedó agendado!
-📅 [día] a las [hora]
+📅 [slot_label]
 👩 Con: [asesora]
 📍 440 Clinic, Barranquilla
 
@@ -698,6 +709,70 @@ REGLAS CRÍTICAS
 ❌ No hagas rinoplastia ni bichectomía
 """
 
+# ---------------------------------------------------------------------------
+# Herramientas (Anthropic tool use)
+# ---------------------------------------------------------------------------
+TOOLS_CX = [
+    {
+        "name": "check_slots_cx",
+        "description": (
+            "Consulta los 3 próximos slots disponibles para prediagnóstico con la asesora asignada. "
+            "Llamar INMEDIATAMENTE cuando el paciente elige prediagnóstico, SIN preguntar día/hora."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "asesora": {
+                    "type": "string",
+                    "description": "Slug de la asesora en turno: bibiana, sara, o lucero"
+                },
+                "preferencia": {
+                    "type": "string",
+                    "description": "Siempre usar 'proximo' para mostrar los próximos slots disponibles"
+                },
+                "sender_id": {
+                    "type": "string",
+                    "description": "ID del remitente del mensaje"
+                }
+            },
+            "required": ["asesora", "preferencia", "sender_id"]
+        }
+    },
+    {
+        "name": "create_event_cx",
+        "description": (
+            "Crea el evento de prediagnóstico cuando el paciente elige un slot. "
+            "Pasar el slot_id exacto devuelto por check_slots_cx."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "asesora": {
+                    "type": "string",
+                    "description": "Slug de la asesora: bibiana, sara, o lucero"
+                },
+                "slot_id": {
+                    "type": "string",
+                    "description": "ID del slot elegido, tal como lo devolvió check_slots_cx"
+                },
+                "slot_label": {
+                    "type": "string",
+                    "description": "Etiqueta legible del slot (ej. 'Lunes 19 May 10:00 AM')"
+                },
+                "sender_id": {
+                    "type": "string",
+                    "description": "ID del remitente"
+                },
+                "sender_name": {
+                    "type": "string",
+                    "description": "Nombre del paciente"
+                }
+            },
+            "required": ["asesora", "slot_id", "sender_id"]
+        }
+    }
+]
+
 # Rotación de asesoras. Orden fijo del ciclo.
 ASESORAS = ['bibiana', 'sara', 'lucero']
 ASESORA_ENV = {
@@ -867,42 +942,167 @@ class BrainCX:
         return slug, ASESORA_LABEL[slug], phone
 
     # ------------------------------------------------------------------
+    # Slot management
+    # ------------------------------------------------------------------
+    def _check_slots_cx(self, asesora: str, sender_id: str, preferencia: str = 'proximo') -> list:
+        """Consulta los próximos slots disponibles vía CHECK_SLOTS_CX_URL.
+        Devuelve lista de dicts [{id, label, asesora_label}, ...]
+        """
+        url = os.environ.get('CHECK_SLOTS_CX_URL', '').strip()
+        if not url:
+            print(f"[CX] check_slots_cx — CHECK_SLOTS_CX_URL no configurado, usando fallback", flush=True)
+            return [
+                {'id': 'slot_1', 'label': 'Próximo lunes 10:00 AM', 'asesora_label': asesora.capitalize()},
+                {'id': 'slot_2', 'label': 'Próximo martes 11:00 AM', 'asesora_label': asesora.capitalize()},
+                {'id': 'slot_3', 'label': 'Próximo miércoles 3:00 PM', 'asesora_label': asesora.capitalize()},
+            ]
+        payload = json.dumps({
+            'asesora': asesora,
+            'preferencia': preferencia,
+            'sender_id': sender_id,
+        }).encode()
+        try:
+            req = urllib.request.Request(
+                url, data=payload,
+                headers={'Content-Type': 'application/json', 'User-Agent': _BROWSER_UA},
+                method='POST',
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                slots = json.loads(r.read())
+                print(f"[CX] check_slots_cx asesora={asesora} → {len(slots)} slots", flush=True)
+                return slots
+        except Exception as e:
+            print(f"[CX] check_slots_cx error: {e}", flush=True)
+            return []
+
+    def _create_event_cx(self, asesora: str, slot_id: str, sender_id: str,
+                         sender_name: str = '', slot_label: str = '') -> dict:
+        """Crea el evento de prediagnóstico vía CREATE_EVENT_CX_URL."""
+        url = os.environ.get('CREATE_EVENT_CX_URL', '').strip()
+        if not url:
+            print(f"[CX] create_event_cx — CREATE_EVENT_CX_URL no configurado, usando fallback", flush=True)
+            return {'ok': True, 'slot_label': slot_label or slot_id, 'asesora': asesora}
+        payload = json.dumps({
+            'asesora': asesora,
+            'slot_id': slot_id,
+            'slot_label': slot_label,
+            'sender_id': sender_id,
+            'sender_name': sender_name,
+        }).encode()
+        try:
+            req = urllib.request.Request(
+                url, data=payload,
+                headers={'Content-Type': 'application/json', 'User-Agent': _BROWSER_UA},
+                method='POST',
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                result = json.loads(r.read())
+                print(f"[CX] create_event_cx slot={slot_id} asesora={asesora} → {result}", flush=True)
+                return result
+        except Exception as e:
+            print(f"[CX] create_event_cx error: {e}", flush=True)
+            return {'ok': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------
     # Claude
     # ------------------------------------------------------------------
-    def _call_claude(self, messages):
-        payload = json.dumps({
-            "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 500,
-            "system": CX_SYSTEM,
-            "messages": messages,
-        }).encode()
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
-            data=payload,
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-                "user-agent": _BROWSER_UA,
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=20) as r:
-                data = json.loads(r.read())
-                for block in data.get('content', []):
+    def _call_claude(self, messages, sender_id='', sender_name=''):
+        """Llama a Claude con soporte para tool use (check_slots_cx, create_event_cx).
+        Ejecuta el loop completo hasta obtener respuesta de texto final.
+        """
+        msgs = list(messages)
+        max_iterations = 4  # evitar loops infinitos
+
+        for iteration in range(max_iterations):
+            payload = json.dumps({
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 600,
+                "system": CX_SYSTEM,
+                "tools": TOOLS_CX,
+                "messages": msgs,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.anthropic.com/v1/messages",
+                data=payload,
+                headers={
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                    "user-agent": _BROWSER_UA,
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=25) as r:
+                    data = json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                body = ''
+                try: body = e.read().decode()[:400]
+                except: pass
+                print(f"[CX] Claude HTTPError {e.code} body={body!r}", flush=True)
+                return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
+            except Exception as e:
+                print(f"[CX] Claude error: {e}", flush=True)
+                return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
+
+            stop_reason = data.get('stop_reason', '')
+            content = data.get('content', [])
+
+            # Si no hay tool use → extraer texto y terminar
+            if stop_reason != 'tool_use':
+                for block in content:
                     if block.get('type') == 'text':
                         return block.get('text', '')
                 return ''
-        except urllib.error.HTTPError as e:
-            body = ''
-            try: body = e.read().decode()[:400]
-            except: pass
-            print(f"[CX] Claude HTTPError {e.code} body={body!r}", flush=True)
-            return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
-        except Exception as e:
-            print(f"[CX] Claude error: {e}", flush=True)
-            return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
+
+            # Hay tool use → ejecutar herramientas y continuar loop
+            tool_results = []
+            for block in content:
+                if block.get('type') == 'tool_use':
+                    tool_name = block.get('name', '')
+                    tool_input = block.get('input', {})
+                    tool_use_id = block.get('id', '')
+                    print(f"[CX] tool_use iteration={iteration} tool={tool_name} input={tool_input}", flush=True)
+
+                    # Ejecutar la herramienta
+                    if tool_name == 'check_slots_cx':
+                        asesora = tool_input.get('asesora', '')
+                        if not asesora:
+                            # Obtener asesora en turno si Claude no la especificó
+                            slug, _, _ = self._next_asesora('cirugia')
+                            asesora = slug
+                        slots = self._check_slots_cx(
+                            asesora=asesora,
+                            sender_id=tool_input.get('sender_id', sender_id),
+                            preferencia=tool_input.get('preferencia', 'proximo'),
+                        )
+                        tool_result_content = json.dumps(slots, ensure_ascii=False)
+
+                    elif tool_name == 'create_event_cx':
+                        result = self._create_event_cx(
+                            asesora=tool_input.get('asesora', ''),
+                            slot_id=tool_input.get('slot_id', ''),
+                            slot_label=tool_input.get('slot_label', ''),
+                            sender_id=tool_input.get('sender_id', sender_id),
+                            sender_name=tool_input.get('sender_name', sender_name),
+                        )
+                        tool_result_content = json.dumps(result, ensure_ascii=False)
+                    else:
+                        tool_result_content = json.dumps({'error': f'Unknown tool: {tool_name}'})
+
+                    tool_results.append({
+                        'type': 'tool_result',
+                        'tool_use_id': tool_use_id,
+                        'content': tool_result_content,
+                    })
+
+            # Agregar el turno del asistente (con tool_use) y los resultados al historial
+            msgs.append({'role': 'assistant', 'content': content})
+            msgs.append({'role': 'user', 'content': tool_results})
+
+        # Si se agota el loop sin texto final
+        print(f"[CX] tool_use loop agotado después de {max_iterations} iteraciones", flush=True)
+        return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
 
     # ------------------------------------------------------------------
     # NOTIFY parsing + envío
@@ -1084,7 +1284,7 @@ class BrainCX:
 
         self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
 
-        full_response = self._call_claude(history)
+        full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '')
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
 
         # NOTIFY block
