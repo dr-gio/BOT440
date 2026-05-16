@@ -23,10 +23,30 @@ _DRGIO_PAGE_IDS = {
 
 
 def _extract_event(payload):
-    """Return list of event dicts extracted from a Meta IG payload."""
+    """Return list of event dicts from a Meta IG payload OR a W20 pre-parsed event.
+
+    W20's 'Code — Parsear evento IG' node emits:
+      {tipo, sender_id, recipient_id, text, ig_account_id, ...}
+    Raw Meta webhook format:
+      {object:'instagram', entry:[{messaging:[...]}]}
+    """
     out = []
     if not isinstance(payload, dict):
         return out
+
+    # ── W20 pre-parsed format ──────────────────────────────────────────
+    if 'sender_id' in payload and 'tipo' in payload:
+        tipo = payload.get('tipo', '')
+        if tipo != 'dm':
+            return out  # ignore comments etc.
+        sender = str(payload.get('sender_id', ''))
+        page_id = str(payload.get('recipient_id', '') or payload.get('ig_account_id', ''))
+        text = payload.get('text', '')
+        if sender and text:
+            out.append({'igsid': sender, 'page_id': page_id, 'text': text, 'from_name': ''})
+        return out
+
+    # ── Raw Meta webhook format ────────────────────────────────────────
     for entry in payload.get('entry', []) or []:
         page_id = entry.get('id', '')
         msgs = entry.get('messaging', []) or []
@@ -44,12 +64,7 @@ def _extract_event(payload):
                     text = '[MEDIA]'
                 else:
                     continue
-            out.append({
-                'igsid': sender,
-                'page_id': recipient,
-                'text': text,
-                'from_name': '',
-            })
+            out.append({'igsid': sender, 'page_id': recipient, 'text': text, 'from_name': ''})
     return out
 
 
