@@ -697,12 +697,22 @@ FRÍO ❄️ → solo Central y Sharon:
 FORMATO NOTIFY SEGÚN SCORE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+NOTA CRÍTICA PARA TODOS LOS NOTIFY:
+→ ciudad: SIEMPRE el valor real que el
+  paciente mencionó. NUNCA omitir.
+  Si no lo dijo → ciudad: desconocida
+→ procedimiento: SIEMPRE el real.
+  NUNCA omitir ni poner 'no especificado'.
+  Si no lo mencionó → procedimiento: consulta general
+→ nombre: SIEMPRE el real que dio.
+  Si no lo dio → nombre: sin nombre
+
 URGENTE 🚨:
 <<<NOTIFY>>>
-nombre: [nombre]
+nombre: [nombre real del paciente]
 telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
-ciudad: [ciudad]
-procedimiento: [procedimiento]
+ciudad: [ciudad real — NUNCA omitir]
+procedimiento: [procedimiento real — NUNCA omitir]
 fecha_deseada: [fecha]
 motivacion: [qué le molesta]
 score: URGENTE
@@ -713,10 +723,10 @@ prioridad: URGENTE
 
 CALIENTE 🔥:
 <<<NOTIFY>>>
-nombre: [nombre]
+nombre: [nombre real del paciente]
 telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
-ciudad: [ciudad]
-procedimiento: [procedimiento]
+ciudad: [ciudad real — NUNCA omitir]
+procedimiento: [procedimiento real — NUNCA omitir]
 fecha_deseada: [fecha]
 motivacion: [qué le molesta]
 score: CALIENTE
@@ -727,10 +737,10 @@ prioridad: CALIENTE
 
 TIBIO 🌡️:
 <<<NOTIFY>>>
-nombre: [nombre]
+nombre: [nombre real del paciente]
 telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
-ciudad: [ciudad]
-procedimiento: [procedimiento]
+ciudad: [ciudad real — NUNCA omitir]
+procedimiento: [procedimiento real — NUNCA omitir]
 score: TIBIO
 opcion_elegida: [opción]
 accion: Seguimiento esta semana
@@ -739,10 +749,10 @@ prioridad: TIBIO
 
 FRÍO ❄️:
 <<<NOTIFY>>>
-nombre: [nombre]
+nombre: [nombre real del paciente]
 telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
-ciudad: [ciudad]
-procedimiento: [procedimiento]
+ciudad: [ciudad real — NUNCA omitir]
+procedimiento: [procedimiento real — NUNCA omitir]
 score: FRIO
 accion: Nurturing — no urgente
 prioridad: FRIO
@@ -877,20 +887,16 @@ TOOLS_CX = [
     {
         "name": "check_slots_cx",
         "description": (
-            "Consulta los slots disponibles para prediagnóstico con la asesora asignada, agrupados por jornada "
-            "(mañana/tarde). Puede devolver más de 3 slots. "
-            "Llamar INMEDIATAMENTE cuando el paciente elige prediagnóstico, SIN preguntar día/hora."
+            "Consulta los slots disponibles para prediagnóstico. La asesora la asigna el sistema automáticamente. "
+            "NO incluir asesora — el sistema de rotación la determina. "
+            "Llamar cuando el paciente confirma que quiere agendar el prediagnóstico."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "asesora": {
-                    "type": "string",
-                    "description": "Slug de la asesora en turno: bibiana, sara, o lucero"
-                },
                 "preferencia": {
                     "type": "string",
-                    "description": "Siempre usar 'proximo' para mostrar los próximos slots disponibles"
+                    "description": "Siempre usar 'proximo'"
                 },
                 "sender_id": {
                     "type": "string",
@@ -898,14 +904,14 @@ TOOLS_CX = [
                 },
                 "dia": {
                     "type": "string",
-                    "description": "Día elegido por el paciente (ej. 'lunes 18 may'). Omitir en el primer llamado (PASO B). Incluir en PASO C y D."
+                    "description": "Día elegido por el paciente (ej. 'lunes 18 may'). Omitir en el primer llamado. Incluir en PASO C y D."
                 },
                 "jornada": {
                     "type": "string",
                     "description": "Jornada elegida: 'mañana' o 'tarde'. Omitir en PASO B y C. Incluir solo en PASO D."
                 }
             },
-            "required": ["asesora", "preferencia", "sender_id"]
+            "required": ["preferencia", "sender_id"]
         }
     },
     {
@@ -1308,11 +1314,12 @@ class BrainCX:
 
                     # Ejecutar la herramienta
                     if tool_name == 'check_slots_cx':
-                        asesora = tool_input.get('asesora', '')
-                        if not asesora:
-                            # Obtener asesora en turno si Claude no la especificó
-                            slug, _, _ = self._next_asesora('cirugia')
-                            asesora = slug
+                        # BUG 1 FIX: SIEMPRE usar rotación — ignorar asesora que Claude proponga.
+                        # _next_asesora lee asesoras_turno y devuelve a quien le toca.
+                        # El turno avanza solo en _notify_lead (cuando el prediagnóstico se confirma).
+                        slug, _, _ = self._next_asesora('cirugia')
+                        asesora = slug
+                        print(f"[CX] check_slots_cx: rotación → asesora={asesora!r} (ignorando input de Claude)", flush=True)
                         raw_response = self._check_slots_cx(
                             asesora=asesora,
                             sender_id=tool_input.get('sender_id', sender_id),
