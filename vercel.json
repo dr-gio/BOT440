@@ -6,6 +6,7 @@
     {"src": "/webhook-ig", "dest": "/api/webhook-ig.py"},
     {"src": "/webhook-cx", "dest": "/api/webhook-cx.py"},
     {"src": "/webhook-ig-cx", "dest": "/api/webhook-ig-cx.py"},
-    {"src": "/test-ig-send", "dest": "/api/test-ig-send.py"}
+    {"src": "/test-ig-send", "dest": "/api/test-ig-send.py"},
+    {"src": "/test-ig-roles", "dest": "/api/test-ig-roles.py"}
   ]
 }
