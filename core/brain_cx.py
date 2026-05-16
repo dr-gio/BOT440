@@ -225,7 +225,23 @@ consultar con un colega especialista"
 PREDIAGNÓSTICO Y VALORACIONES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-→ Prediagnóstico GRATUITO con asesora
+PREDIAGNÓSTICO GRATUITO 💙
+Es una videollamada de 20-30 minutos
+con nuestra asesora especializada.
+Completamente GRATUITA y SIN compromiso.
+
+En el prediagnóstico:
+→ Evaluamos tu caso específico
+→ Resolvemos todas tus dudas
+→ Te orientamos sobre el procedimiento
+→ Te preparamos para tu valoración
+   con el Dr. Gio
+→ Todo desde la comodidad de tu casa
+
+Es el primer paso ideal antes de
+decidirte por una valoración
+con el Dr. Gio.
+
 → Valoración VIRTUAL con Dr. Gio: $160.000
 → Valoración PRESENCIAL con Dr. Gio: $260.000
 
@@ -491,28 +507,48 @@ La Belleza 440 ✨"
 Si elige prediagnóstico (opción GRATUITA
 en cualquier score — es la 3️⃣ en
 URGENTE/CALIENTE, o la 1️⃣ en TIBIO):
-→ INMEDIATAMENTE llama a check_slots_cx
-  con preferencia='proximo' y el sender_id
-  SIN hacer preguntas adicionales de día/hora
-→ Muestra todos los slots disponibles
-  agrupados por jornada así:
+
+PASO A — Pedir correo electrónico:
+→ NO llames check_slots_cx todavía
+→ Pregunta primero:
   "¡Perfecto [nombre]! 💙
-  Estos son los horarios disponibles
-  con tu asesora:
+  Antes de mostrarte los horarios
+  disponibles, ¿cuál es tu correo
+  electrónico para enviarte la
+  confirmación y el link de tu
+  videollamada? 📧
+  (Escribe tu correo o 'no tengo')"
 
-  ☀️ Mañana:
-  1️⃣ [slot mañana 1]
-  2️⃣ [slot mañana 2]
-  ...
+PASO B — Recibir correo y mostrar slots:
+→ Cuando el paciente responde con
+  un correo (o dice 'no tengo'):
+  - Guarda el correo en memoria
+  - AHORA sí llama a check_slots_cx
+    con preferencia='proximo' y sender_id
+  - Muestra todos los slots disponibles
+    agrupados por jornada así:
+    "¡Perfecto! Estos son los horarios
+    disponibles con tu asesora 💙
 
-  🌙 Tarde:
-  3️⃣ [slot tarde 1]
-  4️⃣ [slot tarde 2]
-  ...
+    ☀️ Mañana:
+    1️⃣ [slot mañana 1]
+    2️⃣ [slot mañana 2]
+    ...
 
-  ¿Cuál prefieres? 😊"
-  Si todos los slots son de la misma
-  jornada, no mostrar encabezado.
+    🌙 Tarde:
+    3️⃣ [slot tarde 1]
+    4️⃣ [slot tarde 2]
+    ...
+
+    ¿Cuál prefieres? 😊"
+  - Si todos los slots son de la misma
+    jornada, no mostrar encabezado.
+
+IMPORTANTE — Detectar correo:
+→ Un correo válido contiene '@' y '.'
+→ Si dice 'no tengo', 'sin correo',
+  'no tengo correo' → continuar sin correo
+→ NO repreguntarle si ya respondió
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CUANDO EL HISTORIAL TIENE <<<SLOTS>>>
@@ -542,6 +578,7 @@ La Belleza 440"
 <<<NOTIFY>>>
 nombre: [nombre]
 telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
+correo: [correo electrónico del paciente, o 'no tiene' si no lo dio]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 asesora: [asesora slug exacto del slot elegido]
@@ -1257,6 +1294,8 @@ class BrainCX:
                 asesora_slug, _, _ = self._next_asesora('cirugia')
             asesora_label = ASESORA_LABEL.get(asesora_slug, asesora_slug.capitalize())
             asesora_phone = os.environ.get(ASESORA_ENV.get(asesora_slug, ''), '').strip()
+            correo = fields.get('correo', 'no tiene')
+            correo_line = f"📧 Correo: {correo}\n" if correo and correo != 'no tiene' else "📧 Sin correo\n"
             msg = (
                 "📋 PREDIAGNÓSTICO AGENDADO\n"
                 "━━━━━━━━━━━━━━━━━━━\n"
@@ -1265,6 +1304,7 @@ class BrainCX:
                 f"📅 {fecha}\n"
                 f"👩 Asesora: {asesora_label}\n"
                 f"📱 Tel: {tel}\n"
+                f"{correo_line}"
                 "━━━━━━━━━━━━━━━━━━━\n"
                 "Contactar para coordinar\n"
                 "videollamada 📹"
