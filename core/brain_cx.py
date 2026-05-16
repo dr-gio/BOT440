@@ -1031,9 +1031,16 @@ class BrainCX:
                 method='POST',
             )
             with urllib.request.urlopen(req, timeout=10) as r:
-                slots = json.loads(r.read())
+                raw = json.loads(r.read())
+                # n8n devuelve array directo (nuevo formato W21-CX)
+                if isinstance(raw, list):
+                    slots = raw
+                # Compatibilidad con formato antiguo {slots: [...]} o {slots_array: [...]}
+                elif isinstance(raw, dict):
+                    slots = raw.get('slots_array') or raw.get('slots') or []
+                else:
+                    slots = []
                 print(f"[CX] check_slots_cx asesora={asesora} → {len(slots)} slots", flush=True)
-                # Si n8n devuelve lista vacía, usar fallback para no dejar al bot sin slots
                 return slots if slots else _FALLBACK_SLOTS
         except Exception as e:
             print(f"[CX] check_slots_cx error (usando fallback): {e}", flush=True)
