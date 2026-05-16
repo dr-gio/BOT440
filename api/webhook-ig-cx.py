@@ -1,0 +1,109 @@
+"""Instagram (Meta Graph) webhook endpoint for BOT440-CX — @drgiovannifuentes DMs.
+
+GET  /webhook-ig-cx  → handles Meta's subscription verification (hub.challenge).
+POST /webhook-ig-cx  → receives messaging events and processes them via BrainCX.
+
+Expected env vars:
+  IG_VERIFY_TOKEN       — same verify token used by /webhook-ig.
+  IG_CX_PAGE_ACCESS_TOKEN or IG_PAGE_ACCESS_TOKEN — used to send replies.
+  DRGIO_IG_ACCOUNT_ID   — optional; page_id for @drgiovannifuentes (17841400339315123).
+"""
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+import json, os, sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.brain_cx import BrainCX
+
+_DRGIO_PAGE_IDS = {
+    '26640901062231544',
+    '26562617856680827',
+    '17841400339315123',
+}
+
+
+def _extract_event(payload):
+    """Return list of event dicts extracted from a Meta IG payload."""
+    out = []
+    if not isinstance(payload, dict):
+        return out
+    for entry in payload.get('entry', []) or []:
+        page_id = entry.get('id', '')
+        msgs = entry.get('messaging', []) or []
+        for m in msgs:
+            sender = (m.get('sender') or {}).get('id', '')
+            recipient = (m.get('recipient') or {}).get('id', page_id)
+            message = m.get('message') or {}
+            if message.get('is_echo'):
+                continue
+            if 'read' in m or 'delivery' in m:
+                continue
+            text = message.get('text', '')
+            if not text:
+                if message.get('attachments'):
+                    text = '[MEDIA]'
+                else:
+                    continue
+            out.append({
+                'igsid': sender,
+                'page_id': recipient,
+                'text': text,
+                'from_name': '',
+            })
+    return out
+
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        print(f"[WEBHOOK-IG-CX] GET {self.path}", flush=True)
+        try:
+            q = parse_qs(urlparse(self.path).query)
+            mode = (q.get('hub.mode') or [''])[0]
+            verify_token = (q.get('hub.verify_token') or [''])[0]
+            challenge = (q.get('hub.challenge') or [''])[0]
+            expected = os.environ.get('IG_VERIFY_TOKEN', '')
+            if mode == 'subscribe' and verify_token and verify_token == expected:
+                print(f"[WEBHOOK-IG-CX] verification OK", flush=True)
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(challenge.encode())
+                return
+            print(f"[WEBHOOK-IG-CX] verification FAIL", flush=True)
+            self.send_response(403)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(b'{"error":"verification failed"}')
+        except Exception as e:
+            print(f"[WEBHOOK-IG-CX] GET error: {e}", flush=True)
+            self._ok({'error': str(e)})
+
+    def do_POST(self):
+        print(f"[WEBHOOK-IG-CX] POST recibido", flush=True)
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            payload = json.loads(self.rfile.read(length))
+            if payload.get('object') and payload.get('object') != 'instagram':
+                print(f"[WEBHOOK-IG-CX] ignoring object={payload.get('object')!r}", flush=True)
+                self._ok({'status': 'ignored'}); return
+            events = _extract_event(payload)
+            print(f"[WEBHOOK-IG-CX] events={len(events)}", flush=True)
+            for ev in events:
+                if not ev['igsid'] or not ev['text']:
+                    continue
+                print(f"[WEBHOOK-IG-CX] igsid={ev['igsid']} page_id={ev['page_id']} text={ev['text'][:60]!r}", flush=True)
+                BrainCX().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram_cx',
+                                  cuenta_receptora='drgiovannifuentes')
+            print(f"[WEBHOOK-IG-CX] Procesado OK", flush=True)
+            self._ok({'status': 'ok'})
+        except Exception as e:
+            print(f"[WEBHOOK-IG-CX] Error: {e}", flush=True)
+            self._ok({'error': str(e)})
+
+    def _ok(self, data):
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
+
+    def log_message(self, *a): pass
