@@ -404,17 +404,35 @@ FRÍO ❄️:
 OFERTA SEGÚN SCORE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-URGENTE / CALIENTE 🔥:
+URGENTE / CALIENTE 🔥 + Barranquilla:
 "[nombre] basado en lo que me
 cuentas, creo que estás list@
 para dar el siguiente paso 💙
 
 Te recomiendo ir directo con
-el Dr. Giovanni Fuentes — pero
-tú decides lo que más te acomoda:
+el Dr. Gio — pero tú decides:
+
+1️⃣ Valoración PRESENCIAL con Dr. Gio
+   $260.000 — recomendada 💙
+   (estás en Barranquilla — ventaja)
+2️⃣ Valoración VIRTUAL con Dr. Gio
+   $160.000 — desde donde estés
+3️⃣ Prediagnóstico GRATUITO
+   con nuestra asesora primero
+
+¿Cuál prefieres [nombre]? 😊"
+
+URGENTE / CALIENTE 🔥 + otra ciudad:
+"[nombre] basado en lo que me
+cuentas, creo que estás list@
+para dar el siguiente paso 💙
+
+Te recomiendo ir directo con
+el Dr. Gio — pero tú decides:
 
 1️⃣ Valoración VIRTUAL con Dr. Gio
-   $160.000 — desde donde estés
+   $160.000 — recomendada 💙
+   (desde donde estés)
 2️⃣ Valoración PRESENCIAL con Dr. Gio
    $260.000 — en Barranquilla
 3️⃣ Prediagnóstico GRATUITO
@@ -422,7 +440,7 @@ tú decides lo que más te acomoda:
 
 ¿Cuál prefieres [nombre]? 😊"
 
-TIBIO 🌡️:
+TIBIO 🌡️ (cualquier ciudad):
 "[nombre] te recomiendo empezar
 con tu prediagnóstico GRATUITO
 para que te vayas orientando 💙
@@ -461,7 +479,8 @@ CUANDO ELIGE OPCIÓN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Si elige valoración con Dr. Gio
-(opción 1️⃣ o 2️⃣ en score URGENTE/CALIENTE):
+(opciones con precio en URGENTE/CALIENTE,
+ es decir: presencial o virtual):
 "¡Perfecto [nombre]! 💙
 En breve una de nuestras asesoras
 te contactará para coordinar
@@ -469,8 +488,9 @@ tu valoración con el Dr. Gio.
 
 La Belleza 440 ✨"
 
-Si elige prediagnóstico (opción 3️⃣
-en URGENTE/CALIENTE, o 1️⃣ en FRÍO/TIBIO):
+Si elige prediagnóstico (opción GRATUITA
+en cualquier score — es la 3️⃣ en
+URGENTE/CALIENTE, o la 1️⃣ en TIBIO):
 → INMEDIATAMENTE llama a check_slots_cx
   con preferencia='proximo' y el sender_id
   SIN hacer preguntas adicionales de día/hora
@@ -993,6 +1013,11 @@ class BrainCX:
             'preferencia': preferencia,
             'sender_id': sender_id,
         }).encode()
+        _FALLBACK_SLOTS = [
+            {'id': 'slot_1', 'label': 'Próximo lunes 10:00 AM', 'asesora_label': asesora.capitalize()},
+            {'id': 'slot_2', 'label': 'Próximo martes 11:00 AM', 'asesora_label': asesora.capitalize()},
+            {'id': 'slot_3', 'label': 'Próximo miércoles 3:00 PM', 'asesora_label': asesora.capitalize()},
+        ]
         try:
             req = urllib.request.Request(
                 url, data=payload,
@@ -1002,10 +1027,11 @@ class BrainCX:
             with urllib.request.urlopen(req, timeout=10) as r:
                 slots = json.loads(r.read())
                 print(f"[CX] check_slots_cx asesora={asesora} → {len(slots)} slots", flush=True)
-                return slots
+                # Si n8n devuelve lista vacía, usar fallback para no dejar al bot sin slots
+                return slots if slots else _FALLBACK_SLOTS
         except Exception as e:
-            print(f"[CX] check_slots_cx error: {e}", flush=True)
-            return []
+            print(f"[CX] check_slots_cx error (usando fallback): {e}", flush=True)
+            return _FALLBACK_SLOTS
 
     def _create_event_cx(self, asesora: str, slot_id: str, sender_id: str,
                          sender_name: str = '', slot_label: str = '') -> dict:
