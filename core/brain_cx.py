@@ -746,12 +746,12 @@ class BrainCX:
             'User-Agent': _BROWSER_UA,
         }
 
-    def _load_history(self, sender_id):
+    def _load_history(self, sender_id, canal='cirugia'):
         if not self.sb_url or not self.sb_key:
             return []
         params = (
             f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}'
-            f'&canal=eq.cirugia'
+            f'&canal=eq.{urllib.parse.quote(canal)}'
             f'&direccion=in.(entrante,saliente)'
             f'&select=mensaje,direccion,remitente,created_at'
             f'&order=created_at.desc&limit={self.history_limit}'
@@ -1070,7 +1070,7 @@ class BrainCX:
     def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None):
         print(f"[CX] canal={canal!r} {sender_id}: {text[:60]!r}", flush=True)
 
-        history = self._load_history(sender_id)
+        history = self._load_history(sender_id, canal=canal)
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
 
@@ -1090,10 +1090,13 @@ class BrainCX:
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
 
         if user_facing:
-            print(f"[CX] sending reply len={len(user_facing)} via canal={canal}", flush=True)
+            print(f"[CX] sending reply len={len(user_facing)} via canal={canal} to={sender_id}", flush=True)
             client = self.instagram if canal.startswith('instagram') else self.whapi
             r = client.send_text(sender_id, user_facing)
-            print(f"[CX] send_text result sent={r.get('sent') if isinstance(r,dict) else r}", flush=True)
+            if isinstance(r, dict) and 'error' in r:
+                print(f"[CX] ❌ SEND ERROR canal={canal} error={r.get('error')!r} body={r.get('body','')!r}", flush=True)
+            else:
+                print(f"[CX] ✅ send_text OK result={r}", flush=True)
             self._save_message(sender_id, sender_name, full_response, 'saliente', 'bot', canal=canal)
 
         if notify:
