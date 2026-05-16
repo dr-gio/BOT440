@@ -15,6 +15,7 @@ Env vars esperadas:
 """
 import os, json, re, urllib.request, urllib.error, urllib.parse
 from core.whapi import WhapiClient
+from core.instagram import InstagramClient
 
 _BROWSER_UA = 'Mozilla/5.0 (compatible; BOT440-CX/1.0; +https://440clinic.com)'
 
@@ -717,6 +718,7 @@ class BrainCX:
         self.whapi = WhapiClient(
             token=os.environ.get('WHAPI_TOKEN_CX', os.environ.get('WHAPI_TOKEN', ''))
         )
+        self.instagram = InstagramClient()
         cx_token = os.environ.get('WHAPI_TOKEN_CX', '').strip()  # solo para el log
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
@@ -1081,8 +1083,9 @@ class BrainCX:
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
 
         if user_facing:
-            print(f"[CX] sending reply len={len(user_facing)}", flush=True)
-            r = self.whapi.send_text(sender_id, user_facing)
+            print(f"[CX] sending reply len={len(user_facing)} via canal={canal}", flush=True)
+            client = self.instagram if canal.startswith('instagram') else self.whapi
+            r = client.send_text(sender_id, user_facing)
             print(f"[CX] send_text result sent={r.get('sent') if isinstance(r,dict) else r}", flush=True)
             self._save_message(sender_id, sender_name, full_response, 'saliente', 'bot', canal=canal)
 
