@@ -866,13 +866,18 @@ class BrainCX:
         print(f"[CX] loaded {len(collapsed)} history msgs", flush=True)
         return collapsed
 
-    def _save_message(self, sender_id, sender_name, mensaje, direccion, remitente, canal='cirugia'):
+    def _save_message(self, sender_id, sender_name, mensaje, direccion, remitente,
+                      canal='cirugia', cuenta_receptora=None):
         if not self.sb_url or not self.sb_key or not mensaje:
             return
+        # Para instagram_cx inferir cuenta_receptora automáticamente
+        if cuenta_receptora is None and canal == 'instagram_cx':
+            cuenta_receptora = 'drgiovannifuentes'
         body = {
             'contacto_nombre': sender_name or None,
             'contacto_telefono': sender_id,
             'canal': canal,
+            'cuenta_receptora': cuenta_receptora,
             'mensaje': mensaje,
             'direccion': direccion,
             'remitente': remitente,
