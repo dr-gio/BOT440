@@ -484,10 +484,23 @@ en URGENTE/CALIENTE, o 1️⃣ en FRÍO/TIBIO):
   3️⃣ [slot 3 label]
 
   ¿Cuál prefieres? 😊"
-→ Cuando el paciente elige número →
-  llama a create_event_cx con el slot_id
-  correspondiente
-→ Confirma:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUANDO EL HISTORIAL TIENE <<<SLOTS>>>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si en el historial del asistente aparece
+un bloque <<<SLOTS>>>...<<<END_SLOTS>>>:
+→ YA mostraste los slots disponibles
+→ Si el paciente responde "1", "2" o "3"
+  (o cualquier número o variación):
+  - Extrae los datos del slot_N del bloque
+  - Llama INMEDIATAMENTE a create_event_cx
+    con slot_id, slot_label y asesora
+    del slot elegido
+  - NO vuelvas a llamar check_slots_cx
+  - NO hagas más preguntas
+→ Confirma la cita:
 "✅ ¡Tu prediagnóstico quedó agendado!
 📅 [slot_label]
 👩 Con: [asesora]
@@ -497,6 +510,20 @@ En breve [asesora] te contactará
 para coordinar los detalles.
 
 La Belleza 440 ✨"
+
+→ Después de confirmar, emite siempre:
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [sender_id]
+ciudad: [ciudad]
+procedimiento: [procedimiento]
+asesora: [asesora slug]
+fecha: [slot_label]
+score: CALIENTE
+opcion_elegida: prediagnostico gratuito
+accion: Contactar HOY
+prioridad: CALIENTE
+<<<END>>>
 
 SI EL PACIENTE INSISTE EN PRECIO:
 "Antes de contarte el precio
@@ -1017,6 +1044,7 @@ class BrainCX:
         """
         msgs = list(messages)
         max_iterations = 4  # evitar loops infinitos
+        last_slots = None  # FIX 1: rastrear slots para persistir en historial
 
         for iteration in range(max_iterations):
             payload = json.dumps({
@@ -1055,10 +1083,20 @@ class BrainCX:
 
             # Si no hay tool use → extraer texto y terminar
             if stop_reason != 'tool_use':
+                text = ''
                 for block in content:
                     if block.get('type') == 'text':
-                        return block.get('text', '')
-                return ''
+                        text += block.get('text', '')
+                # FIX 1: si se consultaron slots, añadir bloque <<<SLOTS>>> al texto
+                # para que quede guardado en Supabase y Claude lo lea en el próximo turno
+                if last_slots:
+                    slots_block = '\n<<<SLOTS>>>\n'
+                    for i, s in enumerate(last_slots[:3], 1):
+                        slots_block += f'slot_{i}: {json.dumps(s, ensure_ascii=False)}\n'
+                    slots_block += '<<<END_SLOTS>>>'
+                    text += slots_block
+                    print(f"[CX] FIX1 — <<<SLOTS>>> appended ({len(last_slots)} slots)", flush=True)
+                return text
 
             # Hay tool use → ejecutar herramientas y continuar loop
             tool_results = []
@@ -1081,6 +1119,7 @@ class BrainCX:
                             sender_id=tool_input.get('sender_id', sender_id),
                             preferencia=tool_input.get('preferencia', 'proximo'),
                         )
+                        last_slots = slots  # FIX 1: guardar para bloque <<<SLOTS>>>
                         tool_result_content = json.dumps(slots, ensure_ascii=False)
 
                     elif tool_name == 'create_event_cx':
@@ -1298,8 +1337,10 @@ class BrainCX:
         if match:
             notify = match.group(1).strip()
 
-        # Texto visible al paciente — sin el bloque NOTIFY
+        # Texto visible al paciente — sin bloque NOTIFY ni <<<SLOTS>>>
+        # (<<<SLOTS>>> se queda en full_response que se guarda en Supabase)
         user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', full_response, flags=re.DOTALL)
+        user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
 
         if user_facing:
