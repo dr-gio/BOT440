@@ -7,7 +7,7 @@ class InstagramClient:
     """Outbound DM sender for @440clinic via Meta Graph Instagram API."""
 
     def __init__(self, token=None, account_id=None):
-        self.base = os.environ.get('IG_GRAPH_BASE', 'https://graph.instagram.com/v18.0')
+        self.base = os.environ.get('IG_GRAPH_BASE', 'https://graph.facebook.com/v21.0')
         self.token = token or os.environ.get('IG_PAGE_ACCESS_TOKEN', '')
         self.account_id = account_id or os.environ.get('IG_ACCOUNT_ID', '')
         print(f"[IG INIT] base={self.base!r} token_len={len(self.token)} account_id={self.account_id!r}", flush=True)
