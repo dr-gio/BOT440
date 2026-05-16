@@ -608,11 +608,11 @@ La Belleza 440"
 
 → Después de confirmar, emite SIEMPRE:
 <<<NOTIFY>>>
-nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+nombre: [nombre REAL que el paciente dijo — NUNCA 'no especificado']
+telefono: [el número que aparece ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: si el mensaje empieza '[573001234567|María]:' → telefono: 573001234567. Si es Instagram y el paciente dio su tel → ese número. NUNCA dejar vacío ni poner 'no especificado']
 correo: [correo electrónico del paciente, o 'no tiene' si no lo dio]
-ciudad: [ciudad]
-procedimiento: [procedimiento]
+ciudad: [ciudad REAL que el paciente mencionó — NUNCA 'no especificado']
+procedimiento: [procedimiento REAL mencionado en la conversación — NUNCA 'no especificado']
 asesora: [asesora slug exacto del slot elegido]
 fecha: [slot_label completo]
 tipo: prediagnostico virtual
@@ -675,7 +675,7 @@ FORMATO NOTIFY SEGÚN SCORE
 URGENTE 🚨:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 fecha_deseada: [fecha]
@@ -689,7 +689,7 @@ prioridad: URGENTE
 CALIENTE 🔥:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 fecha_deseada: [fecha]
@@ -703,7 +703,7 @@ prioridad: CALIENTE
 TIBIO 🌡️:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 score: TIBIO
@@ -715,7 +715,7 @@ prioridad: TIBIO
 FRÍO ❄️:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 score: FRIO
@@ -741,7 +741,7 @@ de inmediato 🙏"
 
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
 prioridad: URGENCIA
 mensaje: [descripción]
 <<<END>>>
@@ -767,7 +767,7 @@ Coordinamos tu experiencia completa:
 
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [extraer el número que aparece ANTES del | en el prefijo [sender_id|nombre] o [sender_id] al inicio de cada mensaje del usuario — ese es el sender_id real. Si el canal es Instagram (IGSID largo de ~15 dígitos que NO empieza por 57), usar el teléfono que el paciente haya dado en la conversación, o escribir 'sin teléfono - Instagram']
+telefono: [el número ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: '[573001234567|María]:' → 573001234567. Si Instagram → número que dio el paciente. NUNCA 'no especificado']
 procedimiento: [procedimiento]
 ciudad: [ciudad/país]
 prioridad: TURISMO
@@ -822,12 +822,21 @@ REGLAS CRÍTICAS
 ✅ Tono 440: elegante e inspirador
 ✅ Cierra con "La Belleza 440 ✨"
 ✅ Notifica con <<<NOTIFY>>>
-✅ TELÉFONO en NOTIFY: usa el número
-  antes del | en [57xxx|Nombre].
-  Si es Instagram (IGSID largo),
-  pide el número al paciente:
-  "¿Cuál es tu número de WhatsApp
-  para que te contactemos? 📱"
+✅ TELÉFONO en NOTIFY — regla de canal:
+  → WhatsApp: telefono = el número
+    ANTES del | en [57xxx|Nombre]
+    al inicio de cada mensaje.
+    NUNCA escribir 'no especificado'.
+  → Instagram: el sender_id es un
+    IGSID (número largo sin 57).
+    ANTES de emitir NOTIFY pedir:
+    "¿Cuál es tu número de WhatsApp
+    para que te contactemos? 📱"
+    Usar ese número en telefono.
+✅ nombre, procedimiento, ciudad:
+  SIEMPRE usar los datos reales
+  que el paciente dio en la
+  conversación. NUNCA 'no especificado'.
 ❌ No digas que eres IA
 ❌ No des precios de entrada
 ❌ No prometas resultados
@@ -1371,11 +1380,16 @@ class BrainCX:
         proc       = fields.get('procedimiento', '—')
         fecha      = fields.get('fecha_deseada') or fields.get('fecha', 'no definida')
         ciudad     = fields.get('ciudad', '—')
-        tel        = fields.get('telefono', sender_id) or sender_id
         motivacion = fields.get('motivacion', '—')
         opcion     = fields.get('opcion_elegida', '—')
         score      = (fields.get('score') or fields.get('prioridad') or 'CALIENTE').upper()
         tipo       = fields.get('tipo', '').lower()
+
+        # BUG 1 FIX: usar sender_id real si Claude puso un valor corto/inválido
+        # (ej. "3", "no especificado", vacío). sender_id siempre es el número real.
+        _tel_raw = (fields.get('telefono') or '').strip()
+        tel = _tel_raw if len(_tel_raw) >= 7 and _tel_raw.replace('+','').replace('-','').isdigit() else sender_id
+        print(f"[CX] tel_raw={_tel_raw!r} → tel={tel!r} (sender_id={sender_id!r})", flush=True)
 
         turno_canal = self._turno_canal(opcion)
         print(f"[CX] _notify_lead tipo={tipo!r} opcion={opcion!r} turno_canal={turno_canal!r} score={score}", flush=True)
