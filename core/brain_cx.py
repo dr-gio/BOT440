@@ -514,7 +514,7 @@ La Belleza 440 ✨"
 → Después de confirmar, emite siempre:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 asesora: [asesora slug]
@@ -581,7 +581,7 @@ FORMATO NOTIFY SEGÚN SCORE
 URGENTE 🚨:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 fecha_deseada: [fecha]
@@ -595,7 +595,7 @@ prioridad: URGENTE
 CALIENTE 🔥:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 fecha_deseada: [fecha]
@@ -609,7 +609,7 @@ prioridad: CALIENTE
 TIBIO 🌡️:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 score: TIBIO
@@ -621,7 +621,7 @@ prioridad: TIBIO
 FRÍO ❄️:
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
 score: FRIO
@@ -647,7 +647,7 @@ de inmediato 🙏"
 
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 prioridad: URGENCIA
 mensaje: [descripción]
 <<<END>>>
@@ -673,7 +673,7 @@ Coordinamos tu experiencia completa:
 
 <<<NOTIFY>>>
 nombre: [nombre]
-telefono: [sender_id]
+telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 procedimiento: [procedimiento]
 ciudad: [ciudad/país]
 prioridad: TURISMO
