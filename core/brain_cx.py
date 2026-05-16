@@ -494,16 +494,25 @@ URGENTE/CALIENTE, o la 1️⃣ en TIBIO):
 → INMEDIATAMENTE llama a check_slots_cx
   con preferencia='proximo' y el sender_id
   SIN hacer preguntas adicionales de día/hora
-→ Muestra los 3 slots así:
+→ Muestra todos los slots disponibles
+  agrupados por jornada así:
   "¡Perfecto [nombre]! 💙
-  Estos son los próximos horarios
-  disponibles con tu asesora:
+  Estos son los horarios disponibles
+  con tu asesora:
 
-  1️⃣ [slot 1 label]
-  2️⃣ [slot 2 label]
-  3️⃣ [slot 3 label]
+  ☀️ Mañana:
+  1️⃣ [slot mañana 1]
+  2️⃣ [slot mañana 2]
+  ...
+
+  🌙 Tarde:
+  3️⃣ [slot tarde 1]
+  4️⃣ [slot tarde 2]
+  ...
 
   ¿Cuál prefieres? 😊"
+  Si todos los slots son de la misma
+  jornada, no mostrar encabezado.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CUANDO EL HISTORIAL TIENE <<<SLOTS>>>
@@ -512,36 +521,32 @@ CUANDO EL HISTORIAL TIENE <<<SLOTS>>>
 Si en el historial del asistente aparece
 un bloque <<<SLOTS>>>...<<<END_SLOTS>>>:
 → YA mostraste los slots disponibles
-→ Si el paciente responde "1", "2" o "3"
-  (o cualquier número o variación):
+→ Si el paciente responde con un número
+  o variación de número:
   - Extrae los datos del slot_N del bloque
   - Llama INMEDIATAMENTE a create_event_cx
     con slot_id, slot_label y asesora
     del slot elegido
   - NO vuelvas a llamar check_slots_cx
   - NO hagas más preguntas
-→ Confirma la cita:
+→ Confirma la cita con este formato exacto:
 "✅ ¡Tu prediagnóstico quedó agendado!
-📅 [slot_label]
-👩 Con: [asesora]
-📍 440 Clinic, Barranquilla
+📅 [día] a las [hora]
+💙 [Asesora] se comunicará contigo
+para coordinar tu videollamada.
 
-En breve [asesora] te contactará
-para coordinar los detalles.
+¡Hasta pronto! ✨
+La Belleza 440"
 
-La Belleza 440 ✨"
-
-→ Después de confirmar, emite siempre:
+→ Después de confirmar, emite SIEMPRE:
 <<<NOTIFY>>>
 nombre: [nombre]
 telefono: [número exacto del remitente — el sender_id que aparece al inicio del mensaje entre corchetes]
 ciudad: [ciudad]
 procedimiento: [procedimiento]
-asesora: [asesora slug]
-fecha: [slot_label]
-score: CALIENTE
-opcion_elegida: prediagnostico gratuito
-accion: Contactar HOY
+asesora: [asesora slug exacto del slot elegido]
+fecha: [slot_label completo]
+tipo: prediagnostico virtual
 prioridad: CALIENTE
 <<<END>>>
 
@@ -763,7 +768,8 @@ TOOLS_CX = [
     {
         "name": "check_slots_cx",
         "description": (
-            "Consulta los 3 próximos slots disponibles para prediagnóstico con la asesora asignada. "
+            "Consulta los slots disponibles para prediagnóstico con la asesora asignada, agrupados por jornada "
+            "(mañana/tarde). Puede devolver más de 3 slots. "
             "Llamar INMEDIATAMENTE cuando el paciente elige prediagnóstico, SIN preguntar día/hora."
         ),
         "input_schema": {
@@ -1117,11 +1123,11 @@ class BrainCX:
                 # para que quede guardado en Supabase y Claude lo lea en el próximo turno
                 if last_slots:
                     slots_block = '\n<<<SLOTS>>>\n'
-                    for i, s in enumerate(last_slots[:3], 1):
+                    for i, s in enumerate(last_slots, 1):  # sin límite — todos los slots
                         slots_block += f'slot_{i}: {json.dumps(s, ensure_ascii=False)}\n'
                     slots_block += '<<<END_SLOTS>>>'
                     text += slots_block
-                    print(f"[CX] FIX1 — <<<SLOTS>>> appended ({len(last_slots)} slots)", flush=True)
+                    print(f"[CX] FIX1 — <<<SLOTS>>> appended ({len(last_slots)} slots, sin límite)", flush=True)
                 return text
 
             # Hay tool use → ejecutar herramientas y continuar loop
@@ -1202,11 +1208,17 @@ class BrainCX:
         return 'cirugia'
 
     def _notify_lead(self, fields, sender_id):
-        """Routing por score:
-          URGENTE  → todos (las 3 asesoras + Sharon + Central) SIN rotar turno
-          CALIENTE → asesora en turno (canal según opción) + Sharon + Central, SÍ rota
-          TIBIO    → asesora en turno (canal según opción) + Sharon + Central, SÍ rota
-          FRÍO     → solo Sharon + Central, NO rota turno
+        """Routing por score y tipo:
+
+        tipo='prediagnostico virtual':
+          → asesora específica del slot (del NOTIFY) + Sharon + Central + Dr. Gio
+          → Mensaje formato PREDIAGNÓSTICO AGENDADO
+          → SÍ avanza turno
+
+        URGENTE  → todos (las 3 asesoras + Sharon + Central) SIN rotar turno
+        CALIENTE → asesora en turno (canal según opción) + Sharon + Central, SÍ rota
+        TIBIO    → asesora en turno (canal según opción) + Sharon + Central, SÍ rota
+        FRÍO     → solo Sharon + Central, NO rota turno
 
         Canal de turno:
           opción 1/2 (valoración Dr. Gio) → asesoras_turno canal='cirugia_valoracion'
@@ -1220,15 +1232,51 @@ class BrainCX:
         motivacion = fields.get('motivacion', '—')
         opcion     = fields.get('opcion_elegida', '—')
         score      = (fields.get('score') or fields.get('prioridad') or 'CALIENTE').upper()
+        tipo       = fields.get('tipo', '').lower()
 
         turno_canal = self._turno_canal(opcion)
-        print(f"[CX] _notify_lead opcion={opcion!r} turno_canal={turno_canal!r} score={score}", flush=True)
+        print(f"[CX] _notify_lead tipo={tipo!r} opcion={opcion!r} turno_canal={turno_canal!r} score={score}", flush=True)
 
         sharon = os.environ.get('DRA_SHARON', '').strip()
         admin  = os.environ.get('ADMIN_CX', '').strip()
         drgio  = os.environ.get('DRGIO_TEL', '573181800131').strip()
 
         results = {}
+
+        # ── Prediagnóstico virtual agendado — formato especial ────────────
+        if 'prediagnostico' in tipo:
+            asesora_slug = fields.get('asesora', '').lower().strip()
+            if not asesora_slug or asesora_slug not in ASESORAS:
+                asesora_slug, _, _ = self._next_asesora('cirugia')
+            asesora_label = ASESORA_LABEL.get(asesora_slug, asesora_slug.capitalize())
+            asesora_phone = os.environ.get(ASESORA_ENV.get(asesora_slug, ''), '').strip()
+            msg = (
+                "📋 PREDIAGNÓSTICO AGENDADO\n"
+                "━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre} ({ciudad})\n"
+                f"💉 Procedimiento: {proc}\n"
+                f"📅 {fecha}\n"
+                f"👩 Asesora: {asesora_label}\n"
+                f"📱 Tel: {tel}\n"
+                "━━━━━━━━━━━━━━━━━━━\n"
+                "Contactar para coordinar\n"
+                "videollamada 📹"
+            )
+            if asesora_phone:
+                results['asesora'] = self.whapi.send_text(asesora_phone, msg)
+                self._set_ultima_asesora(asesora_slug, 'cirugia')
+                print(f"[CX] PREDIAGNÓSTICO → asesora={asesora_slug} turno avanzado", flush=True)
+            else:
+                print(f"[CX] ⚠ asesora {asesora_slug} sin teléfono", flush=True)
+            if sharon:
+                results['sharon'] = self.whapi.send_text(sharon, msg)
+            if admin:
+                results['central'] = self.whapi.send_text(admin, msg)
+            if drgio:
+                results['drgio'] = self.whapi.send_text(drgio, msg)
+            sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
+            print(f"[CX] PREDIAGNÓSTICO notify results={sent}", flush=True)
+            return score
 
         if 'URGENTE' in score:
             # Notifica a LAS TRES asesoras + Sharon + Central. NO avanza turno.
