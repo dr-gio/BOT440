@@ -582,8 +582,9 @@ un bloque <<<SLOTS>>>...<<<END_SLOTS>>>:
   o variación de número:
   - Extrae los datos del slot_N del bloque
   - Llama INMEDIATAMENTE a create_event_cx
-    con slot_id, slot_label y asesora
-    del slot elegido
+    con slot_id, slot_label, iso_start,
+    iso_end, asesora y correo_paciente
+    del slot elegido (todos del bloque)
   - NO vuelvas a llamar check_slots_cx
   - NO hagas más preguntas
 → Cuando create_event_cx devuelve {ok:true,meet_link:"...",mensaje:"..."}:
@@ -871,7 +872,7 @@ TOOLS_CX = [
         "name": "create_event_cx",
         "description": (
             "Crea el evento de prediagnóstico cuando el paciente elige un slot. "
-            "Pasar el slot_id exacto devuelto por check_slots_cx."
+            "Pasar el slot_id exacto devuelto por check_slots_cx, junto con iso_start e iso_end del slot elegido."
         ),
         "input_schema": {
             "type": "object",
@@ -888,6 +889,14 @@ TOOLS_CX = [
                     "type": "string",
                     "description": "Etiqueta legible del slot (ej. 'Lunes 19 May 10:00 AM')"
                 },
+                "iso_start": {
+                    "type": "string",
+                    "description": "Fecha/hora inicio del slot en ISO 8601 con offset Bogotá (ej. '2026-05-18T08:00:00-05:00'). Extraer del slot elegido en <<<SLOTS>>>."
+                },
+                "iso_end": {
+                    "type": "string",
+                    "description": "Fecha/hora fin del slot en ISO 8601 con offset Bogotá (ej. '2026-05-18T08:30:00-05:00'). Extraer del slot elegido en <<<SLOTS>>>."
+                },
                 "sender_id": {
                     "type": "string",
                     "description": "ID del remitente"
@@ -901,7 +910,7 @@ TOOLS_CX = [
                     "description": "Correo electrónico del paciente para enviar confirmación. Opcional."
                 }
             },
-            "required": ["asesora", "slot_id", "sender_id"]
+            "required": ["asesora", "slot_id", "iso_start", "iso_end", "sender_id"]
         }
     }
 ]
@@ -1149,6 +1158,7 @@ class BrainCX:
 
     def _create_event_cx(self, asesora: str, slot_id: str, sender_id: str,
                          sender_name: str = '', slot_label: str = '',
+                         iso_start: str = '', iso_end: str = '',
                          correo_paciente: str = '') -> dict:
         """Crea el evento de prediagnóstico vía CREATE_EVENT_CX_URL.
         Devuelve {ok, meet_link, mensaje} si W22-CX está configurado.
@@ -1164,6 +1174,8 @@ class BrainCX:
             'slot_label': slot_label,
             'sender_id': sender_id,
             'sender_name': sender_name,
+            'iso_start': iso_start,
+            'iso_end': iso_end,
         }
         if correo_paciente:
             body['correo_paciente'] = correo_paciente
@@ -1281,6 +1293,8 @@ class BrainCX:
                             asesora=tool_input.get('asesora', ''),
                             slot_id=tool_input.get('slot_id', ''),
                             slot_label=tool_input.get('slot_label', ''),
+                            iso_start=tool_input.get('iso_start', ''),
+                            iso_end=tool_input.get('iso_end', ''),
                             sender_id=tool_input.get('sender_id', sender_id),
                             sender_name=tool_input.get('sender_name', sender_name),
                             correo_paciente=tool_input.get('correo_paciente', ''),
