@@ -938,7 +938,7 @@ class BrainCX:
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
         self.sb_key = os.environ.get('SUPABASE_ANON_KEY', '')
-        self.history_limit = 12
+        self.history_limit = 8
         print(f"[CX INIT] sb_url={self.sb_url!r} sb_key_len={len(self.sb_key)} "
               f"anth_key_len={len(self.api_key)} cx_token={'custom' if cx_token else 'default'}", flush=True)
 
@@ -1102,9 +1102,10 @@ class BrainCX:
                 {'id': 'slot_3', 'label': 'Próximo miércoles 3:00 PM', 'asesora_label': asesora.capitalize()},
             ],
         }
-        url = os.environ.get('CHECK_SLOTS_CX_URL', '').strip()
+        url = (os.environ.get('CHECK_SLOTS_CX_URL') or
+               os.environ.get('N8N_CHECK_SLOTS_CX') or '').strip()
         if not url:
-            print(f"[CX] check_slots_cx — CHECK_SLOTS_CX_URL no configurado, usando fallback", flush=True)
+            print(f"[CX] check_slots_cx — CHECK_SLOTS_CX_URL/N8N_CHECK_SLOTS_CX no configurado, usando fallback", flush=True)
             return _FALLBACK
         body = {'asesora': asesora, 'preferencia': preferencia, 'sender_id': sender_id}
         if dia:
@@ -1152,9 +1153,10 @@ class BrainCX:
         """Crea el evento de prediagnóstico vía CREATE_EVENT_CX_URL.
         Devuelve {ok, meet_link, mensaje} si W22-CX está configurado.
         """
-        url = os.environ.get('CREATE_EVENT_CX_URL', '').strip()
+        url = (os.environ.get('CREATE_EVENT_CX_URL') or
+               os.environ.get('N8N_CREATE_EVENT_CX') or '').strip()
         if not url:
-            print(f"[CX] create_event_cx — CREATE_EVENT_CX_URL no configurado, usando fallback", flush=True)
+            print(f"[CX] create_event_cx — CREATE_EVENT_CX_URL/N8N_CREATE_EVENT_CX no configurado, usando fallback", flush=True)
             return {'ok': True, 'slot_label': slot_label or slot_id, 'asesora': asesora}
         body = {
             'asesora': asesora,
