@@ -1067,8 +1067,16 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Flujo principal
     # ------------------------------------------------------------------
-    def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None):
-        print(f"[CX] canal={canal!r} {sender_id}: {text[:60]!r}", flush=True)
+    def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None, send=True):
+        """Procesa el mensaje entrante.
+
+        Args:
+            send: Si True (default), envía la respuesta via Instagram/WhatsApp directamente.
+                  Si False, NO envía — devuelve el texto de respuesta para que el caller lo envíe.
+        Returns:
+            str — texto visible al paciente (sin bloque NOTIFY). Vacío si no hay reply.
+        """
+        print(f"[CX] canal={canal!r} send={send} {sender_id}: {text[:60]!r}", flush=True)
 
         history = self._load_history(sender_id, canal=canal)
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
@@ -1090,19 +1098,24 @@ class BrainCX:
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
 
         if user_facing:
-            print(f"[CX] sending reply len={len(user_facing)} via canal={canal} to={sender_id}", flush=True)
-            client = self.instagram if canal.startswith('instagram') else self.whapi
-            r = client.send_text(sender_id, user_facing)
-            if isinstance(r, dict) and 'error' in r:
-                print(f"[CX] ❌ SEND ERROR canal={canal} error={r.get('error')!r} body={r.get('body','')!r}", flush=True)
+            if send:
+                print(f"[CX] sending reply len={len(user_facing)} via canal={canal} to={sender_id}", flush=True)
+                client = self.instagram if canal.startswith('instagram') else self.whapi
+                r = client.send_text(sender_id, user_facing)
+                if isinstance(r, dict) and 'error' in r:
+                    print(f"[CX] ❌ SEND ERROR canal={canal} error={r.get('error')!r} body={r.get('body','')!r}", flush=True)
+                else:
+                    print(f"[CX] ✅ send_text OK result={r}", flush=True)
             else:
-                print(f"[CX] ✅ send_text OK result={r}", flush=True)
+                print(f"[CX] send=False — reply delegado al caller len={len(user_facing)}", flush=True)
             self._save_message(sender_id, sender_name, full_response, 'saliente', 'bot', canal=canal)
 
         if notify:
             fields = self._parse_notify(notify)
             print(f"[CX] NOTIFY fields={fields}", flush=True)
             self._notify_lead(fields, sender_id)
+
+        return user_facing
 
 
 def _now_iso():

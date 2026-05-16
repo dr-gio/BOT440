@@ -103,14 +103,16 @@ class handler(BaseHTTPRequestHandler):
                 self._ok({'status': 'ignored'}); return
             events = _extract_event(payload)
             print(f"[WEBHOOK-IG-CX] events={len(events)}", flush=True)
+            reply_text = ''
             for ev in events:
                 if not ev['igsid'] or not ev['text']:
                     continue
                 print(f"[WEBHOOK-IG-CX] igsid={ev['igsid']} page_id={ev['page_id']} text={ev['text'][:60]!r}", flush=True)
-                BrainCX().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram_cx',
-                                  cuenta_receptora='drgiovannifuentes')
-            print(f"[WEBHOOK-IG-CX] Procesado OK", flush=True)
-            self._ok({'status': 'ok'})
+                # send=False → BrainCX devuelve el texto, W20 se encarga de enviarlo via IG
+                reply_text = BrainCX().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram_cx',
+                                               cuenta_receptora='drgiovannifuentes', send=False)
+            print(f"[WEBHOOK-IG-CX] Procesado OK reply_len={len(reply_text)}", flush=True)
+            self._ok({'status': 'ok', 'reply': reply_text})
         except Exception as e:
             print(f"[WEBHOOK-IG-CX] Error: {e}", flush=True)
             self._ok({'error': str(e)})
