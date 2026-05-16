@@ -782,13 +782,13 @@ class BrainCX:
         print(f"[CX] loaded {len(collapsed)} history msgs", flush=True)
         return collapsed
 
-    def _save_message(self, sender_id, sender_name, mensaje, direccion, remitente):
+    def _save_message(self, sender_id, sender_name, mensaje, direccion, remitente, canal='cirugia'):
         if not self.sb_url or not self.sb_key or not mensaje:
             return
         body = {
             'contacto_nombre': sender_name or None,
             'contacto_telefono': sender_id,
-            'canal': 'cirugia',
+            'canal': canal,
             'mensaje': mensaje,
             'direccion': direccion,
             'remitente': remitente,
@@ -1058,14 +1058,14 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Flujo principal
     # ------------------------------------------------------------------
-    def process(self, sender_id, sender_name, text, canal='cirugia'):
-        print(f"[CX] {sender_id}: {text[:60]!r}", flush=True)
+    def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None):
+        print(f"[CX] canal={canal!r} {sender_id}: {text[:60]!r}", flush=True)
 
         history = self._load_history(sender_id)
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
 
-        self._save_message(sender_id, sender_name, text, 'entrante', 'paciente')
+        self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
 
         full_response = self._call_claude(history)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
@@ -1084,7 +1084,7 @@ class BrainCX:
             print(f"[CX] sending reply len={len(user_facing)}", flush=True)
             r = self.whapi.send_text(sender_id, user_facing)
             print(f"[CX] send_text result sent={r.get('sent') if isinstance(r,dict) else r}", flush=True)
-            self._save_message(sender_id, sender_name, full_response, 'saliente', 'bot')
+            self._save_message(sender_id, sender_name, full_response, 'saliente', 'bot', canal=canal)
 
         if notify:
             fields = self._parse_notify(notify)
