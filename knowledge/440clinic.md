@@ -29,3 +29,48 @@ Precios x6 sesiones:
 ## VALORACIONES GRATUITAS 15 min
 - Katherine: Mar/Jue 1-5pm
 - Roxana: Mié/Vie 1-5pm
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARMONÍA FACIAL 440
+by Dra. Sharon Santiago
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Protocolos diseñados en conjunto
+con el Dr. Giovanni Fuentes —
+Cirujano Plástico, Estético y
+Reconstructivo certificado.
+
+FILOSOFÍA:
+"No cambiamos tu rostro.
+Lo afinamos."
+
+Combinamos alta tecnología con
+inyectables avanzados para devolver
+firmeza, hidratación y juventud
+con resultados 100% naturales.
+
+TECNOLOGÍA:
+→ Hydrash (Tentrek Lasers)
+  Limpieza profunda + hidratación
+  + exfoliación + sueros
+→ Radiofrecuencia con Microagujas
+  Firmeza + poros + cicatrices
+→ Tensamax
+  Lifting sin cirugía
+
+INYECTABLES PREMIUM:
+→ Toxina Botulínica
+  Botox / Dysport / Neuronox / Siax
+  (todos con registro INVIMA)
+  Frente, entrecejo, patas de gallo,
+  cuello, baby botox
+→ Rellenos Ácido Hialurónico:
+  Labios, rinomodelación,
+  armonización facial
+→ Bioestimuladores
+→ ADN Salmón (PDRN)
+→ Exosomas
+
+VALORACIÓN con Dra. Sharon: $150.000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━

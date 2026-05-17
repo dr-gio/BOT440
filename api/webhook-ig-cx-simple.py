@@ -138,11 +138,21 @@ PROCEDIMIENTOS = [
 ]
 
 # Palabras clave de interés en estética (deriva a @440clinic / WhatsApp estética)
+FACIAL_KEYWORDS = [
+    'botox','toxina','dysport','neuronox','relleno','labios','hialurónico',
+    'hialuronico','rinomodelación','rinomodelacion','armonización',
+    'armonizacion','bioestimulador','exosomas','pdrn','salmón','salmon',
+    'hydrash','limpieza facial','tensamax','radiofrecuencia','microagujas',
+    'rejuvenecimiento','facial','arrugas','flacidez','manchas','poros',
+    'piel','glow','hidratación','hidratacion','inyectable','skin',
+    'armonía facial','armonia facial',
+]
+
 ESTETICA_KEYWORDS = [
     'depilación','depilacion','láser','laser','hiperbárica','hiperbarica',
     'body sculpt','bodysculpt','facial','piel','tratamiento estético',
     'tratamiento estetico','medicina estética','medicina estetica',
-]
+] + FACIAL_KEYWORDS
 
 WA_ESTETICA = '573135449024'
 

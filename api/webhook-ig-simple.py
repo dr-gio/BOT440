@@ -77,13 +77,23 @@ REGLAS:
 """
 
 # Palabras clave
+FACIAL_KEYWORDS = [
+    'botox','toxina','dysport','neuronox','relleno','labios','hialurónico',
+    'hialuronico','rinomodelación','rinomodelacion','armonización',
+    'armonizacion','bioestimulador','exosomas','pdrn','salmón','salmon',
+    'hydrash','limpieza facial','tensamax','radiofrecuencia','microagujas',
+    'rejuvenecimiento','facial','arrugas','flacidez','manchas','poros',
+    'piel','glow','hidratación','hidratacion','inyectable','skin',
+    'armonía facial','armonia facial',
+]
+
 ESTETICA_KEYWORDS = [
     'depilación','depilacion','láser','laser','hiperbárica','hiperbarica',
     'body sculpt','bodysculpt','facial','piel','tratamiento','cita',
     'precio','costo','cuánto cuesta','cuanto cuesta','me interesa',
     'quiero hacerme','información','informacion','medicina estética',
     'medicina estetica','tratamiento estético','tratamiento estetico',
-]
+] + FACIAL_KEYWORDS
 CIRUGIA_KEYWORDS = [
     'lipoescultura','lipo','mamoplastia','abdominoplastia','blefaroplastia',
     'lifting','cirugía plástica','cirugia plastica','cirugía','cirugia',
