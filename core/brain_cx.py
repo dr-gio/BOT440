@@ -1632,6 +1632,65 @@ class BrainCX:
 
         self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
 
+        # ── PASO D: forzar check_slots_cx si el usuario elige jornada ─────────
+        # Claude a veces alucina los slots en lugar de llamar al tool.
+        # Si detectamos que el usuario está eligiendo jornada, lo forzamos aquí
+        # antes de que Claude responda, inyectando la llamada al tool en el historial.
+        _JORNADA_WORDS = {'manana', 'mañana', 'tarde', 'morning', 'afternoon'}
+        _user_lower = text.strip().lower()
+        if _user_lower in _JORNADA_WORDS:
+            _jornada = 'tarde' if 'tarde' in _user_lower else 'manana'
+            # Buscar si el último mensaje del asistente preguntó por jornada
+            _last_bot = next((m.get('content','') for m in reversed(history[:-1]) if m['role'] == 'assistant'), '')
+            if ('mañana' in _last_bot or 'tarde' in _last_bot) and ('☀️' in _last_bot or '🌙' in _last_bot):
+                # Extraer dia y asesora del historial
+                _dia = ''
+                _asesora_found = ''
+                _dia_words = ['lunes','martes','miercoles','miércoles','jueves','viernes','sabado','sábado']
+                for _m in reversed(history[:-1]):
+                    _c = _m.get('content','')
+                    if not _dia and _m['role'] == 'user':
+                        for _dw in _dia_words:
+                            if _dw in _c.lower():
+                                import re as _re2
+                                _match = _re2.search(rf'({_dw}[a-záéíóú]*\s+\d+)', _c.lower())
+                                if _match:
+                                    _dia = _match.group(1)
+                                    break
+                    if not _asesora_found and _m['role'] == 'assistant':
+                        import re as _re3
+                        _ma = _re3.search(r'asesora\s+(\w+)', _c, _re3.IGNORECASE)
+                        if _ma:
+                            _asesora_found = _ma.group(1).lower()
+                if _dia and _asesora_found:
+                    print(f"[CX] PASO D detectado → force check_slots_cx dia={_dia!r} jornada={_jornada!r} asesora={_asesora_found!r}", flush=True)
+                    _slots_result = self._check_slots_cx(
+                        asesora=_asesora_found, sender_id=sender_id,
+                        preferencia='proximo', dia=_dia, jornada=_jornada
+                    )
+                    _slots = _slots_result.get('slots', []) if isinstance(_slots_result, dict) else []
+                    if _slots:
+                        # Inyectar tool call simulado en historial para que Claude responda con datos reales
+                        _fake_tool_id = 'forced_check_slots_cx'
+                        history.append({
+                            'role': 'assistant',
+                            'content': [{
+                                'type': 'tool_use',
+                                'id': _fake_tool_id,
+                                'name': 'check_slots_cx',
+                                'input': {'preferencia': 'proximo', 'sender_id': sender_id, 'dia': _dia, 'jornada': _jornada}
+                            }]
+                        })
+                        history.append({
+                            'role': 'user',
+                            'content': [{
+                                'type': 'tool_result',
+                                'tool_use_id': _fake_tool_id,
+                                'content': json.dumps(_slots_result, ensure_ascii=False)
+                            }]
+                        })
+                        print(f"[CX] PASO D: inyectados {len(_slots)} slots reales en historial", flush=True)
+
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '')
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
 
