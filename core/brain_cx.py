@@ -1275,13 +1275,14 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Claude
     # ------------------------------------------------------------------
-    def _call_claude(self, messages, sender_id='', sender_name=''):
+    def _call_claude(self, messages, sender_id='', sender_name='', forced_slots=None):
         """Llama a Claude con soporte para tool use (check_slots_cx, create_event_cx).
         Ejecuta el loop completo hasta obtener respuesta de texto final.
+        forced_slots: lista de slots pre-cargados (de PASO D Python injection) para <<<SLOTS>>>
         """
         msgs = list(messages)
         max_iterations = 4  # evitar loops infinitos
-        last_slots = None  # FIX 1: rastrear slots para persistir en historial
+        last_slots = forced_slots  # FIX: pre-cargar slots si PASO D inyectó
 
         for iteration in range(max_iterations):
             payload = json.dumps({
@@ -1632,69 +1633,92 @@ class BrainCX:
 
         self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
 
-        # ── PASO D: forzar check_slots_cx si el usuario elige jornada ─────────
-        # Claude a veces alucina los slots en lugar de llamar al tool.
-        # Si detectamos que el usuario está eligiendo jornada, lo forzamos aquí
-        # antes de que Claude responda, inyectando la llamada al tool en el historial.
-        _JORNADA_WORDS = {'manana', 'mañana', 'tarde', 'morning', 'afternoon'}
+        # ── PASO C/D: forzar check_slots_cx para evitar alucinación ──────────
+        # Claude tiende a inventar slots en lugar de llamar al tool.
+        # Detectamos los pasos de agendamiento en Python y forzamos la llamada.
+        _forced_slots = None  # se pasa a _call_claude para que genere <<<SLOTS>>>
+
+        def _inject_tool_result(h, tool_name, tool_input, result):
+            """Inyecta un exchange tool_use/tool_result al final de h."""
+            _tid = f'forced_{tool_name}_{len(h)}'
+            h.append({'role': 'assistant', 'content': [
+                {'type': 'tool_use', 'id': _tid, 'name': tool_name, 'input': tool_input}
+            ]})
+            h.append({'role': 'user', 'content': [
+                {'type': 'tool_result', 'tool_use_id': _tid,
+                 'content': json.dumps(result, ensure_ascii=False)}
+            ]})
+
         _user_lower = text.strip().lower()
+        _last_bot = ''
+        for _m in reversed(history[:-1]):
+            if _m['role'] == 'assistant':
+                _c = _m.get('content', '')
+                if isinstance(_c, str):
+                    _last_bot = _c
+                break
+
+        # ── PASO C: usuario da email → forzar check_slots_cx sin dia (elegir_dia)
+        _EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+        _asking_email = ('correo' in _last_bot.lower() or 'email' in _last_bot.lower() or
+                         'gmail' in _last_bot.lower() or 'mail' in _last_bot.lower())
+        _is_no_email = _user_lower in ('no tengo', 'sin correo', 'no tengo correo', 'no', 'no tengo email')
+        _has_email = bool(_EMAIL_RE.search(text)) or _is_no_email
+        if _has_email and _asking_email:
+            _asesora_slug, _, _ = self._next_asesora('cirugia')  # avanza rotación AQUÍ
+            print(f"[CX] PASO C detectado → force check_slots_cx (elegir_dia) asesora={_asesora_slug!r}", flush=True)
+            _dias_result = self._check_slots_cx(asesora=_asesora_slug, sender_id=sender_id, preferencia='proximo')
+            if isinstance(_dias_result, dict) and _dias_result.get('paso') == 'elegir_dia':
+                _inject_tool_result(
+                    history, 'check_slots_cx',
+                    {'preferencia': 'proximo', 'sender_id': sender_id},
+                    _dias_result
+                )
+                print(f"[CX] PASO C: inyectados días reales asesora={_asesora_slug!r}", flush=True)
+
+        # ── PASO D: usuario elige jornada → forzar check_slots_cx con dia+jornada
+        _JORNADA_WORDS = {'manana', 'mañana', 'tarde', 'morning', 'afternoon'}
         if _user_lower in _JORNADA_WORDS:
             _jornada = 'tarde' if 'tarde' in _user_lower else 'manana'
-            # Buscar si el último mensaje del asistente preguntó por jornada
-            _last_bot = next((m.get('content','') for m in reversed(history[:-1]) if m['role'] == 'assistant'), '')
-            if ('mañana' in _last_bot or 'tarde' in _last_bot) and ('☀️' in _last_bot or '🌙' in _last_bot):
-                # Extraer dia y asesora del historial
+            _asking_jornada = (('mañana' in _last_bot or 'tarde' in _last_bot) and
+                               ('☀️' in _last_bot or '🌙' in _last_bot))
+            if _asking_jornada:
+                # Extraer dia del historial (buscar en mensajes del usuario)
                 _dia = ''
-                _asesora_found = ''
                 _dia_words = ['lunes','martes','miercoles','miércoles','jueves','viernes','sabado','sábado']
                 for _m in reversed(history[:-1]):
-                    _c = _m.get('content','')
-                    if not _dia and _m['role'] == 'user':
+                    if _dia:
+                        break
+                    if _m['role'] == 'user':
+                        _c = _m.get('content','')
                         for _dw in _dia_words:
                             if _dw in _c.lower():
-                                import re as _re2
-                                _match = _re2.search(rf'({_dw}[a-záéíóú]*\s+\d+)', _c.lower())
+                                _match = re.search(rf'({_dw}[a-záéíóú]*\s+\d+)', _c.lower())
                                 if _match:
                                     _dia = _match.group(1)
                                     break
-                    if not _asesora_found and _m['role'] == 'assistant':
-                        import re as _re3
-                        _ma = _re3.search(r'asesora\s+(\w+)', _c, _re3.IGNORECASE)
-                        if _ma:
-                            _asesora_found = _ma.group(1).lower()
-                # Si no encontramos asesora en historial, leer la asignada actualmente
-                if not _asesora_found:
-                    _asesora_found = self._get_ultima_asesora('cirugia') or ''
-                if _dia and _asesora_found:
-                    print(f"[CX] PASO D detectado → force check_slots_cx dia={_dia!r} jornada={_jornada!r} asesora={_asesora_found!r}", flush=True)
+                # Asesora: usar la que está actualmente asignada (sin avanzar)
+                _asesora_d = self._get_ultima_asesora('cirugia') or ''
+                if _dia and _asesora_d:
+                    print(f"[CX] PASO D detectado → force check_slots_cx dia={_dia!r} jornada={_jornada!r} asesora={_asesora_d!r}", flush=True)
                     _slots_result = self._check_slots_cx(
-                        asesora=_asesora_found, sender_id=sender_id,
+                        asesora=_asesora_d, sender_id=sender_id,
                         preferencia='proximo', dia=_dia, jornada=_jornada
                     )
                     _slots = _slots_result.get('slots', []) if isinstance(_slots_result, dict) else []
                     if _slots:
-                        # Inyectar tool call simulado en historial para que Claude responda con datos reales
-                        _fake_tool_id = 'forced_check_slots_cx'
-                        history.append({
-                            'role': 'assistant',
-                            'content': [{
-                                'type': 'tool_use',
-                                'id': _fake_tool_id,
-                                'name': 'check_slots_cx',
-                                'input': {'preferencia': 'proximo', 'sender_id': sender_id, 'dia': _dia, 'jornada': _jornada}
-                            }]
-                        })
-                        history.append({
-                            'role': 'user',
-                            'content': [{
-                                'type': 'tool_result',
-                                'tool_use_id': _fake_tool_id,
-                                'content': json.dumps(_slots_result, ensure_ascii=False)
-                            }]
-                        })
+                        _inject_tool_result(
+                            history, 'check_slots_cx',
+                            {'preferencia': 'proximo', 'sender_id': sender_id, 'dia': _dia, 'jornada': _jornada},
+                            _slots_result
+                        )
+                        _forced_slots = _slots
                         print(f"[CX] PASO D: inyectados {len(_slots)} slots reales en historial", flush=True)
+                    else:
+                        print(f"[CX] PASO D: n8n devolvió slots vacíos para {_asesora_d!r} {_dia!r} {_jornada!r}", flush=True)
 
-        full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '')
+        full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
+                                         forced_slots=_forced_slots)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
 
         # NOTIFY block
