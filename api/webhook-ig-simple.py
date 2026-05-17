@@ -261,14 +261,14 @@ class handler(BaseHTTPRequestHandler):
             else:
                 reply = _claude_reply(text)
 
-            # el endpoint envía el DM directamente
-            result = {'status': 'ok', 'tipo': 'dm', 'reply': ''}
+            # el endpoint envía el DM directamente y devuelve el texto
+            result = {'status': 'ok', 'tipo': 'dm', 'reply': reply}
             if reply:
                 result['dm'] = _send_dm({'id': sender_id}, reply)
             self._respond(200, result)
 
-        except Exception:
-            self._respond(200, {'status': 'ok', 'reply': ''})
+        except Exception as e:
+            self._respond(200, {'status': 'error', 'reply': '', 'error': str(e)})
 
     def _respond(self, code, data):
         self.send_response(code)
