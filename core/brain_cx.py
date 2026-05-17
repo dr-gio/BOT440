@@ -595,6 +595,12 @@ PASO C — Paciente elige día → elegir JORNADA:
 
 PASO D — Paciente elige jornada → elegir HORA:
 → Cuando el paciente dice mañana o tarde:
+  ⚠️ OBLIGATORIO: Debes llamar check_slots_cx
+  con el dia y jornada exactos. NUNCA inventes
+  ni generes horarios por tu cuenta. Los slots
+  SOLO pueden venir de check_slots_cx. Si no
+  tienes el resultado del tool, NO puedes
+  mostrar ningún horario.
   - Llama check_slots_cx CON dia y jornada
   - W21-CX responde con:
     {paso:"elegir_hora", slots:[...]}
@@ -627,6 +633,10 @@ un bloque <<<SLOTS>>>...<<<END_SLOTS>>>:
 → YA mostraste los slots disponibles
 → Si el paciente responde con un número
   o variación de número:
+  ⚠️ OBLIGATORIO: Llama create_event_cx.
+  NUNCA confirmes un agendamiento sin antes
+  llamar create_event_cx. El meet_link SOLO
+  viene de create_event_cx — NUNCA lo inventes.
   - Extrae los datos del slot_N del bloque
   - Llama INMEDIATAMENTE a create_event_cx
     con slot_id, slot_label, iso_start,
