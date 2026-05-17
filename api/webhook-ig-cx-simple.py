@@ -160,6 +160,15 @@ def _wa_link(text):
     return f'wa.me/573137917168?text={q}'
 
 
+def _public_interes(text, nombre=''):
+    """Respuesta pública corta para comentarios con interés — SIN link."""
+    proc = _procedimiento_mencionado(text) or 'tu procedimiento'
+    saludo = f'¡Hola {nombre}! 💙' if nombre else '¡Hola! 💙'
+    return (f'{saludo}\n'
+            f'Para orientarte mejor sobre {proc} '
+            f'te escribimos por DM 😊')
+
+
 def _dm_interes(text):
     proc = _procedimiento_mencionado(text) or 'tu procedimiento'
     return (f'¡Hola! 💙\n'
@@ -232,6 +241,7 @@ class handler(BaseHTTPRequestHandler):
             sender_id = body.get('sender_id', '')
             text = body.get('text', '') or body.get('message', '')
             comment_id = body.get('comment_id', '') or body.get('id', '')
+            nombre = body.get('from_username', '') or body.get('name', '')
 
             if not text:
                 self._respond(200, {'status': 'ok', 'reply': ''})
@@ -241,16 +251,21 @@ class handler(BaseHTTPRequestHandler):
 
             # ── COMENTARIO DEL FEED ──────────────────────────────────
             if tipo in ('comment', 'comentario'):
-                reply = _claude_reply(text)
                 result = {'status': 'ok', 'tipo': 'comment', 'reply': ''}
-                if comment_id and reply:
-                    # respuesta pública en el comentario
-                    result['public'] = _graph_post(
-                        f'{comment_id}/replies', {'message': reply})
-                if interes and comment_id:
-                    # DM privado con el link de WhatsApp
-                    result['dm'] = _send_dm(
-                        {'comment_id': comment_id}, _dm_interes(text))
+                if interes:
+                    # respuesta pública corta SIN link + DM privado con link
+                    reply = _public_interes(text, nombre)
+                    if comment_id:
+                        result['public'] = _graph_post(
+                            f'{comment_id}/replies', {'message': reply})
+                        result['dm'] = _send_dm(
+                            {'comment_id': comment_id}, _dm_interes(text))
+                else:
+                    # admiración / saludo → solo respuesta pública, sin DM
+                    reply = _claude_reply(text)
+                    if comment_id and reply:
+                        result['public'] = _graph_post(
+                            f'{comment_id}/replies', {'message': reply})
                 self._respond(200, result)
                 return
 
