@@ -137,10 +137,35 @@ PROCEDIMIENTOS = [
     'rinoplastia','lifting','papada','lipo',
 ]
 
+# Palabras clave de interés en estética (deriva a @440clinic / WhatsApp estética)
+ESTETICA_KEYWORDS = [
+    'depilación','depilacion','láser','laser','hiperbárica','hiperbarica',
+    'body sculpt','bodysculpt','facial','piel','tratamiento estético',
+    'tratamiento estetico','medicina estética','medicina estetica',
+]
+
+WA_ESTETICA = '573135449024'
+
 
 def _detecta_interes(text):
     t = (text or '').lower()
     return any(kw in t for kw in CIRUGIA_KEYWORDS)
+
+
+def _detecta_estetica(text):
+    t = (text or '').lower()
+    return any(kw in t for kw in ESTETICA_KEYWORDS)
+
+
+def _dm_estetica(nombre=''):
+    saludo = f'¡Hola {nombre}! 💙' if nombre else '¡Hola! 💙'
+    q = urllib.parse.quote_plus('Hola! Me interesa un tratamiento')
+    return (f'{saludo}\n'
+            f'Para tratamientos estéticos '
+            f'escríbenos por WhatsApp:\n'
+            f'📱 wa.me/{WA_ESTETICA}?text={q}\n'
+            f'¡Te esperamos! 💙\n'
+            f'La Belleza 440 ✨')
 
 
 def _procedimiento_mencionado(text):
@@ -162,10 +187,13 @@ def _wa_link(text):
 
 def _public_interes(text, nombre=''):
     """Respuesta pública corta para comentarios con interés — SIN link."""
-    proc = _procedimiento_mencionado(text) or 'tu procedimiento'
+    if _detecta_interes(text):
+        tema = _procedimiento_mencionado(text) or 'tu procedimiento'
+    else:
+        tema = 'tu tratamiento estético'
     saludo = f'¡Hola {nombre}! 💙' if nombre else '¡Hola! 💙'
     return (f'{saludo}\n'
-            f'Para orientarte mejor sobre {proc} '
+            f'Para orientarte mejor sobre {tema} '
             f'te escribimos por DM 😊')
 
 
@@ -247,7 +275,15 @@ class handler(BaseHTTPRequestHandler):
                 self._respond(200, {'status': 'ok', 'reply': ''})
                 return
 
-            interes = _detecta_interes(text)
+            interes_cir = _detecta_interes(text)
+            interes_est = _detecta_estetica(text)
+            interes = interes_cir or interes_est
+
+            # DM con link según el tipo de interés (cirugía tiene prioridad)
+            def _dm_link():
+                if interes_cir:
+                    return _dm_interes(text)
+                return _dm_estetica(nombre)
 
             # ── COMENTARIO DEL FEED ──────────────────────────────────
             if tipo in ('comment', 'comentario'):
@@ -259,7 +295,7 @@ class handler(BaseHTTPRequestHandler):
                         result['public'] = _graph_post(
                             f'{comment_id}/replies', {'message': reply})
                         result['dm'] = _send_dm(
-                            {'comment_id': comment_id}, _dm_interes(text))
+                            {'comment_id': comment_id}, _dm_link())
                 else:
                     # admiración / saludo → solo respuesta pública, sin DM
                     reply = _claude_reply(text)
@@ -276,7 +312,7 @@ class handler(BaseHTTPRequestHandler):
 
             if interes:
                 # link personalizado garantizado
-                reply = _dm_interes(text)
+                reply = _dm_link()
             else:
                 reply = _claude_reply(text)
 

@@ -4,6 +4,7 @@
   "routes": [
     {"src": "/webhook", "dest": "/api/webhook.py"},
     {"src": "/webhook-ig", "dest": "/api/webhook-ig.py"},
+    {"src": "/webhook-ig-simple", "dest": "/api/webhook-ig-simple.py"},
     {"src": "/webhook-cx", "dest": "/api/webhook-cx.py"},
     {"src": "/webhook-ig-cx", "dest": "/api/webhook-ig-cx.py"},
     {"src": "/webhook-ig-cx-simple", "dest": "/api/webhook-ig-cx-simple.py"},
