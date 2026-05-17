@@ -29,12 +29,27 @@ SI el mensaje contiene CUALQUIERA
 de esas palabras → es INTERÉS
 EN CIRUGÍA, sin importar si
 también dice "hola".
-→ Responde EXACTAMENTE:
+→ Responde con esta plantilla,
+reemplazando [PROCEDIMIENTO] por el
+procedimiento que mencionó el paciente
+(lipoescultura, mamoplastia,
+rinoplastia, abdominoplastia, etc.).
+Si no mencionó uno específico usa
+"tu procedimiento".
+
+Y en el link de WhatsApp reemplaza
+[TEXTO] por el procedimiento con
+espacios convertidos en "+", así:
+lipoescultura → ...?text=Hola!+Quiero+información+sobre+lipoescultura
+Si no hay procedimiento específico:
+...?text=Hola!+Quiero+información
+
+Plantilla:
 "¡Hola! 💙
-Para orientarte mejor sobre
-tu proceso con el Dr. Gio,
+Para asesorarte mejor sobre
+[PROCEDIMIENTO] con el Dr. Gio,
 escríbenos por WhatsApp:
-📱 wa.me/573137917168
+📱 wa.me/573137917168?text=Hola!+Quiero+información+sobre+[TEXTO]
 ¡Te esperamos! 💙
 La Belleza 440 ✨"
 
