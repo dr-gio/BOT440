@@ -531,7 +531,25 @@ PASO 0 — Explicar el prediagnóstico:
 
 → Cuando el paciente dice SÍ
   (o cualquier afirmación):
-  continuar con PASO A.
+
+  PASO 0B — ¿Canal Instagram?
+  Detecta si el sender_id en el
+  prefijo del mensaje es un número
+  largo SIN el prefijo 57 de Colombia
+  (ej. 999888777666, 26640901062231544).
+  Esos son IGSIDs — NO son teléfonos.
+
+  Si es Instagram → preguntar PRIMERO:
+  "¡Perfecto [nombre]! 📱
+  ¿Cuál es tu número de WhatsApp
+  para que nuestra asesora pueda
+  contactarte? (ej. 3001234567)"
+
+  Guardar ese número. Usarlo en el
+  campo 'telefono' del NOTIFY.
+
+  Si es WhatsApp → continuar
+  directamente con PASO A.
 
 PASO A — Pedir correo electrónico:
 → NO llames check_slots_cx todavía
