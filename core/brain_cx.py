@@ -1662,6 +1662,9 @@ class BrainCX:
                         _ma = _re3.search(r'asesora\s+(\w+)', _c, _re3.IGNORECASE)
                         if _ma:
                             _asesora_found = _ma.group(1).lower()
+                # Si no encontramos asesora en historial, leer la asignada actualmente
+                if not _asesora_found:
+                    _asesora_found = self._get_ultima_asesora('cirugia') or ''
                 if _dia and _asesora_found:
                     print(f"[CX] PASO D detectado → force check_slots_cx dia={_dia!r} jornada={_jornada!r} asesora={_asesora_found!r}", flush=True)
                     _slots_result = self._check_slots_cx(
