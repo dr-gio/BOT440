@@ -598,7 +598,7 @@ PASO D — Paciente elige jornada → elegir HORA:
   - Llama check_slots_cx CON dia y jornada
   - W21-CX responde con:
     {paso:"elegir_hora", slots:[...]}
-  - Muestra los horarios:
+  - Si slots NO está vacío → Muestra los horarios:
     "Estos son los horarios disponibles 💙
 
     1️⃣ [hora1]
@@ -607,6 +607,10 @@ PASO D — Paciente elige jornada → elegir HORA:
     ...
 
     ¿Cuál prefieres? 😊"
+  - Si slots ESTÁ VACÍO ([]) → NO llamar check_slots_cx de nuevo.
+    Responder: "No tenemos disponibilidad en esa jornada 😊
+    ¿Prefieres [la otra jornada: si eligió mañana → tarde, si eligió tarde → mañana]?"
+    y esperar a que el paciente elija otra jornada (volver a PASO D).
 
 IMPORTANTE — Detectar correo:
 → Un correo válido contiene '@' y '.'
