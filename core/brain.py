@@ -538,16 +538,15 @@ rinomodelación → $1.500.000)
 SI CANAL = whatsapp:
 → NO pidas el número (ya lo tenemos
   = sender_id).
-→ Confirma y notifica de una vez:
-"¡Perfecto [nombre]! 💙
-[Tratamiento] con la Dra. Sharon
-tiene un valor desde [precio] 💙
-
+→ NO preguntes cuándo quiere que
+  lo llamen ni horario alguno.
+→ Tu respuesta debe ser SOLO esto:
+"¡Listo [nombre]! 💙
 En breve nuestra asesora
-te contacta para coordinar
-tu cita. ¡Te esperamos! 😊"
+te contactará. ¡Te esperamos! 😊"
 → Emite el NOTIFY inmediatamente
   con telefono: [sender_id].
+→ FIN de la conversación.
 
 SI CANAL = instagram:
 → Bot responde:
@@ -1261,18 +1260,34 @@ class Brain:
             print(f"[BRAIN] notify_admin trigger", flush=True)
             self._notify_admin(notify, sender_id)
 
+    # Destinatarios fijos de las notificaciones de leads
+    DRA_SHARON_TEL = '573015135214'
+    CENTRAL_TEL = '573181800130'
+    DR_GIO_TEL = '573181800131'
+
     def _notify_admin(self, data, sender_id):
-        admin = os.environ.get('ADMIN_WHATSAPP', '573181800130')
         fields = self._parse_notify_fields(data)
         servicio = (fields.get('servicio') or '').lower()
 
         if 'armonía facial' in servicio or 'armonia facial' in servicio:
             msg = self._build_facial_notify(fields, sender_id)
+            # Armonía Facial 440 → Dra. Sharon + Central + Dr. Gio
+            destinatarios = [self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
         elif 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
             msg = self._build_body_sculpt_notify(fields, sender_id)
+            destinatarios = [self.DRA_SHARON_TEL, self.CENTRAL_TEL]
         else:
             msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
-        self.whapi.send_text(admin, msg)
+            destinatarios = [os.environ.get('ADMIN_WHATSAPP', self.CENTRAL_TEL)]
+
+        for tel in destinatarios:
+            if not tel:
+                continue
+            try:
+                r = self.whapi.send_text(tel, msg)
+                print(f"[BRAIN] notify → {tel} result={r}", flush=True)
+            except Exception as e:
+                print(f"[BRAIN] notify → {tel} error: {e}", flush=True)
 
     @staticmethod
     def _build_facial_notify(fields, sender_id):
