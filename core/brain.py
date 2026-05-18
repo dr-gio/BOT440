@@ -1261,6 +1261,7 @@ class Brain:
             self._notify_admin(notify, sender_id)
 
     # Destinatarios fijos de las notificaciones de leads
+    SARA_TEL = '573105762900'
     DRA_SHARON_TEL = '573015135214'
     CENTRAL_TEL = '573181800130'
     DR_GIO_TEL = '573181800131'
@@ -1269,13 +1270,17 @@ class Brain:
         fields = self._parse_notify_fields(data)
         servicio = (fields.get('servicio') or '').lower()
 
+        # Armonía Facial 440 y Armonía Corporal 440 → Sara + Sharon + Central + Dr. Gio
+        # (sin rotación de asesoras por ahora)
+        _estetica_dst = [self.SARA_TEL, self.DRA_SHARON_TEL,
+                         self.CENTRAL_TEL, self.DR_GIO_TEL]
+
         if 'armonía facial' in servicio or 'armonia facial' in servicio:
             msg = self._build_facial_notify(fields, sender_id)
-            # Armonía Facial 440 → Dra. Sharon + Central + Dr. Gio
-            destinatarios = [self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
+            destinatarios = list(_estetica_dst)
         elif 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
             msg = self._build_body_sculpt_notify(fields, sender_id)
-            destinatarios = [self.DRA_SHARON_TEL, self.CENTRAL_TEL]
+            destinatarios = list(_estetica_dst)
         else:
             msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
             destinatarios = [os.environ.get('ADMIN_WHATSAPP', self.CENTRAL_TEL)]
