@@ -940,6 +940,41 @@ def _strip_internal_blocks(text):
     return text
 
 
+# Servicios SIN calendario — si la conversación es sobre alguno de estos,
+# se BLOQUEA la herramienta check_slots a nivel Python (Claude a veces la
+# llama igual aunque el prompt lo prohíba).
+SERVICIOS_SIN_SLOTS = [
+    'armonia facial', 'armonía facial',
+    'botox', 'toxina', 'labios',
+    'relleno', 'rinomodelacion', 'rinomodelación',
+    'exosomas', 'pdrn', 'bioestimulador',
+    'tensamax', 'hydrash',
+    'armonia corporal', 'armonía corporal',
+    'nutricion', 'nutrición',
+    'carboxiterapia', 'presoterapia',
+    'enzimas', 'ozempic',
+]
+
+
+def _conversacion_texto(messages):
+    """Texto plano (minúsculas) de todos los mensajes para detección."""
+    partes = []
+    for m in messages or []:
+        c = m.get('content')
+        if isinstance(c, str):
+            partes.append(c)
+        elif isinstance(c, list):
+            for b in c:
+                if isinstance(b, dict):
+                    if b.get('type') == 'text':
+                        partes.append(b.get('text', ''))
+                    elif b.get('type') == 'tool_result':
+                        tc = b.get('content', '')
+                        if isinstance(tc, str):
+                            partes.append(tc)
+    return ' '.join(partes).lower()
+
+
 class Brain:
     def __init__(self):
         self.whapi = WhapiClient()
@@ -1230,11 +1265,27 @@ class Brain:
 
             if stop == 'tool_use':
                 tool_results = []
+                convo_txt = _conversacion_texto(messages)
                 for block in content:
                     if block.get('type') == 'tool_use':
                         tname = block.get('name', '')
                         tinput = block.get('input', {}) or {}
-                        result = self._exec_tool(tname, tinput, sender_id)
+                        # BLOQUEO Python: Armonía Facial/Corporal NO usan slots
+                        if tname == 'check_slots' and any(
+                                s in convo_txt for s in SERVICIOS_SIN_SLOTS):
+                            print("[BRAIN] check_slots BLOQUEADO — "
+                                  "servicio sin calendario (Armonía Facial/Corporal)",
+                                  flush=True)
+                            result = {
+                                'ok': False,
+                                'bloqueado': True,
+                                'mensaje': ('Este servicio no se agenda con '
+                                            'horarios. Responde al paciente: '
+                                            '"Sara te contactará para coordinar '
+                                            'tu cita 💙" y emite el <<<NOTIFY>>>.'),
+                            }
+                        else:
+                            result = self._exec_tool(tname, tinput, sender_id)
                         tool_results.append({
                             'type': 'tool_result',
                             'tool_use_id': block.get('id', ''),
