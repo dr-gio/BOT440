@@ -14,6 +14,7 @@ Env vars esperadas:
   ADMIN_CX
 """
 import os, json, re, urllib.request, urllib.error, urllib.parse
+from datetime import datetime as _dt, timezone as _tz
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 
@@ -1041,6 +1042,49 @@ class BrainCX:
             'User-Agent': _BROWSER_UA,
         }
 
+    def _check_paciente_recurrente(self, sender_id):
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return None
+        try:
+            params = (f'telefono=eq.{urllib.parse.quote(sender_id)}'
+                      f'&select=nombre,email,servicios_interes,ultimo_contacto'
+                      f'&limit=1')
+            url = f'{self.sb_url}/rest/v1/pacientes_440?{params}'
+            req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                rows = json.loads(r.read())
+            return rows[0] if rows else None
+        except Exception as e:
+            print(f"[CX] check_paciente error: {e}", flush=True)
+            return None
+
+    def _upsert_paciente(self, sender_id, nombre=None, email=None,
+                         canal=None, servicio=None):
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return
+        try:
+            body = {
+                'telefono': sender_id,
+                'ultimo_contacto': _dt.now(_tz.utc).isoformat(),
+            }
+            if nombre:
+                body['nombre'] = nombre
+            if email:
+                body['email'] = email
+            if canal:
+                body['canal'] = canal
+            if servicio:
+                body['servicios_interes'] = [servicio]
+            url = f'{self.sb_url}/rest/v1/pacientes_440?on_conflict=telefono'
+            headers = self._sb_headers()
+            headers['Prefer'] = 'resolution=merge-duplicates,return=minimal'
+            data = json.dumps(body).encode()
+            req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                print(f"[CX] upsert_paciente OK status={r.status}", flush=True)
+        except Exception as e:
+            print(f"[CX] upsert_paciente error: {e}", flush=True)
+
     def _load_history(self, sender_id, canal='cirugia'):
         if not self.sb_url or not self.sb_key:
             return []
@@ -1275,7 +1319,8 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Claude
     # ------------------------------------------------------------------
-    def _call_claude(self, messages, sender_id='', sender_name='', forced_slots=None):
+    def _call_claude(self, messages, sender_id='', sender_name='', forced_slots=None,
+                     paciente_ctx=''):
         """Llama a Claude con soporte para tool use (check_slots_cx, create_event_cx).
         Ejecuta el loop completo hasta obtener respuesta de texto final.
         forced_slots: lista de slots pre-cargados (de PASO D Python injection) para <<<SLOTS>>>
@@ -1288,7 +1333,7 @@ class BrainCX:
             payload = json.dumps({
                 "model": "claude-haiku-4-5-20251001",
                 "max_tokens": 600,
-                "system": CX_SYSTEM,
+                "system": CX_SYSTEM + (paciente_ctx or ''),
                 "tools": TOOLS_CX,
                 "messages": msgs,
             }).encode()
@@ -1622,6 +1667,24 @@ class BrainCX:
         print(f"[CX] canal={canal!r} send={send} {sender_id}: {text[:60]!r}", flush=True)
 
         history = self._load_history(sender_id, canal=canal)
+
+        # Paciente recurrente — contexto dinámico para el system prompt
+        paciente = self._check_paciente_recurrente(sender_id)
+        paciente_ctx = ''
+        if paciente:
+            servicios = paciente.get('servicios_interes') or []
+            paciente_ctx = (
+                "\n\nCONTEXTO PACIENTE RECURRENTE:\n"
+                f"Nombre: {paciente.get('nombre') or '—'}\n"
+                f"Servicios de interés: {', '.join(servicios) if servicios else '—'}\n"
+                f"Email: {paciente.get('email') or '—'}\n"
+                f"Última visita: {paciente.get('ultimo_contacto') or '—'}\n"
+                "→ Saluda por nombre cálidamente\n"
+                "→ NO repitas bienvenida completa\n"
+                "→ Pregunta si viene por lo mismo o hay algo nuevo "
+                "que quiera trabajar"
+            )
+
         # Siempre expone el sender_id en el prefijo para que Claude lo use en NOTIFY.
         # Formato: [sender_id|sender_name] si hay nombre, [sender_id] si no.
         # En Instagram el sender_id es un IGSID (no teléfono) → el bot debe pedir tel.
@@ -1632,6 +1695,14 @@ class BrainCX:
         history.append({'role': 'user', 'content': user_content})
 
         self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+
+        # Guardar / actualizar paciente (nombre + email si aparece en el texto)
+        _email_m = re.search(
+            r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', text)
+        self._upsert_paciente(
+            sender_id, nombre=sender_name or None,
+            email=_email_m.group(0) if _email_m else None,
+            canal=canal, servicio='Cirugía Plástica')
 
         # ── PASO C/D: forzar check_slots_cx para evitar alucinación ──────────
         # Claude tiende a inventar slots en lugar de llamar al tool.
@@ -1718,7 +1789,7 @@ class BrainCX:
                         print(f"[CX] PASO D: n8n devolvió slots vacíos para {_asesora_d!r} {_dia!r} {_jornada!r}", flush=True)
 
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
-                                         forced_slots=_forced_slots)
+                                         forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
 
         # NOTIFY block

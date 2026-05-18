@@ -1,4 +1,5 @@
 import os, json, re, urllib.request, urllib.error, urllib.parse
+from datetime import datetime, timezone
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 
@@ -472,6 +473,37 @@ valoración con Dra. Sharon $150.000
 prioridad: CALIENTE
 <<<END>>>
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PACIENTE QUE YA SABE LO QUE QUIERE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cuando el mensaje es específico:
+"quiero botox", "quiero labios",
+"quiero relleno", "quiero hydrash",
+"quiero toxina", "quiero hacerme X"
+
+Responder:
+"¡Perfecto [nombre]! 💙
+[Servicio] es uno de nuestros
+favoritos con la Dra. Sharon 💙
+
+Muchos pacientes que vienen
+por [servicio] potencian su
+resultado combinándolo con
+[complemento ideal]:
+
+→ Botox → + Exosomas o PDRN
+→ Labios → + perfilado mandíbula
+→ Hydrash → + Bioestimuladores
+→ Tensamax → + Radiofrecuencia
+→ Radiofrecuencia → + Tensamax
+→ Exosomas → + Hydrash
+
+¿Te interesa solo [servicio]
+o quieres que la Dra. Sharon
+evalúe tu caso completo bajo
+ARMONÍA FACIAL 440? 💙"
+
 PASO 5 — CUANDO ELIGE ZONA (depilación):
 "[Zona] x6 sesiones: $[total] 💕
 Primera sesión: $[total÷6]
@@ -838,6 +870,52 @@ class Brain:
             print(f"[BRAIN] sb_insert error: {e}", flush=True)
 
     # ------------------------------------------------------------------
+    # Supabase: pacientes_440 (pacientes recurrentes)
+    # ------------------------------------------------------------------
+    def _check_paciente_recurrente(self, sender_id):
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return None
+        try:
+            params = (f'telefono=eq.{urllib.parse.quote(sender_id)}'
+                      f'&select=nombre,email,servicios_interes,ultimo_contacto'
+                      f'&limit=1')
+            url = f'{self.sb_url}/rest/v1/pacientes_440?{params}'
+            req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                rows = json.loads(r.read())
+            return rows[0] if rows else None
+        except Exception as e:
+            print(f"[BRAIN] check_paciente error: {e}", flush=True)
+            return None
+
+    def _upsert_paciente(self, sender_id, nombre=None, email=None,
+                         canal=None, servicio=None):
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return
+        try:
+            body = {
+                'telefono': sender_id,
+                'ultimo_contacto': datetime.now(timezone.utc).isoformat(),
+            }
+            if nombre:
+                body['nombre'] = nombre
+            if email:
+                body['email'] = email
+            if canal:
+                body['canal'] = canal
+            if servicio:
+                body['servicios_interes'] = [servicio]
+            url = f'{self.sb_url}/rest/v1/pacientes_440?on_conflict=telefono'
+            headers = self._sb_headers()
+            headers['Prefer'] = 'resolution=merge-duplicates,return=minimal'
+            data = json.dumps(body).encode()
+            req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                print(f"[BRAIN] upsert_paciente OK status={r.status}", flush=True)
+        except Exception as e:
+            print(f"[BRAIN] upsert_paciente error: {e}", flush=True)
+
+    # ------------------------------------------------------------------
     # W21 webhook callers (tools)
     # ------------------------------------------------------------------
     def _post_json(self, url, payload):
@@ -919,7 +997,8 @@ class Brain:
             print(f"[BRAIN] Claude error: {e}", flush=True)
             return None
 
-    def _claude_loop(self, history, sender_id, is_first_time=False, canal='whatsapp'):
+    def _claude_loop(self, history, sender_id, is_first_time=False, canal='whatsapp',
+                     paciente_ctx=''):
         """Run Claude with tool_use loop. Returns final assistant text."""
         messages = [dict(m) for m in history]  # shallow copy
         # Always tell Claude the channel + sender_id explicitly so it
@@ -940,6 +1019,8 @@ class Brain:
                 "- El paciente nos escribe por Instagram → para coordinarlo "
                 "fuera del DM SÍ debes pedirle su número de WhatsApp.\n"
             )
+        if paciente_ctx:
+            canal_note += paciente_ctx
         system_extra = canal_note
         if is_first_time:
             system_extra += (
@@ -1006,6 +1087,24 @@ class Brain:
         is_first_time = len(history) == 0
         print(f"[BRAIN] is_first_time={is_first_time}", flush=True)
 
+        # Paciente recurrente — contexto dinámico para el system prompt
+        paciente = self._check_paciente_recurrente(sender_id)
+        paciente_ctx = ''
+        if paciente:
+            servicios = paciente.get('servicios_interes') or []
+            paciente_ctx = (
+                "\n\nCONTEXTO PACIENTE RECURRENTE:\n"
+                f"Nombre: {paciente.get('nombre') or '—'}\n"
+                f"Servicios de interés: {', '.join(servicios) if servicios else '—'}\n"
+                f"Email: {paciente.get('email') or '—'}\n"
+                f"Última visita: {paciente.get('ultimo_contacto') or '—'}\n"
+                "→ Saluda por nombre cálidamente\n"
+                "→ NO repitas bienvenida completa\n"
+                "→ Pregunta si viene por lo mismo o hay algo nuevo "
+                "que quiera trabajar"
+            )
+            is_first_time = False
+
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
 
@@ -1013,7 +1112,16 @@ class Brain:
                            direccion='entrante', remitente='paciente',
                            cuenta_receptora=cuenta_receptora)
 
-        full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time, canal=canal)
+        # Guardar / actualizar paciente (nombre + email si aparece en el texto)
+        _email_match = re.search(
+            r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', text)
+        self._upsert_paciente(
+            sender_id, nombre=sender_name or None,
+            email=_email_match.group(0) if _email_match else None,
+            canal=canal)
+
+        full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time,
+                                          canal=canal, paciente_ctx=paciente_ctx)
         print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
 
         # NOTIFY block (legacy lead notifications still supported)
