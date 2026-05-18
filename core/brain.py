@@ -506,35 +506,69 @@ prioridad: CALIENTE
 <<<END>>>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRECIOS ARMONÍA FACIAL 440
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+→ Toxina Botulínica:
+  desde $500.000 hasta $1.500.000
+  promedio $1.000.000 - $1.200.000
+  (según zonas y unidades)
+→ Labios con AH: $1.200.000
+→ Rinomodelación: $1.500.000
+
+Otros tratamientos (hydrash,
+tensamax, exosomas, bioestimuladores,
+radiofrecuencia, PDRN): el precio se
+define en la valoración con la
+Dra. Sharon — consulta $150.000.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PACIENTE QUE YA SABE LO QUE QUIERE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Cuando el mensaje es específico:
-"quiero botox", "quiero labios",
-"quiero relleno", "quiero hydrash",
-"quiero toxina", "quiero hacerme X"
+Cuando dice "quiero botox",
+"quiero toxina", "quiero labios"
+o "quiero rinomodelación":
 
-Responder:
+Bot responde:
 "¡Perfecto [nombre]! 💙
-[Servicio] es uno de nuestros
-favoritos con la Dra. Sharon 💙
+[Tratamiento] con la Dra. Sharon
+tiene un valor desde [precio] 💙
 
-Muchos pacientes que vienen
-por [servicio] potencian su
-resultado combinándolo con
-[complemento ideal]:
+¿Cuál es tu número de WhatsApp
+para que te contacte nuestra
+asesora y coordinen tu cita? 😊"
 
-→ Botox → + Exosomas o PDRN
-→ Labios → + perfilado mandíbula
-→ Hydrash → + Bioestimuladores
-→ Tensamax → + Radiofrecuencia
-→ Radiofrecuencia → + Tensamax
-→ Exosomas → + Hydrash
+(precio según tabla:
+botox/toxina → desde $500.000;
+labios → $1.200.000;
+rinomodelación → $1.500.000)
 
-¿Te interesa solo [servicio]
-o quieres que la Dra. Sharon
-evalúe tu caso completo bajo
-ARMONÍA FACIAL 440? 💙"
+Cuando da el número → NOTIFY directo
+(sin consulta previa necesaria):
+
+<<<NOTIFY>>>
+nombre: [nombre]
+telefono: [número dado]
+canal: [canal]
+servicio: Armonía Facial 440
+tratamiento: [tratamiento]
+precio: [precio referencial]
+ciudad: [ciudad]
+accion: Llamar para agendar directo
+con Dra. Sharon — sin consulta previa
+prioridad: CALIENTE
+<<<END>>>
+
+PARA OTROS TRATAMIENTOS
+(hydrash, tensamax, exosomas, etc.):
+Bot dice:
+"El precio lo definimos según
+tu caso en la valoración con
+la Dra. Sharon 💙
+Consulta: $150.000"
+Luego sigue el flujo PASO 5 —
+TRANSFERENCIA A ASESORA.
 
 PASO 5 — CUANDO ELIGE ZONA (depilación):
 "[Zona] x6 sesiones: $[total] 💕
@@ -1187,11 +1221,32 @@ class Brain:
         fields = self._parse_notify_fields(data)
         servicio = (fields.get('servicio') or '').lower()
 
-        if 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
+        if 'armonía facial' in servicio or 'armonia facial' in servicio:
+            msg = self._build_facial_notify(fields, sender_id)
+        elif 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
             msg = self._build_body_sculpt_notify(fields, sender_id)
         else:
             msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
         self.whapi.send_text(admin, msg)
+
+    @staticmethod
+    def _build_facial_notify(fields, sender_id):
+        nombre = fields.get('nombre', '—')
+        ciudad = fields.get('ciudad', '—')
+        telefono = fields.get('telefono', sender_id)
+        tratamiento = fields.get('tratamiento') or fields.get('interes', '—')
+        precio = fields.get('precio', '—')
+        return (
+            "💉 PACIENTE LISTA\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 {nombre} ({ciudad})\n"
+            f"💋 Tratamiento: {tratamiento}\n"
+            f"💰 Precio referencial: {precio}\n"
+            f"📱 Tel: {telefono}\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "Llamar para agendar directo\n"
+            "con Dra. Sharon 💙"
+        )
 
     @staticmethod
     def _parse_notify_fields(data):
