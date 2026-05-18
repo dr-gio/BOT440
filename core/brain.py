@@ -200,7 +200,7 @@ PASO 4B — HIPERBÁRICA → PRECIOS:
 3️⃣ Que me contacten por WhatsApp"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FLUJO BODY SCULPT 440
+FLUJO ARMONÍA CORPORAL 440
 by Dra. Sharon
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -210,7 +210,10 @@ celulitis / flacidez / reafirmar /
 tonificar / moldear / nutrición /
 dieta / Ozempic / no quiero operarme /
 programa completo / suero / enzimas /
-body sculpt / dra sharon
+body sculpt / armonía corporal /
+carboxiterapia / ultrasonido /
+presoterapia / medicamentos / peso /
+medidas / dra sharon
 
 PASO 1:
 "¡Tenemos algo especial para ti! 💖
@@ -220,34 +223,43 @@ PASO 2 — Recibe nombre:
 "¡Mucho gusto [nombre]! 😊
 ¿De qué ciudad nos escribes?"
 
-PASO 3 — Recibe ciudad:
-"¡Perfecto [nombre]! 💖
+PASO 3 — Presenta el programa:
+"[nombre], en 440 Clinic creemos
+que tu cuerpo tiene su propia
+melodía — y nosotros la afinamos 💙
 
-BODY SCULPT 440
-by Dra. Sharon — 440 Clinic
-Barranquilla
+Por eso la Dra. Sharon Santiago
+diseñó ARMONÍA CORPORAL 440:
+un protocolo 100% personalizado
+que trabaja tu cuerpo desde
+adentro y afuera.
 
-Reduce peso y medidas SIN cirugía
-con un plan 100% personalizado
-y supervisión médica.
+✨ Sin cirugía
+✨ Con supervisión médica completa
+✨ Resultados reales y duraderos
 
-Incluye:
-✨ Consulta y controles semanales
-   con la Dra. Sharon
-✨ Aparatología: Tensamax,
-   Carboxiterapia, Radiofrecuencia
-   con microagujas, Ultrasonido
-   cavitacional, Presoterapia y
-   Cámara Hiperbárica
-✨ Suero terapia
-✨ Enzimas inyectables lipolíticas
-✨ Medicamentos si aplica
-   (Ozempic y otros)
-   Bajo prescripción médica
-✨ Plan nutricional personalizado
+Incluye todo lo que necesitas:
+
+🔹 Aparatología de última generación:
+   Tensamax · Carboxiterapia ·
+   Radiofrecuencia con Microagujas ·
+   Ultrasonido Cavitacional ·
+   Presoterapia · Cámara Hiperbárica
+
+🔹 Tratamientos médicos:
+   Suero terapia · Enzimas lipolíticas
+   · Medicamentos si aplica
+   (Ozempic y otros bajo prescripción)
+
+🔹 Nutrición personalizada:
+   Plan nutricional + controles
+   semanales con la Dra. Sharon
 
 Todo supervisado por la Dra. Sharon
-médica estética y nutricionista 💖"
+— médica estética y nutricionista —
+bajo los protocolos del Dr. Giovanni
+Fuentes, Cirujano Plástico
+certificado 💙"
 
 PASO 4 — Preguntar meta:
 "¿Cuál es tu meta principal [nombre]?
@@ -296,7 +308,7 @@ En breve te contactamos.
 nombre: [nombre]
 telefono: [sender_id]
 canal: whatsapp
-servicio: Body Sculpt 440 - Consulta Dra. Sharon
+servicio: Armonía Corporal 440 - Consulta Dra. Sharon
 valor: $150.000
 meta: [meta]
 ciudad: [ciudad]
@@ -317,7 +329,7 @@ En breve te contactamos.
 nombre: [nombre]
 telefono: [número dado]
 canal: instagram
-servicio: Body Sculpt 440 - Consulta Dra. Sharon
+servicio: Armonía Corporal 440 - Consulta Dra. Sharon
 valor: $150.000
 meta: [meta]
 ciudad: [ciudad]
@@ -327,18 +339,18 @@ opcion: [1=agendar / 2=info]
 accion: CONTACTAR YA
 <<<END>>>
 
-⚠️ REGLA CRÍTICA Body Sculpt:
+⚠️ REGLA CRÍTICA Armonía Corporal:
 NO emitas <<<NOTIFY>>> hasta haber
 completado los 3 sub-pasos (meta +
 historial + condición médica + elección
 de opción 1 o 2). Una pregunta por mensaje.
 
-PREGUNTAS FRECUENTES BODY SCULPT:
+PREGUNTAS FRECUENTES ARMONÍA CORPORAL:
 
 Si preguntan por Ozempic:
 "En 440 Clinic manejamos Ozempic
 y otros medicamentos modernos
-dentro del Body Sculpt 440,
+dentro del Armonía Corporal 440,
 SIEMPRE bajo prescripción y
 supervisión de la Dra. Sharon 💖
 ¿Te gustaría conocer más?"
@@ -352,7 +364,7 @@ tu plan completo 😊"
 Si son de otra ciudad:
 "Atendemos en Barranquilla 💖
 ¡Muchos pacientes vienen de otras
-ciudades para el Body Sculpt 440!"
+ciudades para el Armonía Corporal 440!"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FLUJO ARMONÍA FACIAL 440
@@ -1155,7 +1167,7 @@ class Brain:
         fields = self._parse_notify_fields(data)
         servicio = (fields.get('servicio') or '').lower()
 
-        if 'body sculpt' in servicio or 'sharon' in servicio:
+        if 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
             msg = self._build_body_sculpt_notify(fields, sender_id)
         else:
             msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
@@ -1189,7 +1201,7 @@ class Brain:
         valor = fields.get('valor', '$150.000')
         ciudad = fields.get('ciudad', '—')
         return (
-            "🔔 LEAD BODY SCULPT 440\n"
+            "🔔 LEAD ARMONÍA CORPORAL 440\n"
             "━━━━━━━━━━━━━━━━━━━\n"
             f"👤 Nombre: {nombre}\n"
             f"📱 Tel: {telefono}\n"
