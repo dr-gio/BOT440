@@ -74,3 +74,51 @@ INYECTABLES PREMIUM:
 VALORACIÓN con Dra. Sharon: $150.000
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARMONÍA CORPORAL 440
+(antes Body Sculpt 440)
+by Dra. Sharon Santiago
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reduce peso y medidas SIN cirugía
+con un plan 100% personalizado
+y supervisión médica.
+
+INCLUYE:
+✨ Consulta y controles semanales
+   con la Dra. Sharon
+✨ Aparatología: Tensamax,
+   Carboxiterapia, Radiofrecuencia
+   con microagujas, Ultrasonido
+   cavitacional, Presoterapia y
+   Cámara Hiperbárica
+✨ Suero terapia
+✨ Enzimas inyectables lipolíticas
+✨ Medicamentos si aplica
+   (Ozempic y otros)
+   Bajo prescripción médica
+✨ Plan nutricional personalizado
+
+Todo supervisado por la Dra. Sharon
+Santiago, médica estética y
+nutricionista.
+
+METAS QUE ATIENDE:
+→ Bajar de peso
+→ Reducir medidas
+→ Eliminar celulitis
+→ Reafirmar y tonificar
+→ Recuperación post-cirugía
+
+CONSULTA INICIAL: $150.000
+(precios del programa personalizados;
+en la consulta la Dra. Sharon define
+el plan completo)
+
+OZEMPIC: se maneja dentro del
+programa, SIEMPRE bajo prescripción
+y supervisión de la Dra. Sharon.
+
+Atención en Barranquilla — muchos
+pacientes vienen de otras ciudades.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
