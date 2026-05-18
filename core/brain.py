@@ -595,6 +595,36 @@ Primera sesión: $[total÷6]
 3️⃣ Que me contacten por WhatsApp"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGLA DE AGENDAMIENTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ SERVICIOS CON CALENDARIO
+   (bot agenda automáticamente):
+→ servicio='valoracion'
+   Katherine/Roxana Mar-Vie 1-5pm
+→ servicio='depilacion'
+   Katherine/Roxana Lun-Sáb
+→ servicio='hiperbarica'
+   Katherine/Roxana Lun-Sáb
+
+❌ SERVICIOS SIN CALENDARIO
+   (bot SOLO notifica asesora):
+→ ARMONÍA FACIAL 440
+   (botox, labios, rellenos,
+   hydrash, tensamax facial,
+   exosomas, PDRN, bioestimuladores)
+→ ARMONÍA CORPORAL 440
+   (nutrición, carboxiterapia,
+   tensamax corporal, presoterapia,
+   ultrasonido, enzimas, ozempic)
+
+Para servicios SIN calendario:
+→ NUNCA llamar check_slots
+→ NUNCA llamar create_event
+→ SOLO emitir <<<NOTIFY>>>
+→ Asesora llama y agenda
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PASO 6 — AGENDAMIENTO (HERRAMIENTAS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
