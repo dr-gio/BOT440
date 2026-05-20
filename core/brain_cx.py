@@ -514,15 +514,46 @@ La Belleza 440 ✨"
 CUANDO ELIGE OPCIÓN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+⚠️ REGLA MAESTRA — distinguir
+valoración vs prediagnóstico:
+
+VALORACIÓN CON DR. GIO
+(opciones 1️⃣ presencial $260.000
+ o 2️⃣ virtual $160.000 — con precio):
+→ NUNCA pidas correo.
+→ NUNCA llames check_slots_cx.
+→ NUNCA muestres días ni horarios.
+→ SOLO confirmar + <<<NOTIFY>>>
+   (tipo: valoracion) + FIN.
+
+PREDIAGNÓSTICO GRATUITO
+(opción 3️⃣ en URGENTE/CALIENTE,
+ opción 1️⃣ en TIBIO/FRÍO):
+→ SÍ pedir correo (PASO A).
+→ SÍ llamar check_slots_cx (PASO B).
+→ SÍ mostrar días y horarios.
+→ Crear evento + NOTIFY
+   (tipo: prediagnostico virtual).
+
+
 Si elige valoración con Dr. Gio
 (opciones con precio en URGENTE/CALIENTE,
  es decir: presencial o virtual):
 "¡Perfecto [nombre]! 💙
-En breve una de nuestras asesoras
+En breve nuestra asesora
 te contactará para coordinar
 tu valoración con el Dr. Gio.
 
 La Belleza 440 ✨"
+
+⚠️ REGLAS ABSOLUTAS para valoración
+con Dr. Gio (opciones 1 y 2):
+→ NUNCA pidas el correo.
+→ NUNCA llames check_slots_cx.
+→ NUNCA muestres días ni horarios.
+→ SOLO el mensaje de confirmación
+   de arriba + <<<NOTIFY>>> en el
+   mismo turno + FIN.
 
 ⚠️ OBLIGATORIO: emite el NOTIFY
 inmediatamente en el MISMO mensaje
@@ -1570,7 +1601,62 @@ class BrainCX:
     def _es_eleccion_valoracion(msgs):
         """True si en la conversación el paciente está eligiendo una
         valoración con Dr. Gio (opciones 1/2 con precio) en lugar del
-        prediagnóstico gratuito. Si True → bloquear check_slots_cx."""
+        prediagnóstico gratuito. Si True → bloquear check_slots_cx.
+
+        Escanea TODA la conversación (no solo el último turno) para
+        que el bloqueo persista aunque el paciente envíe mensajes
+        posteriores como un correo, "ok", "gracias", etc.
+        """
+        all_user_parts = []
+        all_bot_parts = []
+        for m in msgs:
+            c = m.get('content', '')
+            text = ''
+            if isinstance(c, str):
+                text = c
+            elif isinstance(c, list):
+                for b in c:
+                    if isinstance(b, dict) and b.get('type') == 'text':
+                        text += b.get('text', '')
+            if not text:
+                continue
+            if m.get('role') == 'user':
+                all_user_parts.append(text)
+            elif m.get('role') == 'assistant':
+                all_bot_parts.append(text)
+        all_user = ' '.join(all_user_parts).lower()
+        all_bot = ' '.join(all_bot_parts).lower()
+
+        # 1) Confirmaciones del bot en CUALQUIER mensaje anterior:
+        bot_confirm = [
+            'vamos con la valoración presencial',
+            'vamos con la valoracion presencial',
+            'vamos con la valoración virtual',
+            'vamos con la valoracion virtual',
+            'valoración presencial con el dr',
+            'valoracion presencial con el dr',
+            'valoración virtual con el dr',
+            'valoracion virtual con el dr',
+            'coordinará tu valoración',
+            'coordinara tu valoracion',
+            'coordinar tu valoración con el dr',
+            'coordinar tu valoracion con el dr',
+        ]
+        if any(s in all_bot for s in bot_confirm):
+            return True
+
+        # 2) Señales directas del paciente en CUALQUIER mensaje:
+        direct_user = [
+            'valoracion virtual', 'valoración virtual',
+            'valoracion presencial', 'valoración presencial',
+            'presencial con dr', 'virtual con dr',
+            '$160', '$260', '160.000', '260.000',
+        ]
+        if any(s in all_user for s in direct_user):
+            return True
+
+        # 3) Si el ÚLTIMO mensaje del paciente fue un número en respuesta
+        # a una OFERTA del bot (el mensaje del bot inmediato anterior).
         last_user = ''
         last_bot = ''
         for m in reversed(msgs):
@@ -1592,26 +1678,14 @@ class BrainCX:
                 break
         u = (last_user or '').lower()
         b = (last_bot or '').lower()
-        # Señales directas en el mensaje del paciente
-        direct = [
-            'valoracion virtual', 'valoración virtual',
-            'valoracion presencial', 'valoración presencial',
-            'presencial con dr', 'virtual con dr',
-            '$160', '$260', '160.000', '260.000',
-        ]
-        if any(s in u for s in direct):
-            return True
-        # Si el paciente respondió solo con un número, mirar la OFERTA del bot
         num = u.strip().rstrip('.!,').replace('️⃣', '').strip()
         if num in {'1', '2', '3', 'uno', 'dos', 'tres',
                    '1️⃣', '2️⃣', '3️⃣'}:
             num_norm = num.replace('1️⃣', '1').replace('2️⃣', '2').replace('3️⃣', '3')
             if not b:
                 return False
-            # Formato URGENTE/CALIENTE: 1=presencial, 2=virtual, 3=prediagnóstico
             if '1️⃣ valoración' in b or '1️⃣ valoracion' in b:
                 return num_norm in {'1', '2', 'uno', 'dos'}
-            # Formato TIBIO/FRÍO: 1=prediagnóstico, 2=virtual, 3=presencial
             if '1️⃣ prediagn' in b:
                 return num_norm in {'2', '3', 'dos', 'tres'}
         return False
