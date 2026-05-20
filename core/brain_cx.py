@@ -1471,6 +1471,33 @@ class BrainCX:
 
                     # Ejecutar la herramienta
                     if tool_name == 'check_slots_cx':
+                        # BLOQUEO Python: si el paciente eligió valoración
+                        # con Dr. Gio (opción 1 o 2 con precio), nunca usamos
+                        # calendario — solo emitimos NOTIFY.
+                        if self._es_eleccion_valoracion(msgs):
+                            print("[CX] check_slots_cx BLOQUEADO — paciente "
+                                  "eligió valoración con Dr. Gio (opción 1/2)",
+                                  flush=True)
+                            tool_result_content = json.dumps({
+                                'ok': False,
+                                'bloqueado': True,
+                                'mensaje': (
+                                    'El paciente eligió valoración con '
+                                    'Dr. Gio (opción 1 o 2). NO uses '
+                                    'check_slots_cx ni muestres horarios. '
+                                    'Responde: "¡Perfecto [nombre]! 💙 '
+                                    'En breve nuestra asesora te contactará '
+                                    'para coordinar tu valoración con el '
+                                    'Dr. Gio. La Belleza 440 ✨" y emite '
+                                    'el <<<NOTIFY>>> con tipo: valoracion '
+                                    'y opcion_elegida exacta.'),
+                            }, ensure_ascii=False)
+                            tool_results.append({
+                                'type': 'tool_result',
+                                'tool_use_id': tool_use_id,
+                                'content': tool_result_content,
+                            })
+                            continue
                         # BUG 1 FIX: SIEMPRE usar rotación — ignorar asesora que Claude proponga.
                         # _next_asesora lee asesoras_turno y devuelve a quien le toca.
                         # El turno avanza solo en _notify_lead (cuando el prediagnóstico se confirma).
@@ -1538,6 +1565,56 @@ class BrainCX:
             k, _, v = line.partition(':')
             out[k.strip().lower()] = v.strip()
         return out
+
+    @staticmethod
+    def _es_eleccion_valoracion(msgs):
+        """True si en la conversación el paciente está eligiendo una
+        valoración con Dr. Gio (opciones 1/2 con precio) en lugar del
+        prediagnóstico gratuito. Si True → bloquear check_slots_cx."""
+        last_user = ''
+        last_bot = ''
+        for m in reversed(msgs):
+            c = m.get('content', '')
+            text = ''
+            if isinstance(c, str):
+                text = c
+            elif isinstance(c, list):
+                for b in c:
+                    if isinstance(b, dict) and b.get('type') == 'text':
+                        text += b.get('text', '')
+            if not text:
+                continue
+            if m.get('role') == 'user' and not last_user:
+                last_user = text
+            elif m.get('role') == 'assistant' and not last_bot:
+                last_bot = text
+            if last_user and last_bot:
+                break
+        u = (last_user or '').lower()
+        b = (last_bot or '').lower()
+        # Señales directas en el mensaje del paciente
+        direct = [
+            'valoracion virtual', 'valoración virtual',
+            'valoracion presencial', 'valoración presencial',
+            'presencial con dr', 'virtual con dr',
+            '$160', '$260', '160.000', '260.000',
+        ]
+        if any(s in u for s in direct):
+            return True
+        # Si el paciente respondió solo con un número, mirar la OFERTA del bot
+        num = u.strip().rstrip('.!,').replace('️⃣', '').strip()
+        if num in {'1', '2', '3', 'uno', 'dos', 'tres',
+                   '1️⃣', '2️⃣', '3️⃣'}:
+            num_norm = num.replace('1️⃣', '1').replace('2️⃣', '2').replace('3️⃣', '3')
+            if not b:
+                return False
+            # Formato URGENTE/CALIENTE: 1=presencial, 2=virtual, 3=prediagnóstico
+            if '1️⃣ valoración' in b or '1️⃣ valoracion' in b:
+                return num_norm in {'1', '2', 'uno', 'dos'}
+            # Formato TIBIO/FRÍO: 1=prediagnóstico, 2=virtual, 3=presencial
+            if '1️⃣ prediagn' in b:
+                return num_norm in {'2', '3', 'dos', 'tres'}
+        return False
 
     @staticmethod
     def _turno_canal(opcion):
