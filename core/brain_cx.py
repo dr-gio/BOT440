@@ -1546,6 +1546,15 @@ class BrainCX:
                         if isinstance(raw_response, dict):
                             if raw_response.get('paso') == 'elegir_hora':
                                 last_slots = raw_response.get('slots', [])
+                            elif raw_response.get('paso') == 'elegir_jornada':
+                                # FIX 3: forzar que Claude pregunte mañana/tarde
+                                raw_response = dict(raw_response)
+                                raw_response['_instruccion'] = (
+                                    'Debes preguntar al paciente: '
+                                    '"¿Prefieres en la mañana ☀️ o en '
+                                    'la tarde 🌙?" — NO asumas ni saltes '
+                                    'este paso.'
+                                )
                         elif isinstance(raw_response, list):
                             last_slots = raw_response  # legacy
                         tool_result_content = json.dumps(raw_response, ensure_ascii=False)
@@ -2021,6 +2030,97 @@ class BrainCX:
                         print(f"[CX] PASO D: inyectados {len(_slots)} slots reales en historial", flush=True)
                     else:
                         print(f"[CX] PASO D: n8n devolvió slots vacíos para {_asesora_d!r} {_dia!r} {_jornada!r}", flush=True)
+
+        # ── PASO E: forzar create_event_cx cuando el paciente elige slot ──
+        # Buscar último mensaje del bot que contenga <<<SLOTS>>>
+        _slots_in_hist = ''
+        for _m in reversed(history[:-1]):
+            if _m.get('role') == 'assistant':
+                _c = _m.get('content', '')
+                if isinstance(_c, str) and '<<<SLOTS>>>' in _c:
+                    _slots_in_hist = _c
+                    break
+        if _slots_in_hist and not _forced_slots:
+            _slots_dict = {}
+            for _ln in _slots_in_hist.splitlines():
+                _mm = re.match(r'slot_(\d+):\s*(\{.*\})', _ln.strip())
+                if _mm:
+                    try:
+                        _slots_dict[int(_mm.group(1))] = json.loads(_mm.group(2))
+                    except Exception:
+                        pass
+            _chosen_n = None
+            _num_clean = _user_lower.rstrip('.!,').replace('️⃣', '').strip()
+            _word_map = {'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5,
+                         '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}
+            if _num_clean in _word_map:
+                _chosen_n = _word_map[_num_clean]
+            else:
+                for _k, _s in _slots_dict.items():
+                    _lbl = (_s.get('slot_label') or _s.get('label') or '').lower()
+                    if _lbl and _num_clean and _num_clean in _lbl:
+                        _chosen_n = _k
+                        break
+            if _chosen_n and _chosen_n in _slots_dict:
+                _slot = _slots_dict[_chosen_n]
+                _hist_text = ' '.join(
+                    m.get('content', '') if isinstance(m.get('content'), str) else ''
+                    for m in history)
+                _email_m = re.search(
+                    r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',
+                    _hist_text)
+                _email_p = _email_m.group(0) if _email_m else ''
+                _asesora_slot = _slot.get('esteticista') or _slot.get('asesora') or ''
+                print(f"[CX] PASO E detectado → force create_event_cx "
+                      f"slot={_chosen_n} asesora={_asesora_slot!r} "
+                      f"iso_start={_slot.get('iso_start','')!r}", flush=True)
+                _ce_result = self._create_event_cx(
+                    asesora=_asesora_slot,
+                    slot_id=str(_chosen_n),
+                    slot_label=_slot.get('slot_label') or _slot.get('label') or '',
+                    iso_start=_slot.get('iso_start', ''),
+                    iso_end=_slot.get('iso_end', ''),
+                    sender_id=sender_id,
+                    sender_name=sender_name or '',
+                    correo_paciente=_email_p,
+                )
+                _inject_tool_result(
+                    history, 'create_event_cx',
+                    {'slot_id': str(_chosen_n),
+                     'iso_start': _slot.get('iso_start', ''),
+                     'iso_end': _slot.get('iso_end', ''),
+                     'asesora': _asesora_slot,
+                     'correo_paciente': _email_p},
+                    _ce_result,
+                )
+                _ml = _ce_result.get('meet_link', '') if isinstance(_ce_result, dict) else ''
+                print(f"[CX] PASO E: inyectado tool_result de create_event_cx "
+                      f"meet_link={_ml!r}", flush=True)
+
+        # ── FIX 2: si el paciente eligió prediagnóstico pero NO ha dado
+        # correo, forzar que el bot lo pida ANTES de mostrar días/slots. ──
+        _hist_str = ' '.join(
+            m.get('content', '') if isinstance(m.get('content'), str) else ''
+            for m in history)
+        _has_prediag_intent = bool(re.search(
+            r'prediagn[oó]stico\s*(gratuito|gratis)?', _hist_str, re.IGNORECASE))
+        _has_email_in_hist = bool(re.search(
+            r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', _hist_str))
+        if _has_prediag_intent and not _has_email_in_hist:
+            paciente_ctx += (
+                "\n\n[SISTEMA — REGLA RUNTIME]:\n"
+                "El paciente eligió el prediagnóstico GRATUITO pero "
+                "todavía NO ha dado su correo electrónico. ANTES de "
+                "mostrar días, llamar check_slots_cx o anunciar "
+                "horarios, pregunta SIEMPRE primero con este texto:\n"
+                "'¡Perfecto! 💙 Antes de mostrarte los horarios "
+                "disponibles, ¿cuál es tu correo electrónico para "
+                "enviarte la confirmación y el link de tu "
+                "videollamada? 📧 (Escribe tu correo o no tengo)'\n"
+                "NO muestres días sin el correo."
+            )
+            print("[CX] FIX2 — sin correo aún, inyectada instrucción "
+                  "para pedirlo antes de slots", flush=True)
 
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
