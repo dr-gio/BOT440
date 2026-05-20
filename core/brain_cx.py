@@ -572,9 +572,13 @@ PASO 0 — Explicar el prediagnóstico:
   Si es WhatsApp → continuar
   directamente con PASO A.
 
-PASO A — Pedir correo electrónico:
-→ NO llames check_slots_cx todavía
-→ Pregunta primero:
+PASO A — Pedir correo electrónico
+(OBLIGATORIO antes de cualquier
+llamada a check_slots_cx):
+→ NO llames check_slots_cx todavía.
+→ NO muestres días disponibles
+   si todavía no tienes el correo.
+→ Pregunta SIEMPRE primero:
   "¡Perfecto [nombre]! 💙
   Antes de mostrarte los horarios
   disponibles, ¿cuál es tu correo
@@ -582,6 +586,11 @@ PASO A — Pedir correo electrónico:
   confirmación y el link de tu
   videollamada? 📧
   (Escribe tu correo o 'no tengo')"
+
+⚠️ REGLA ABSOLUTA: si en el historial
+todavía NO hay un correo (o un
+explícito "no tengo"), nunca llames
+check_slots_cx ni anuncies días.
 
 PASO B — Recibir correo → elegir DÍA:
 → Cuando el paciente responde con
@@ -635,9 +644,14 @@ PASO D — Paciente elige jornada → elegir HORA:
 
     ¿Cuál prefieres? 😊"
   - Si slots ESTÁ VACÍO ([]) → NO llamar check_slots_cx de nuevo.
-    Responder: "No tenemos disponibilidad en esa jornada 😊
-    ¿Prefieres [la otra jornada: si eligió mañana → tarde, si eligió tarde → mañana]?"
-    y esperar a que el paciente elija otra jornada (volver a PASO D).
+    Responder EXACTAMENTE:
+    "No hay disponibilidad en la [jornada elegida]
+    para ese día 💙
+    ¿Prefieres [la otra jornada] o eliges otro día?"
+    y esperar a que el paciente decida.
+    NO ofrezcas automáticamente la otra jornada
+    como única opción — siempre da las dos
+    salidas (otra jornada o otro día).
 
 IMPORTANTE — Detectar correo:
 → Un correo válido contiene '@' y '.'
@@ -1339,6 +1353,11 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Claude
     # ------------------------------------------------------------------
+    # Regex de un Meet link real: meet.google.com/xxx-yyyy-zzz (alfanumérico)
+    _MEET_LINK_RE = re.compile(
+        r'https?://meet\.google\.com/[a-z0-9]{3,4}-[a-z0-9]{3,4}-[a-z0-9]{3,4}',
+        re.IGNORECASE)
+
     def _call_claude(self, messages, sender_id='', sender_name='', forced_slots=None,
                      paciente_ctx=''):
         """Llama a Claude con soporte para tool use (check_slots_cx, create_event_cx).
@@ -1348,6 +1367,7 @@ class BrainCX:
         msgs = list(messages)
         max_iterations = 4  # evitar loops infinitos
         last_slots = forced_slots  # FIX: pre-cargar slots si PASO D inyectó
+        last_meet_link = ''  # capturado de create_event_cx para validar el texto final
 
         for iteration in range(max_iterations):
             payload = json.dumps({
@@ -1399,6 +1419,25 @@ class BrainCX:
                     slots_block += '<<<END_SLOTS>>>'
                     text += slots_block
                     print(f"[CX] FIX1 — <<<SLOTS>>> appended ({len(last_slots)} slots, sin límite)", flush=True)
+
+                # Validar meet_link en el texto: si Claude inventó un link
+                # (no se llamó create_event_cx o devolvió vacío), lo reemplazamos
+                # por un mensaje de fallback en vez de mostrar un URL falso.
+                _meet_in_text = self._MEET_LINK_RE.search(text)
+                if _meet_in_text:
+                    _fake_url = _meet_in_text.group(0)
+                    if last_meet_link and last_meet_link != _fake_url:
+                        text = text.replace(_fake_url, last_meet_link)
+                        print(f"[CX] meet_link corregido → {last_meet_link}", flush=True)
+                    elif not last_meet_link:
+                        # No hubo create_event_cx exitoso → el link es alucinado.
+                        text = re.sub(
+                            r'🎥[^\n]*meet\.google\.com[^\n]*\n?',
+                            '🎥 Te enviaremos el link de la '
+                            'videollamada por WhatsApp antes '
+                            'de tu cita 💙\n',
+                            text)
+                        print("[CX] meet_link inventado — reemplazado por fallback", flush=True)
                 return text
 
             # Hay tool use → ejecutar herramientas y continuar loop
@@ -1444,6 +1483,10 @@ class BrainCX:
                             sender_name=tool_input.get('sender_name', sender_name),
                             correo_paciente=tool_input.get('correo_paciente', ''),
                         )
+                        if isinstance(result, dict):
+                            _ml = (result.get('meet_link') or '').strip()
+                            if self._MEET_LINK_RE.match(_ml):
+                                last_meet_link = _ml
                         tool_result_content = json.dumps(result, ensure_ascii=False)
                     else:
                         tool_result_content = json.dumps({'error': f'Unknown tool: {tool_name}'})
