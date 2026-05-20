@@ -1035,15 +1035,21 @@ def _strip_internal_blocks(text):
 # llama igual aunque el prompt lo prohíba).
 SERVICIOS_SIN_SLOTS = [
     'armonia facial', 'armonía facial',
-    'botox', 'toxina', 'labios',
-    'relleno', 'rinomodelacion', 'rinomodelación',
-    'exosomas', 'pdrn', 'bioestimulador',
-    'tensamax', 'hydrash',
     'armonia corporal', 'armonía corporal',
+    'botox', 'toxina', 'labios', 'labio',
+    'relleno', 'rinomodelacion', 'rinomodelación',
+    'rinoplastia', 'nariz', 'perfilado',
+    'exosomas', 'pdrn', 'bioestimulador',
+    'tensamax', 'hydrash', 'microagujas',
+    'radiofrecuencia facial',
     'nutricion', 'nutrición',
     'carboxiterapia', 'presoterapia',
-    'enzimas', 'ozempic',
+    'enzimas', 'ozempic', 'sharon', 'dra sharon',
+    'facial', 'rostro', 'arrugas', 'flacidez facial',
 ]
+
+# Whitelist: solo estos 3 servicios pueden ejecutar check_slots.
+SERVICIOS_CON_SLOTS = {'depilacion', 'hiperbarica', 'valoracion'}
 
 
 def _conversacion_texto(messages):
@@ -1360,19 +1366,31 @@ class Brain:
                     if block.get('type') == 'tool_use':
                         tname = block.get('name', '')
                         tinput = block.get('input', {}) or {}
-                        # BLOQUEO Python: Armonía Facial/Corporal NO usan slots
-                        if tname == 'check_slots' and any(
-                                s in convo_txt for s in SERVICIOS_SIN_SLOTS):
-                            print("[BRAIN] check_slots BLOQUEADO — "
-                                  "servicio sin calendario (Armonía Facial/Corporal)",
-                                  flush=True)
+                        # BLOQUEO Python — 2 capas:
+                        # 1) servicio del payload no está en la whitelist
+                        # 2) la conversación menciona un servicio sin calendario
+                        _bloquear = False
+                        if tname == 'check_slots':
+                            _serv = (tinput.get('servicio') or '').lower().strip()
+                            if _serv and _serv not in SERVICIOS_CON_SLOTS:
+                                _bloquear = True
+                                print(f"[BRAIN] check_slots BLOQUEADO — "
+                                      f"servicio={_serv!r} no está en whitelist "
+                                      f"{SERVICIOS_CON_SLOTS}", flush=True)
+                            elif any(s in convo_txt for s in SERVICIOS_SIN_SLOTS):
+                                _bloquear = True
+                                print("[BRAIN] check_slots BLOQUEADO — "
+                                      "conversación menciona servicio sin calendario",
+                                      flush=True)
+                        if _bloquear:
                             result = {
                                 'ok': False,
                                 'bloqueado': True,
                                 'mensaje': ('Este servicio no se agenda con '
                                             'horarios. Responde al paciente: '
-                                            '"Sara te contactará para coordinar '
-                                            'tu cita 💙" y emite el <<<NOTIFY>>>.'),
+                                            '"Nuestra asesora te contactará para '
+                                            'coordinar tu cita con la Dra. Sharon '
+                                            '💙" y emite el <<<NOTIFY>>>.'),
                             }
                         else:
                             result = self._exec_tool(tname, tinput, sender_id)
