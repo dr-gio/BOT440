@@ -524,6 +524,26 @@ tu valoración con el Dr. Gio.
 
 La Belleza 440 ✨"
 
+⚠️ OBLIGATORIO: emite el NOTIFY
+inmediatamente en el MISMO mensaje
+después de esa confirmación. NUNCA
+cierres sin NOTIFY — la asesora
+necesita ese aviso para llamar.
+
+<<<NOTIFY>>>
+nombre: [nombre real del paciente]
+telefono: [número del paciente — del prefijo [57xxx|Nombre]]
+ciudad: [ciudad real — NUNCA omitir]
+procedimiento: [procedimiento real]
+fecha_deseada: [fecha que el paciente dijo, o 'no definida']
+motivacion: [qué le molesta o quiere mejorar]
+score: CALIENTE
+tipo: valoracion
+opcion_elegida: [virtual $160.000 / presencial $260.000 — el texto exacto que eligió]
+accion: Contactar HOY para coordinar valoración con Dr. Gio
+prioridad: CALIENTE
+<<<END>>>
+
 Si elige prediagnóstico O pregunta
 qué es el prediagnóstico (opción GRATUITA
 en cualquier score — es la 3️⃣ en
