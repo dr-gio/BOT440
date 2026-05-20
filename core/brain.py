@@ -1,5 +1,5 @@
 import os, json, re, urllib.request, urllib.error, urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 
@@ -1267,6 +1267,32 @@ class Brain:
             print(f"[BRAIN] check_paciente error: {e}", flush=True)
             return None
 
+    def _already_notified(self, sender_id, canal, hours=24):
+        """True si ya hay un mensaje saliente con <<<NOTIFY>>> para este
+        sender_id en las últimas `hours` horas. Evita enviar el lead
+        duplicado a las asesoras cuando Claude emite NOTIFY 2 veces."""
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return False
+        try:
+            since = (datetime.now(timezone.utc) -
+                     timedelta(hours=hours)).isoformat()
+            params = (
+                f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}'
+                f'&canal=eq.{urllib.parse.quote(canal)}'
+                f'&direccion=eq.saliente'
+                f'&mensaje=ilike.*NOTIFY*'
+                f'&created_at=gte.{urllib.parse.quote(since)}'
+                f'&select=created_at&limit=1'
+            )
+            url = f'{self.sb_url}/rest/v1/conversaciones_440?{params}'
+            req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                rows = json.loads(r.read())
+            return bool(rows)
+        except Exception as e:
+            print(f"[BRAIN] already_notified error: {e}", flush=True)
+            return False
+
     def _upsert_paciente(self, sender_id, nombre=None, email=None,
                          canal=None, servicio=None):
         if not self.sb_url or not self.sb_key or not sender_id:
@@ -1537,6 +1563,14 @@ class Brain:
         if match:
             notify = match.group(1).strip()
 
+        # Deduplicar NOTIFY: si ya enviamos uno para este sender en las
+        # últimas 24h, no volvemos a notificar a las asesoras.
+        should_notify = bool(notify)
+        if notify and self._already_notified(sender_id, canal):
+            print("[BRAIN] NOTIFY duplicado — ya hay uno en las últimas 24h, "
+                  "skip notify_admin", flush=True)
+            should_notify = False
+
         # Strip internal blocks before sending to the patient via WhApi
         user_facing = _strip_internal_blocks(full_response)
 
@@ -1553,7 +1587,7 @@ class Brain:
         else:
             print(f"[BRAIN] empty response after strip — NOT sending", flush=True)
 
-        if notify:
+        if should_notify:
             print(f"[BRAIN] notify_admin trigger", flush=True)
             self._notify_admin(notify, sender_id)
 
