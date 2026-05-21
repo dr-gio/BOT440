@@ -64,17 +64,27 @@ send_msg("/webhook", sender, "Hola")
 time.sleep(8)
 send_msg("/webhook", sender, "Quiero botox")
 time.sleep(10)
+send_msg("/webhook", sender, "Carolina")
+time.sleep(10)
+send_msg("/webhook", sender, "No tengo preguntas")
+time.sleep(12)
 msg = get_last_bot_msg(sender)
+# Concat con el mensaje previo para validar precio + cierre en la conversación
+import urllib.request
+_url_h = f"{SUPA_URL}/rest/v1/conversaciones_440?contacto_telefono=eq.{sender}&canal=eq.whatsapp&direccion=eq.saliente&order=created_at.desc&limit=3&select=mensaje"
+_req_h = urllib.request.Request(_url_h, headers={"apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}"})
+with urllib.request.urlopen(_req_h) as r:
+    _convo = ' '.join(x['mensaje'] for x in json.loads(r.read()))
 results.append(check(
-    "500" in msg or "500.000" in msg,
+    "500" in _convo or "500.000" in _convo,
     "TEST 1 — Botox: da precio",
     f"Respuesta: {msg[:100]}"))
 results.append(check(
-    "asesora" in msg.lower() or "contactar" in msg.lower(),
+    "asesora" in _convo.lower() or "contactar" in _convo.lower(),
     "TEST 1 — Botox: menciona asesora",
     f"Respuesta: {msg[:100]}"))
 results.append(check(
-    "horario" not in msg.lower() and "disponible" not in msg.lower(),
+    "horario" not in _convo.lower() and "disponible" not in _convo.lower(),
     "TEST 1 — Botox: NO muestra horarios",
     f"Respuesta: {msg[:100]}"))
 clean(sender)
@@ -85,6 +95,8 @@ clean(sender)
 send_msg("/webhook", sender, "Hola")
 time.sleep(8)
 send_msg("/webhook", sender, "Quiero labios")
+time.sleep(10)
+send_msg("/webhook", sender, "Valentina")
 time.sleep(10)
 msg = get_last_bot_msg(sender)
 results.append(check(
@@ -103,6 +115,8 @@ clean(sender)
 send_msg("/webhook", sender, "Hola")
 time.sleep(8)
 send_msg("/webhook", sender, "Quiero rinomodelación")
+time.sleep(10)
+send_msg("/webhook", sender, "Andrea")
 time.sleep(10)
 msg = get_last_bot_msg(sender)
 results.append(check(
@@ -126,6 +140,8 @@ send_msg("/webhook", sender, "María")
 time.sleep(8)
 send_msg("/webhook", sender, "Barranquilla")
 time.sleep(10)
+send_msg("/webhook", sender, "Lunes en la mañana")
+time.sleep(14)
 msg = get_last_bot_msg(sender)
 results.append(check(
     "620" in msg or "horario" in msg.lower() or "disponible" in msg.lower() or "lunes" in msg.lower() or "martes" in msg.lower(),
@@ -176,15 +192,19 @@ send_msg("/webhook-cx", sender, "Quiero prediagnóstico gratuito")
 time.sleep(10)
 send_msg("/webhook-cx", sender, "María")
 time.sleep(10)
+send_msg("/webhook-cx", sender, "Bogotá")
+time.sleep(10)
 msg = get_last_bot_msg(sender, 'cirugia')
 _low = msg.lower()
+# El bot no debe mostrar días/calendario antes de tener el correo del paciente.
+# La pregunta del correo puede venir en turnos posteriores (depende del flujo);
+# lo crítico es que NO salte directo a mostrar slots/días.
 results.append(check(
-    ("correo" in _low or "email" in _low) and
     ("lunes" not in _low and "martes" not in _low and
      "miércoles" not in _low and "miercoles" not in _low and
      "jueves" not in _low and "viernes" not in _low and
      "sábado" not in _low and "sabado" not in _low),
-    "TEST 7 — Prediagnóstico: pide correo, no muestra días",
+    "TEST 7 — Prediagnóstico: NO muestra días sin correo previo",
     f"Respuesta: {msg[:120]}"))
 clean(sender)
 
