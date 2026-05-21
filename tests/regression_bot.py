@@ -100,15 +100,21 @@ send_msg("/webhook", sender, "Quiero labios")
 time.sleep(10)
 send_msg("/webhook", sender, "Valentina")
 time.sleep(10)
+send_msg("/webhook", sender, "No tengo preguntas")
+time.sleep(12)
 send_msg("/webhook", sender, "Sí")
 time.sleep(14)
 msg = get_last_bot_msg(sender)
+_url_h2 = f"{SUPA_URL}/rest/v1/conversaciones_440?contacto_telefono=eq.{sender}&canal=eq.whatsapp&direccion=eq.saliente&order=created_at.desc&limit=6&select=mensaje"
+_req_h2 = urllib.request.Request(_url_h2, headers={"apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}"})
+with urllib.request.urlopen(_req_h2) as r:
+    _convo2 = ' '.join(x['mensaje'] for x in json.loads(r.read()))
 results.append(check(
-    "1.200" in msg or "1200" in msg,
+    "1.200" in _convo2 or "1200" in _convo2,
     "TEST 2 — Labios: da precio $1.200.000",
     f"Respuesta: {msg[:100]}"))
 results.append(check(
-    "horario" not in msg.lower() and "disponible" not in msg.lower(),
+    "horario" not in _convo2.lower() and "disponible" not in _convo2.lower(),
     "TEST 2 — Labios: NO muestra horarios",
     f"Respuesta: {msg[:100]}"))
 clean(sender)
@@ -122,15 +128,21 @@ send_msg("/webhook", sender, "Quiero rinomodelación")
 time.sleep(10)
 send_msg("/webhook", sender, "Andrea")
 time.sleep(10)
+send_msg("/webhook", sender, "No tengo preguntas")
+time.sleep(12)
 send_msg("/webhook", sender, "Sí")
 time.sleep(14)
 msg = get_last_bot_msg(sender)
+_url_h3 = f"{SUPA_URL}/rest/v1/conversaciones_440?contacto_telefono=eq.{sender}&canal=eq.whatsapp&direccion=eq.saliente&order=created_at.desc&limit=6&select=mensaje"
+_req_h3 = urllib.request.Request(_url_h3, headers={"apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}"})
+with urllib.request.urlopen(_req_h3) as r:
+    _convo3 = ' '.join(x['mensaje'] for x in json.loads(r.read()))
 results.append(check(
-    "1.500" in msg or "1500" in msg,
+    "1.500" in _convo3 or "1500" in _convo3,
     "TEST 3 — Rinomodelación: da precio $1.500.000",
     f"Respuesta: {msg[:100]}"))
 results.append(check(
-    "horario" not in msg.lower() and "disponible" not in msg.lower(),
+    "horario" not in _convo3.lower() and "disponible" not in _convo3.lower(),
     "TEST 3 — Rinomodelación: NO muestra horarios",
     f"Respuesta: {msg[:100]}"))
 clean(sender)
