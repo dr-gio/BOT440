@@ -1910,7 +1910,7 @@ class Brain:
 
         if should_notify:
             print(f"[BRAIN] notify_admin trigger", flush=True)
-            self._notify_admin(notify, sender_id)
+            self._notify_admin(notify, sender_id, canal=canal)
 
     # Destinatarios fijos de las notificaciones de leads
     SARA_TEL = '573105762900'
@@ -1983,7 +1983,7 @@ class Brain:
         if should_notify:
             notify_data = notify_block.split('<<<NOTIFY>>>', 1)[1] \
                                        .split('<<<END>>>', 1)[0].strip()
-            self._notify_admin(notify_data, sender_id)
+            self._notify_admin(notify_data, sender_id, canal=canal)
         else:
             print("[BRAIN] bypass: ya notificado, skip notify_admin",
                   flush=True)
@@ -1999,7 +1999,7 @@ class Brain:
                                cuenta_receptora=cuenta_receptora)
         return True
 
-    def _notify_admin(self, data, sender_id):
+    def _notify_admin(self, data, sender_id, canal='whatsapp'):
         fields = self._parse_notify_fields(data)
         servicio_raw = (fields.get('servicio') or '').lower()
         tipo = (fields.get('tipo') or '').lower()
@@ -2047,6 +2047,47 @@ class Brain:
                 print(f"[BRAIN] notify → {tel} result={r}", flush=True)
             except Exception as e:
                 print(f"[BRAIN] notify → {tel} error: {e}", flush=True)
+
+        # CRM: upsert en leads_comerciales (no rompe si falla)
+        try:
+            self._upsert_lead_comercial(
+                nombre=nombre,
+                telefono=telefono,
+                procedimiento=servicio_display,
+                canal=canal,
+                prioridad=(fields.get('prioridad') or fields.get('score') or 'CALIENTE').upper(),
+                ciudad=ciudad,
+            )
+        except Exception as e:
+            print(f"[BRAIN] upsert lead_comercial error: {e}", flush=True)
+
+    def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
+                                canal='whatsapp', prioridad='CALIENTE', ciudad=''):
+        """INSERT en leads_comerciales con ON CONFLICT(telefono) DO NOTHING."""
+        if not self.sb_url or not telefono:
+            return
+        import urllib.request, urllib.parse, json as _json
+        body = {
+            'nombre': nombre or '—',
+            'apellido': '',
+            'telefono': str(telefono),
+            'procedimiento_interes': procedimiento or '—',
+            'canal': canal,
+            'etapa': 'lead',
+            'prioridad': prioridad,
+            'fuente': 'BOT440',
+            'notas': ciudad or '',
+        }
+        url = f"{self.sb_url}/rest/v1/leads_comerciales?on_conflict=telefono"
+        headers = self._sb_headers()
+        headers['Prefer'] = 'resolution=ignore-duplicates,return=minimal'
+        req = urllib.request.Request(url, data=_json.dumps(body).encode(),
+                                      headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                print(f"[BRAIN] CRM lead upsert → {r.status} tel={telefono}", flush=True)
+        except Exception as e:
+            print(f"[BRAIN] CRM lead upsert err: {e}", flush=True)
 
     @staticmethod
     def _build_notify_message(nombre, servicio, telefono, ciudad=''):

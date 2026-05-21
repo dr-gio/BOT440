@@ -1822,11 +1822,11 @@ class BrainCX:
         notify_data = notify_block.split('<<<NOTIFY>>>', 1)[1] \
                                    .split('<<<END>>>', 1)[0].strip()
         fields = self._parse_notify(notify_data)
-        self._notify_lead(fields, sender_id)
+        self._notify_lead(fields, sender_id, canal=canal)
 
         return user_facing
 
-    def _notify_lead(self, fields, sender_id):
+    def _notify_lead(self, fields, sender_id, canal='whatsapp'):
         """Routing por score y tipo:
 
         tipo='prediagnostico virtual':
@@ -1898,6 +1898,13 @@ class BrainCX:
                 results['drgio'] = self.whapi.send_text(drgio, msg)
             sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
             print(f"[CX] PREDIAGNÓSTICO notify results={sent}", flush=True)
+            try:
+                canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
+                self._upsert_lead_comercial(nombre=nombre, telefono=tel,
+                    procedimiento=proc, canal=canal_crm,
+                    prioridad='PREDIAGNOSTICO', ciudad=ciudad)
+            except Exception as e:
+                print(f"[CX] upsert lead_comercial (predia) error: {e}", flush=True)
             return score
 
         if 'URGENTE' in score:
@@ -2002,7 +2009,49 @@ class BrainCX:
 
         sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
         print(f"[CX] notify_lead score={score} results={sent}", flush=True)
+
+        # CRM: upsert en leads_comerciales (no rompe si falla)
+        try:
+            canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
+            self._upsert_lead_comercial(
+                nombre=nombre,
+                telefono=tel,
+                procedimiento=proc,
+                canal=canal_crm,
+                prioridad=score,
+                ciudad=ciudad,
+            )
+        except Exception as e:
+            print(f"[CX] upsert lead_comercial error: {e}", flush=True)
         return score
+
+    def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
+                                canal='whatsapp', prioridad='CALIENTE', ciudad=''):
+        """INSERT en leads_comerciales con ON CONFLICT(telefono) DO NOTHING."""
+        if not self.sb_url or not telefono:
+            return
+        import urllib.request, json as _json
+        body = {
+            'nombre': nombre or '—',
+            'apellido': '',
+            'telefono': str(telefono),
+            'procedimiento_interes': procedimiento or '—',
+            'canal': canal,
+            'etapa': 'lead',
+            'prioridad': prioridad,
+            'fuente': 'BOT440',
+            'notas': ciudad or '',
+        }
+        url = f"{self.sb_url}/rest/v1/leads_comerciales?on_conflict=telefono"
+        headers = self._sb_headers()
+        headers['Prefer'] = 'resolution=ignore-duplicates,return=minimal'
+        req = urllib.request.Request(url, data=_json.dumps(body).encode(),
+                                      headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                print(f"[CX] CRM lead upsert → {r.status} tel={telefono}", flush=True)
+        except Exception as e:
+            print(f"[CX] CRM lead upsert err: {e}", flush=True)
 
     # ------------------------------------------------------------------
     # Flujo principal
@@ -2298,7 +2347,7 @@ class BrainCX:
         if notify:
             fields = self._parse_notify(notify)
             print(f"[CX] NOTIFY fields={fields}", flush=True)
-            self._notify_lead(fields, sender_id)
+            self._notify_lead(fields, sender_id, canal=canal)
 
         return user_facing
 
