@@ -1253,6 +1253,76 @@ SERVICIOS_SIN_SLOTS = [
 # Whitelist: solo estos 3 servicios pueden ejecutar check_slots.
 SERVICIOS_CON_SLOTS = {'depilacion', 'hiperbarica', 'valoracion'}
 
+# ── Detector de servicio (state machine — paso 1) ─────────────────────
+_SERVICIO_KEYWORDS = [
+    ('hiperbarica', ['hiperbárica', 'hiperbarica', 'oxígeno', 'oxigeno',
+                     'cámara hiperbárica', 'camara hiperbarica']),
+    ('depilacion', ['depilación', 'depilacion', 'depilar', 'removall',
+                    'axilas', 'bikini', 'piernas', 'espalda', 'bigote',
+                    'vello']),
+    ('botox', ['botox', 'toxina', 'dysport', 'neuronox', 'siax']),
+    ('rinomodelacion', ['rinomodelacion', 'rinomodelación',
+                        'rinomodelar', 'nariz']),
+    ('labios', ['labios', 'labio']),
+    ('armonia_facial', ['exosomas', 'pdrn', 'salmón', 'salmon',
+                        'bioestimulador', 'tensamax', 'hydrash',
+                        'radiofrecuencia', 'microagujas',
+                        'rejuvenecimiento', 'arrugas', 'flacidez facial',
+                        'manchas', 'poros', 'armonía facial',
+                        'armonia facial', 'facial']),
+    ('armonia_corporal', ['bajar peso', 'bajar de peso', 'adelgazar',
+                          'celulitis', 'carboxiterapia', 'presoterapia',
+                          'ultrasonido', 'enzimas', 'ozempic',
+                          'nutrición', 'nutricion', 'metabolismo',
+                          'flacidez corporal', 'reducir medidas',
+                          'armonía corporal', 'armonia corporal',
+                          'body sculpt', 'reafirmar', 'tonificar']),
+]
+
+
+def _detect_servicio(text):
+    """Detecta el servicio mencionado en el historial (o cadena dada).
+    Retorna slug ('depilacion','hiperbarica','botox','labios',
+    'rinomodelacion','armonia_facial','armonia_corporal') o '' si no."""
+    t = (text or '').lower()
+    for servicio, kws in _SERVICIO_KEYWORDS:
+        if any(k in t for k in kws):
+            return servicio
+    return ''
+
+
+_AFIRMATIVOS = (
+    'si', 'sí', 'claro', 'quiero', 'ok', 'okay', 'dale', 'listo',
+    'vale', 'perfecto', 'me interesa', 'me gustaría', 'me gustaria',
+    'agendar', 'agendame', 'agéndame', 'si quiero', 'sí quiero',
+    'si me interesa', 'sí me interesa',
+)
+
+
+def _es_afirmacion(text):
+    """True si el mensaje es una confirmación afirmativa corta."""
+    t = (text or '').strip().lower().rstrip('.!?,').strip()
+    if not t:
+        return False
+    if t in _AFIRMATIVOS:
+        return True
+    for w in _AFIRMATIVOS:
+        if t == w or t.startswith(w + ' ') or t.startswith(w + ','):
+            return True
+    return False
+
+
+_SIN_CALENDARIO = {'botox', 'labios', 'rinomodelacion',
+                   'armonia_facial', 'armonia_corporal'}
+
+_SERVICIO_LABEL = {
+    'botox': 'Armonía Facial 440 — Botox',
+    'labios': 'Armonía Facial 440 — Labios',
+    'rinomodelacion': 'Armonía Facial 440 — Rinomodelación',
+    'armonia_facial': 'Armonía Facial 440',
+    'armonia_corporal': 'Armonía Corporal 440',
+}
+
 
 def _conversacion_texto(messages):
     """Texto plano (minúsculas) de todos los mensajes para detección."""
@@ -1719,6 +1789,17 @@ class Brain:
             email=_email_match.group(0) if _email_match else None,
             canal=canal)
 
+        # ── STATE MACHINE — esperando_confirmacion (sin calendario) ────
+        # Si el bot ya preguntó "¿Te gustaría agendar?" y el paciente
+        # respondió afirmativamente sobre un servicio SIN calendario,
+        # Python emite el cierre + NOTIFY directamente sin invocar Claude.
+        _bypass = self._try_bypass_close(
+            history, text, sender_id, sender_name, canal, cuenta_receptora)
+        if _bypass:
+            print("[BRAIN] state=esperando_confirmacion — bypass aplicado",
+                  flush=True)
+            return
+
         full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time,
                                           canal=canal, paciente_ctx=paciente_ctx)
         print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
@@ -1762,6 +1843,83 @@ class Brain:
     DRA_SHARON_TEL = '573015135214'
     CENTRAL_TEL = '573181800130'
     DR_GIO_TEL = '573181800131'
+
+    def _try_bypass_close(self, history, text, sender_id, sender_name,
+                          canal, cuenta_receptora):
+        """Si el último mensaje del bot preguntó '¿Te gustaría agendar?'
+        y el paciente confirma afirmativamente sobre un servicio SIN
+        calendario, emite cierre + NOTIFY directamente (sin Claude).
+        Retorna True si bypass se aplicó."""
+        # Último mensaje del bot
+        last_bot = ''
+        for m in reversed(history[:-1]):
+            if m.get('role') == 'assistant':
+                c = m.get('content')
+                if isinstance(c, str):
+                    last_bot = c
+                    break
+        last_bot_l = last_bot.lower()
+        # Solo aplica si el bot acaba de preguntar por agendar.
+        if not any(s in last_bot_l for s in (
+                '¿te gustaría agendar', 'te gustaria agendar',
+                'gustaría agendar', 'gustaria agendar')):
+            return False
+        if not _es_afirmacion(text):
+            return False
+        # Detectar servicio en toda la conversación.
+        hist_text = ' '.join(
+            m.get('content', '') if isinstance(m.get('content'), str) else ''
+            for m in history)
+        servicio = _detect_servicio(hist_text)
+        if servicio not in _SIN_CALENDARIO:
+            return False  # depilación/hiperbárica/valoración → no bypass
+
+        # ── Construir cierre + NOTIFY ────────────────────────────────
+        nombre = sender_name or ''
+        saludo = f"¡Perfecto {nombre}! 💙" if nombre else "¡Perfecto! 💙"
+        cierre = (
+            f"{saludo}\n"
+            "Nuestra asesora te contactará\n"
+            "para coordinar tu cita 😊\n"
+            "La Belleza 440 ✨"
+        )
+        servicio_label = _SERVICIO_LABEL.get(servicio, servicio)
+        # Ciudad / email — extracción simple del historial.
+        _email_m = re.search(
+            r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', hist_text)
+        correo = _email_m.group(0) if _email_m else ''
+        notify_block = (
+            "<<<NOTIFY>>>\n"
+            f"nombre: {nombre or 'sin nombre'}\n"
+            f"telefono: {sender_id}\n"
+            f"canal: {canal}\n"
+            f"servicio: {servicio_label}\n"
+            + (f"correo: {correo}\n" if correo else '')
+            + "prioridad: CALIENTE\n"
+            "accion: Llamar y coordinar cita con Dra. Sharon\n"
+            "<<<END>>>"
+        )
+        full_response = cierre + "\n\n" + notify_block
+
+        # Strip + enviar al paciente, guardar y notify admin.
+        user_facing = _strip_internal_blocks(full_response)
+        if user_facing:
+            client = self.instagram if canal == 'instagram' else self.whapi
+            r = client.send_text(sender_id, user_facing)
+            print(f"[BRAIN] bypass send_text result={r}", flush=True)
+            self._save_message(sender_id, sender_name, canal, full_response,
+                               direccion='saliente', remitente='bot',
+                               cuenta_receptora=cuenta_receptora)
+
+        # NOTIFY al staff (con dedup).
+        if not self._already_notified(sender_id, canal):
+            notify_data = notify_block.split('<<<NOTIFY>>>', 1)[1] \
+                                       .split('<<<END>>>', 1)[0].strip()
+            self._notify_admin(notify_data, sender_id)
+        else:
+            print("[BRAIN] bypass: ya notificado, skip notify_admin",
+                  flush=True)
+        return True
 
     def _notify_admin(self, data, sender_id):
         fields = self._parse_notify_fields(data)

@@ -68,6 +68,8 @@ send_msg("/webhook", sender, "Carolina")
 time.sleep(10)
 send_msg("/webhook", sender, "No tengo preguntas")
 time.sleep(12)
+send_msg("/webhook", sender, "Sí")
+time.sleep(14)
 msg = get_last_bot_msg(sender)
 # Concat con el mensaje previo para validar precio + cierre en la conversación
 import urllib.request
@@ -98,6 +100,8 @@ send_msg("/webhook", sender, "Quiero labios")
 time.sleep(10)
 send_msg("/webhook", sender, "Valentina")
 time.sleep(10)
+send_msg("/webhook", sender, "Sí")
+time.sleep(14)
 msg = get_last_bot_msg(sender)
 results.append(check(
     "1.200" in msg or "1200" in msg,
@@ -118,6 +122,8 @@ send_msg("/webhook", sender, "Quiero rinomodelación")
 time.sleep(10)
 send_msg("/webhook", sender, "Andrea")
 time.sleep(10)
+send_msg("/webhook", sender, "Sí")
+time.sleep(14)
 msg = get_last_bot_msg(sender)
 results.append(check(
     "1.500" in msg or "1500" in msg,
