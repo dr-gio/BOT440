@@ -1020,6 +1020,27 @@ tratamiento? 🎁
 2️⃣ Pagar en la clínica
    el día de tu cita"
 
+⚠️ OBLIGATORIO: en el MISMO mensaje
+de confirmación, emite SIEMPRE un
+<<<NOTIFY>>> para avisar a Central
+y Dr. Gio del agendamiento.
+
+<<<NOTIFY>>>
+nombre: [nombre del paciente]
+telefono: [sender_id]
+ciudad: [ciudad real]
+servicio: [depilacion o hiperbarica
+           o valoracion]
+zona: [zona si es depilacion, vacío si no]
+esteticista: [Katherine o Roxana]
+fecha: [día y hora del slot]
+tipo: cita_estetica
+<<<END>>>
+
+NUNCA cierres el agendamiento sin
+emitir este NOTIFY junto a la
+confirmación.
+
 ⚠️ En la línea de pago usa SIEMPRE los valores
 reales del paquete elegido (ej: para axilas
 "$103.000 de $620.000", para barba
@@ -1686,13 +1707,19 @@ class Brain:
     def _notify_admin(self, data, sender_id):
         fields = self._parse_notify_fields(data)
         servicio = (fields.get('servicio') or '').lower()
+        tipo = (fields.get('tipo') or '').lower()
 
         # Armonía Facial 440 y Armonía Corporal 440 → Sara + Sharon + Central + Dr. Gio
         # (sin rotación de asesoras por ahora)
         _estetica_dst = [self.SARA_TEL, self.DRA_SHARON_TEL,
                          self.CENTRAL_TEL, self.DR_GIO_TEL]
 
-        if 'armonía facial' in servicio or 'armonia facial' in servicio:
+        if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
+            # Cita de depilación / hiperbárica / valoración estética agendada.
+            # Solo Central + Dr. Gio (Sara y Sharon no manejan estos servicios).
+            msg = self._build_cita_estetica_notify(fields, sender_id)
+            destinatarios = [self.CENTRAL_TEL, self.DR_GIO_TEL]
+        elif 'armonía facial' in servicio or 'armonia facial' in servicio:
             msg = self._build_facial_notify(fields, sender_id)
             destinatarios = list(_estetica_dst)
         elif 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
@@ -1710,6 +1737,27 @@ class Brain:
                 print(f"[BRAIN] notify → {tel} result={r}", flush=True)
             except Exception as e:
                 print(f"[BRAIN] notify → {tel} error: {e}", flush=True)
+
+    @staticmethod
+    def _build_cita_estetica_notify(fields, sender_id):
+        nombre = fields.get('nombre', '—')
+        ciudad = fields.get('ciudad', '—')
+        telefono = fields.get('telefono', sender_id)
+        servicio = fields.get('servicio', '—')
+        zona = fields.get('zona', '') or ''
+        esteticista = fields.get('esteticista', '—')
+        fecha = fields.get('fecha', '—')
+        servicio_line = f"{servicio} {zona}".strip() if zona else servicio
+        return (
+            "📅 CITA AGENDADA\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 {nombre} ({ciudad})\n"
+            f"💆 {servicio_line}\n"
+            f"📅 {fecha}\n"
+            f"👩 {esteticista}\n"
+            f"📱 Tel: {telefono}\n"
+            "━━━━━━━━━━━━━━━━━━━"
+        )
 
     @staticmethod
     def _build_facial_notify(fields, sender_id):
