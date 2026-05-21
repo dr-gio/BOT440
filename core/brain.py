@@ -1927,43 +1927,42 @@ class Brain:
 
     def _notify_admin(self, data, sender_id):
         fields = self._parse_notify_fields(data)
-        servicio = (fields.get('servicio') or '').lower()
+        servicio_raw = (fields.get('servicio') or '').lower()
         tipo = (fields.get('tipo') or '').lower()
-        combo = f"{tipo} {servicio}"
+        combo = f"{tipo} {servicio_raw}"
 
         # Destinatarios fijos para CUALQUIER lead estético.
         _fijos = [self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
 
+        # Servicio "display": para cita_estetica mapeamos slug a nombre
+        # legible y agregamos zona. Para los demás usamos el tratamiento
+        # si está presente, o el servicio crudo.
         if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
-            # Cita de depilación / hiperbárica / valoración estética agendada.
-            # SIEMPRE: Sharon + Central + Dr. Gio. Sara solo si contactar_sara=si.
-            msg = self._build_cita_estetica_notify(fields, sender_id)
+            _label = {
+                'depilacion': 'Depilación Láser',
+                'hiperbarica': 'Cámara Hiperbárica',
+                'valoracion': 'Valoración Gratuita',
+            }.get(servicio_raw, fields.get('servicio', '—'))
+            _zona = (fields.get('zona') or '').strip()
+            servicio_display = f"{_label} — {_zona}" if _zona else _label
+        else:
+            servicio_display = (fields.get('tratamiento')
+                                or fields.get('servicio') or '—')
+
+        nombre = fields.get('nombre', '—')
+        ciudad = (fields.get('ciudad') or '').strip()
+        telefono = fields.get('telefono', sender_id)
+        msg = self._build_notify_message(nombre, servicio_display,
+                                          telefono, ciudad)
+
+        # Routing de destinatarios.
+        if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
             destinatarios = list(_fijos)
             _contactar_sara = (fields.get('contactar_sara') or '').strip().lower()
             if _contactar_sara in ('si', 'sí', 'yes', 'true', '1'):
                 destinatarios.append(self.SARA_TEL)
-        elif 'armonía facial' in combo or 'armonia facial' in combo:
-            # Lead de Armonía Facial 440 → Sara siempre + fijos.
-            msg = self._build_facial_notify(fields, sender_id)
-            destinatarios = [self.SARA_TEL] + list(_fijos)
-        elif ('armonía corporal' in combo or 'armonia corporal' in combo
-              or 'body sculpt' in combo or 'sharon' in combo):
-            # Lead de Armonía Corporal 440 → Sara siempre + fijos.
-            msg = self._build_body_sculpt_notify(fields, sender_id)
-            destinatarios = [self.SARA_TEL] + list(_fijos)
-        elif any(k in combo for k in (
-                'botox', 'toxina', 'labios', 'rinomodelacion',
-                'rinomodelación', 'facial', 'tensamax', 'hydrash',
-                'exosomas', 'pdrn', 'bioestimulador')):
-            # Lead facial específico (botox/labios/rinomodelación/etc.)
-            # → Sara siempre + fijos.
-            msg = self._build_facial_notify(fields, sender_id)
-            destinatarios = [self.SARA_TEL] + list(_fijos)
         else:
-            # Cualquier otro lead estético no clasificado → por defecto
-            # incluir a Sara + los 3 fijos.
-            msg = (f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n"
-                   f"📱 Canal: {sender_id}\n━━━━━━━━━━━━━")
+            # Para cualquier otro lead estético: Sara siempre + 3 fijos.
             destinatarios = [self.SARA_TEL] + list(_fijos)
 
         for tel in destinatarios:
@@ -1974,6 +1973,25 @@ class Brain:
                 print(f"[BRAIN] notify → {tel} result={r}", flush=True)
             except Exception as e:
                 print(f"[BRAIN] notify → {tel} error: {e}", flush=True)
+
+    @staticmethod
+    def _build_notify_message(nombre, servicio, telefono, ciudad=''):
+        """Formato unificado de notificación WhatsApp al staff (Sara,
+        Sharon, Central, Dr. Gio). Misma forma para cualquier servicio
+        estético — sin precios ni metadatos extra."""
+        nombre = nombre or '—'
+        servicio = servicio or '—'
+        nom_line = f"👤 {nombre} ({ciudad})" if ciudad else f"👤 {nombre}"
+        return (
+            "💉 PACIENTE LISTA\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            f"{nom_line}\n"
+            f"💆 Tratamiento: {servicio}\n"
+            f"📱 Tel: {telefono}\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "Llamar para coordinar cita\n"
+            "con Dra. Sharon 💙"
+        )
 
     @staticmethod
     def _build_cita_estetica_notify(fields, sender_id):
