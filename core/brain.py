@@ -1901,7 +1901,20 @@ class Brain:
         )
         full_response = cierre + "\n\n" + notify_block
 
-        # Strip + enviar al paciente, guardar y notify admin.
+        # 1) Verificar dedup ANTES de guardar (si guardamos primero,
+        #    _already_notified encuentra el mensaje recién insertado).
+        should_notify = not self._already_notified(sender_id, canal)
+
+        # 2) Si no fue notificado en las últimas 24h → notify_admin.
+        if should_notify:
+            notify_data = notify_block.split('<<<NOTIFY>>>', 1)[1] \
+                                       .split('<<<END>>>', 1)[0].strip()
+            self._notify_admin(notify_data, sender_id)
+        else:
+            print("[BRAIN] bypass: ya notificado, skip notify_admin",
+                  flush=True)
+
+        # 3) Strip + enviar al paciente + guardar (después del notify).
         user_facing = _strip_internal_blocks(full_response)
         if user_facing:
             client = self.instagram if canal == 'instagram' else self.whapi
@@ -1910,15 +1923,6 @@ class Brain:
             self._save_message(sender_id, sender_name, canal, full_response,
                                direccion='saliente', remitente='bot',
                                cuenta_receptora=cuenta_receptora)
-
-        # NOTIFY al staff (con dedup).
-        if not self._already_notified(sender_id, canal):
-            notify_data = notify_block.split('<<<NOTIFY>>>', 1)[1] \
-                                       .split('<<<END>>>', 1)[0].strip()
-            self._notify_admin(notify_data, sender_id)
-        else:
-            print("[BRAIN] bypass: ya notificado, skip notify_admin",
-                  flush=True)
         return True
 
     def _notify_admin(self, data, sender_id):
