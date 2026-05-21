@@ -2057,30 +2057,41 @@ class Brain:
                 canal=canal,
                 prioridad=(fields.get('prioridad') or fields.get('score') or 'CALIENTE').upper(),
                 ciudad=ciudad,
+                observaciones=fields.get('motivacion') or fields.get('meta') or '',
             )
         except Exception as e:
             print(f"[BRAIN] upsert lead_comercial error: {e}", flush=True)
 
     def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
-                                canal='whatsapp', prioridad='CALIENTE', ciudad=''):
-        """INSERT en leads_comerciales con ON CONFLICT(telefono) DO NOTHING."""
-        if not self.sb_url or not telefono:
+                                canal='whatsapp', prioridad='CALIENTE',
+                                ciudad='', observaciones=''):
+        """INSERT en leads_comerciales del CRM (proyecto historia-clinica)."""
+        import urllib.request, json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        crm_url = os.environ.get('SUPABASE_URL_CRM', '').rstrip('/')
+        crm_key = os.environ.get('SUPABASE_KEY_CRM', '')
+        if not crm_url or not crm_key or not telefono:
+            print(f"[BRAIN] CRM lead upsert skipped (envs/tel missing)", flush=True)
             return
-        import urllib.request, urllib.parse, json as _json
         body = {
             'nombre': nombre or '—',
             'apellido': '',
             'telefono': str(telefono),
             'procedimiento_interes': procedimiento or '—',
-            'canal': canal,
+            'como_llego': f"BOT440 — {canal}",
+            'categoria': prioridad,
+            'ciudad': ciudad or '',
+            'observaciones': observaciones or '',
             'etapa': 'lead',
-            'prioridad': prioridad,
-            'fuente': 'BOT440',
-            'notas': ciudad or '',
+            'fecha_lead': _dt.now(_tz.utc).isoformat(),
         }
-        url = f"{self.sb_url}/rest/v1/leads_comerciales?on_conflict=telefono"
-        headers = self._sb_headers()
-        headers['Prefer'] = 'resolution=ignore-duplicates,return=minimal'
+        url = f"{crm_url}/rest/v1/leads_comerciales?on_conflict=telefono"
+        headers = {
+            'apikey': crm_key,
+            'Authorization': f'Bearer {crm_key}',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=ignore-duplicates,return=minimal',
+        }
         req = urllib.request.Request(url, data=_json.dumps(body).encode(),
                                       headers=headers, method='POST')
         try:
