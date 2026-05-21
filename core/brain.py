@@ -1603,8 +1603,11 @@ class Brain:
         is_first_time = len(history) == 0
         print(f"[BRAIN] is_first_time={is_first_time}", flush=True)
 
-        # Paciente recurrente — contexto dinámico para el system prompt
-        paciente = self._check_paciente_recurrente(sender_id)
+        # Paciente recurrente — contexto dinámico para el system prompt.
+        # SOLO se aplica si NO hay historial actual (conversación nueva).
+        # Si ya hay historial, el bot continúa el hilo sin saludar como
+        # "recurrente" en cada turno.
+        paciente = self._check_paciente_recurrente(sender_id) if is_first_time else None
         paciente_ctx = ''
         if paciente:
             servicios = paciente.get('servicios_interes') or []

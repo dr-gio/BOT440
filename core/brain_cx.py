@@ -1911,8 +1911,11 @@ class BrainCX:
 
         history = self._load_history(sender_id, canal=canal)
 
-        # Paciente recurrente — contexto dinámico para el system prompt
-        paciente = self._check_paciente_recurrente(sender_id)
+        # Paciente recurrente — contexto dinámico para el system prompt.
+        # SOLO se aplica si NO hay historial actual (conversación nueva);
+        # evita el "¿vienes por lo mismo?" mid-conversación.
+        _is_first_time = len(history) == 0
+        paciente = self._check_paciente_recurrente(sender_id) if _is_first_time else None
         paciente_ctx = ''
         if paciente:
             servicios = paciente.get('servicios_interes') or []

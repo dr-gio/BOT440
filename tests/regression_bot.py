@@ -6,7 +6,7 @@ BASE = "https://bot-440.vercel.app"
 
 def send_msg(endpoint, sender, text, name="Test"):
     payload = {"messages": [{"from_me": False,
-        "from": sender, "text": {"body": text},
+        "from": sender, "type": "text", "text": {"body": text},
         "chat_id": f"{sender}@s.whatsapp.net",
         "id": f"test_{int(time.time())}",
         "timestamp": int(time.time()),
