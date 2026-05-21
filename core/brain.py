@@ -1449,6 +1449,10 @@ class Brain:
             return
         if not mensaje:
             return
+        # Para WhatsApp del bot estética: marca '440clinic_wa' para que
+        # el CRM pueda distinguirlo del bot de cirugías (brain_cx → drgio_wa).
+        if cuenta_receptora is None and canal == 'whatsapp':
+            cuenta_receptora = '440clinic_wa'
         body = {
             'contacto_nombre': sender_name or None,
             'contacto_telefono': sender_id,
@@ -2078,7 +2082,7 @@ class Brain:
             'apellido': '',
             'telefono': str(telefono),
             'procedimiento_interes': procedimiento or '—',
-            'como_llego': f"BOT440 — {canal}",
+            'como_llego': 'BOT440 — Estética',
             'categoria': prioridad,
             'ciudad': ciudad or '',
             'observaciones': observaciones or '',

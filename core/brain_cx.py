@@ -1236,6 +1236,10 @@ class BrainCX:
         # Para instagram_cx inferir cuenta_receptora automáticamente
         if cuenta_receptora is None and canal == 'instagram_cx':
             cuenta_receptora = 'drgiovannifuentes'
+        # Para WhatsApp del bot cirugías: marca 'drgio_wa' para que el CRM
+        # pueda distinguirlo del bot estética (brain → 440clinic_wa).
+        if cuenta_receptora is None and canal == 'whatsapp':
+            cuenta_receptora = 'drgio_wa'
         body = {
             'contacto_nombre': sender_name or None,
             'contacto_telefono': sender_id,
@@ -2043,7 +2047,7 @@ class BrainCX:
             'apellido': '',
             'telefono': str(telefono),
             'procedimiento_interes': procedimiento or '—',
-            'como_llego': f"BOT440 — {canal}",
+            'como_llego': 'BOT440 — Cirugías',
             'categoria': prioridad,
             'ciudad': ciudad or '',
             'observaciones': observaciones or '',
