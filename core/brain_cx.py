@@ -14,7 +14,7 @@ Env vars esperadas:
   ADMIN_CX
 """
 import os, json, re, urllib.request, urllib.error, urllib.parse
-from datetime import datetime as _dt, timezone as _tz
+from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 
@@ -2013,18 +2013,38 @@ class BrainCX:
         paciente = self._check_paciente_recurrente(sender_id) if _is_first_time else None
         paciente_ctx = ''
         if paciente:
-            servicios = paciente.get('servicios_interes') or []
-            paciente_ctx = (
-                "\n\nCONTEXTO PACIENTE RECURRENTE:\n"
-                f"Nombre: {paciente.get('nombre') or '—'}\n"
-                f"Servicios de interés: {', '.join(servicios) if servicios else '—'}\n"
-                f"Email: {paciente.get('email') or '—'}\n"
-                f"Última visita: {paciente.get('ultimo_contacto') or '—'}\n"
-                "→ Saluda por nombre cálidamente\n"
-                "→ NO repitas bienvenida completa\n"
-                "→ Pregunta si viene por lo mismo o hay algo nuevo "
-                "que quiera trabajar"
-            )
+            _ultimo_raw = (paciente.get('ultimo_contacto') or '').strip()
+            try:
+                _ultimo_dt = _dt.fromisoformat(
+                    _ultimo_raw.replace('Z', '+00:00'))
+                if _ultimo_dt.tzinfo is None:
+                    _ultimo_dt = _ultimo_dt.replace(tzinfo=_tz.utc)
+                _delta = _dt.now(_tz.utc) - _ultimo_dt
+            except Exception:
+                _delta = _td(days=999)
+            if _delta < _td(hours=4):
+                # Conversación reciente — continuar el hilo sin saludo.
+                _is_first_time = False
+                print("[CX] paciente reciente (<4h) — continuar hilo",
+                      flush=True)
+            else:
+                # Vuelve después de 4+ horas — saludo personalizado corto.
+                _nombre = paciente.get('nombre') or ''
+                paciente_ctx = (
+                    "\n\n[SISTEMA — PACIENTE QUE REGRESA]\n"
+                    f"Nombre: {_nombre or '—'}\n"
+                    f"Última visita: {_ultimo_raw or '—'}\n"
+                    "→ NO uses la bienvenida completa de primera vez.\n"
+                    "→ Saluda EXACTAMENTE con este texto:\n\n"
+                    f"  \"¡Hola {_nombre or 'amig@'}! 💙\n"
+                    "   Qué bueno verte de nuevo 😊\n"
+                    "   ¿En qué te puedo ayudar hoy?\"\n\n"
+                    "→ Luego espera la respuesta del paciente.\n"
+                    "→ NO repitas el flujo completo."
+                )
+                _is_first_time = False
+                print("[CX] paciente regresa (>4h) — saludo corto",
+                      flush=True)
 
         # Siempre expone el sender_id en el prefijo para que Claude lo use en NOTIFY.
         # Formato: [sender_id|sender_name] si hay nombre, [sender_id] si no.

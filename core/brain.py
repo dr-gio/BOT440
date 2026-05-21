@@ -1803,25 +1803,50 @@ class Brain:
         print(f"[BRAIN] is_first_time={is_first_time}", flush=True)
 
         # Paciente recurrente — contexto dinámico para el system prompt.
-        # SOLO se aplica si NO hay historial actual (conversación nueva).
-        # Si ya hay historial, el bot continúa el hilo sin saludar como
-        # "recurrente" en cada turno.
+        # Lógica:
+        #   - history vacío + sin paciente en DB → primera vez (welcome).
+        #   - history vacío + paciente con ultimo_contacto < 4h →
+        #     continuar el hilo sin saludo nuevo.
+        #   - history vacío + paciente con ultimo_contacto >= 4h →
+        #     saludo personalizado corto "¡Hola [nombre]! Qué bueno
+        #     verte de nuevo".
+        #   - history NO vacío → continuar el hilo sin saludo extra.
         paciente = self._check_paciente_recurrente(sender_id) if is_first_time else None
         paciente_ctx = ''
         if paciente:
-            servicios = paciente.get('servicios_interes') or []
-            paciente_ctx = (
-                "\n\nCONTEXTO PACIENTE RECURRENTE:\n"
-                f"Nombre: {paciente.get('nombre') or '—'}\n"
-                f"Servicios de interés: {', '.join(servicios) if servicios else '—'}\n"
-                f"Email: {paciente.get('email') or '—'}\n"
-                f"Última visita: {paciente.get('ultimo_contacto') or '—'}\n"
-                "→ Saluda por nombre cálidamente\n"
-                "→ NO repitas bienvenida completa\n"
-                "→ Pregunta si viene por lo mismo o hay algo nuevo "
-                "que quiera trabajar"
-            )
-            is_first_time = False
+            _ultimo_raw = (paciente.get('ultimo_contacto') or '').strip()
+            try:
+                _ultimo_dt = datetime.fromisoformat(
+                    _ultimo_raw.replace('Z', '+00:00'))
+                if _ultimo_dt.tzinfo is None:
+                    _ultimo_dt = _ultimo_dt.replace(tzinfo=timezone.utc)
+                _delta = datetime.now(timezone.utc) - _ultimo_dt
+            except Exception:
+                _delta = timedelta(days=999)
+            if _delta < timedelta(hours=4):
+                # Conversación reciente — continuar el hilo, sin
+                # bienvenida nueva ni saludo de "regreso".
+                is_first_time = False
+                print(f"[BRAIN] paciente reciente (<4h) — continuar hilo",
+                      flush=True)
+            else:
+                # Vuelve después de 4+ horas — saludo personalizado corto.
+                _nombre = paciente.get('nombre') or ''
+                paciente_ctx = (
+                    "\n\n[SISTEMA — PACIENTE QUE REGRESA]\n"
+                    f"Nombre: {_nombre or '—'}\n"
+                    f"Última visita: {_ultimo_raw or '—'}\n"
+                    "→ NO uses la bienvenida completa de primera vez.\n"
+                    "→ Saluda EXACTAMENTE con este texto:\n\n"
+                    f"  \"¡Hola {_nombre or 'amig@'}! 💙\n"
+                    "   Qué bueno verte de nuevo 😊\n"
+                    "   ¿En qué te puedo ayudar hoy?\"\n\n"
+                    "→ Luego espera la respuesta del paciente.\n"
+                    "→ NO repitas el flujo completo."
+                )
+                is_first_time = False
+                print(f"[BRAIN] paciente regresa (>4h) — saludo corto",
+                      flush=True)
 
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
