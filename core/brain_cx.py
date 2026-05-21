@@ -1860,20 +1860,15 @@ class BrainCX:
                 asesora_slug, _, _ = self._next_asesora('cirugia')
             asesora_label = ASESORA_LABEL.get(asesora_slug, asesora_slug.capitalize())
             asesora_phone = os.environ.get(ASESORA_ENV.get(asesora_slug, ''), '').strip()
-            correo = fields.get('correo', 'no tiene')
-            correo_line = f"📧 Correo: {correo}\n" if correo and correo != 'no tiene' else "📧 Sin correo\n"
             msg = (
-                "📋 PREDIAGNÓSTICO AGENDADO\n"
+                "📅 PREDIAGNÓSTICO AGENDADO\n"
                 "━━━━━━━━━━━━━━━━━━━\n"
                 f"👤 {nombre} ({ciudad})\n"
                 f"💉 Procedimiento: {proc}\n"
                 f"📅 {fecha}\n"
                 f"👩 Asesora: {asesora_label}\n"
                 f"📱 Tel: {tel}\n"
-                f"{correo_line}"
-                "━━━━━━━━━━━━━━━━━━━\n"
-                "Contactar para coordinar\n"
-                "videollamada 📹"
+                "━━━━━━━━━━━━━━━━━━━"
             )
             if asesora_phone:
                 results['asesora'] = self.whapi.send_text(asesora_phone, msg)
