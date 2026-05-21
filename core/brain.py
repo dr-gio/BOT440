@@ -1707,15 +1707,17 @@ class Brain:
                                 if _new_zona:
                                     last_zona = _new_zona
                             elif tname == 'create_event':
-                                # Forzar coherencia: si Claude pasa 'valoracion'
-                                # pero check_slots usó depilacion/hiperbarica,
-                                # corregimos el servicio (y la zona si vino vacía).
+                                # Forzar coherencia: el servicio y la zona
+                                # de create_event deben coincidir con los
+                                # de check_slots. Si Claude pasa cualquier
+                                # otro valor (valoracion, depilacion siendo
+                                # hiperbarica, etc.), se sobreescribe con
+                                # last_servicio/last_zona.
                                 _ce_serv = (tinput.get('servicio') or '').lower().strip()
-                                if (_ce_serv == 'valoracion' and
-                                        last_servicio in ('depilacion', 'hiperbarica')):
+                                if last_servicio and _ce_serv != last_servicio:
                                     print(f"[BRAIN] create_event: forzando "
-                                          f"servicio={last_servicio!r} (Claude "
-                                          f"pasó {_ce_serv!r})", flush=True)
+                                          f"servicio {_ce_serv!r} → "
+                                          f"{last_servicio!r}", flush=True)
                                     tinput['servicio'] = last_servicio
                                 if not (tinput.get('zona') or '').strip() and last_zona:
                                     print(f"[BRAIN] create_event: forzando "
