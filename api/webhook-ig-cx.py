@@ -84,11 +84,19 @@ class handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(challenge.encode())
                 return
-            print(f"[WEBHOOK-IG-CX] verification FAIL", flush=True)
-            self.send_response(403)
+            if mode == 'subscribe':
+                # Intento de verificación con token incorrecto → 403.
+                print(f"[WEBHOOK-IG-CX] verification FAIL", flush=True)
+                self.send_response(403)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"error":"verification failed"}')
+                return
+            # GET sin params Meta → healthcheck.
+            self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(b'{"error":"verification failed"}')
+            self.wfile.write(b'{"status":"BOT440-IG-CX running"}')
         except Exception as e:
             print(f"[WEBHOOK-IG-CX] GET error: {e}", flush=True)
             self._ok({'error': str(e)})
