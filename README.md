@@ -2,30 +2,48 @@
 
 Bot conversacional de 440 Clinic by Dr. Giovanni Fuentes.
 
-## Tests de regresión
+## TESTING — REGLAS OBLIGATORIAS
 
-### Regla obligatoria — antes de CUALQUIER commit a `main`
+### ⚡ Quick Check (30 segundos)
 
-**PASO 1** — correr los tests:
+```bash
+python3 tests/quick_check.py
+```
+
+Usar cuando cambias:
+- Texto o mensajes al paciente
+- Precios o nombres de servicios
+- Emojis o formato visual
+- `knowledge/440clinic.md`
+
+### 🔬 Regression Completa (8 minutos)
 
 ```bash
 python3 tests/regression_bot.py
 ```
 
-**PASO 2** — interpretar el resultado:
+Usar cuando cambias:
+- Lógica o flujo del bot
+- `brain.py` o `brain_cx.py`
+- Webhooks Python
+- Workflows n8n (W21/W22)
+- Cualquier cambio de comportamiento
 
-- ✅ **Si todos pasan** → commitear y deployar.
-- ❌ **Si algún test falla** → NO commitear, arreglar el problema y volver al PASO 1.
+### REGLA SIMPLE
 
-Esta regla aplica para cualquier cambio por pequeño que sea.
+- ¿Cambié solo texto/palabras? → **Quick check (30 seg)**
+- ¿Cambié lógica/código/flujo? → **Regression completa (8 min)**
+- ¿No estoy seguro? → **Regression completa (8 min)**
 
 ### Detalles
 
-El script simula mensajes contra `/webhook` (estética) y `/webhook-cx`
-(cirugías) en producción y verifica las respuestas del bot leyendo
-`conversaciones_440` en Supabase.
+`quick_check.py` verifica que todos los endpoints respondan (GET y POST)
+sin tocar Supabase ni el modelo. Diseñado para detectar quiebres tras
+deploys de texto/copys.
 
-Requiere las variables de entorno `SUPABASE_URL` y `SUPABASE_ANON_KEY`
-(las mismas del bot).
+`regression_bot.py` simula conversaciones completas contra `/webhook` y
+`/webhook-cx` en producción y verifica las respuestas del bot leyendo
+`conversaciones_440` en Supabase. Requiere `SUPABASE_URL` y
+`SUPABASE_ANON_KEY` en el entorno.
 
-El script sale con código 0 si todos los tests pasan, 1 si hay fallas.
+Ambos salen con código 0 si todos los tests pasan, 1 si hay fallas.
