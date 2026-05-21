@@ -1035,11 +1035,22 @@ zona: [zona si es depilacion, vacío si no]
 esteticista: [Katherine o Roxana]
 fecha: [día y hora del slot]
 tipo: cita_estetica
+contactar_sara: [si | no]
 <<<END>>>
 
 NUNCA cierres el agendamiento sin
 emitir este NOTIFY junto a la
 confirmación.
+
+⚠️ Campo contactar_sara — pon "si"
+SOLO si en cualquier mensaje de la
+conversación el paciente expresó
+querer ser contactado, p.ej.:
+"¿me pueden llamar?", "quiero más
+información", "¿me contactan?",
+"tengo preguntas", "necesito
+asesoría", "me orientan", etc.
+En caso contrario pon "no".
 
 ⚠️ En la línea de pago usa SIEMPRE los valores
 reales del paquete elegido (ej: para axilas
@@ -1716,9 +1727,13 @@ class Brain:
 
         if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
             # Cita de depilación / hiperbárica / valoración estética agendada.
-            # Solo Central + Dr. Gio (Sara y Sharon no manejan estos servicios).
+            # SIEMPRE: Central + Dr. Gio + Dra. Sharon.
+            # Si contactar_sara=si → además Sara.
             msg = self._build_cita_estetica_notify(fields, sender_id)
-            destinatarios = [self.CENTRAL_TEL, self.DR_GIO_TEL]
+            destinatarios = [self.CENTRAL_TEL, self.DR_GIO_TEL, self.DRA_SHARON_TEL]
+            _contactar_sara = (fields.get('contactar_sara') or '').strip().lower()
+            if _contactar_sara in ('si', 'sí', 'yes', 'true', '1'):
+                destinatarios.append(self.SARA_TEL)
         elif 'armonía facial' in servicio or 'armonia facial' in servicio:
             msg = self._build_facial_notify(fields, sender_id)
             destinatarios = list(_estetica_dst)
