@@ -1557,6 +1557,12 @@ class Brain:
                 "ayuda si fue genérico). NO uses tool_use en esta primera "
                 "respuesta — solo presenta la clínica y empieza el flujo."
             )
+        # Tracking entre iteraciones del tool loop: el último servicio/zona
+        # con que el modelo llamó a check_slots. Usado para forzar coherencia
+        # cuando create_event llega con un servicio distinto (p.ej. el modelo
+        # confunde la opción y manda valoracion siendo depilacion).
+        last_servicio = ''
+        last_zona = ''
         for it in range(self.max_tool_iters):
             print(f"[BRAIN] Claude iter {it} (history={len(messages)}) first_time={is_first_time} canal={canal}", flush=True)
             # Always inject canal_note; first-time block only on iter 0.
@@ -1604,6 +1610,31 @@ class Brain:
                                             '💙" y emite el <<<NOTIFY>>>.'),
                             }
                         else:
+                            # Track del servicio/zona de check_slots para
+                            # mantener coherencia en create_event posterior.
+                            if tname == 'check_slots':
+                                _new_serv = (tinput.get('servicio') or '').lower().strip()
+                                if _new_serv:
+                                    last_servicio = _new_serv
+                                _new_zona = (tinput.get('zona') or '').strip()
+                                if _new_zona:
+                                    last_zona = _new_zona
+                            elif tname == 'create_event':
+                                # Forzar coherencia: si Claude pasa 'valoracion'
+                                # pero check_slots usó depilacion/hiperbarica,
+                                # corregimos el servicio (y la zona si vino vacía).
+                                _ce_serv = (tinput.get('servicio') or '').lower().strip()
+                                if (_ce_serv == 'valoracion' and
+                                        last_servicio in ('depilacion', 'hiperbarica')):
+                                    print(f"[BRAIN] create_event: forzando "
+                                          f"servicio={last_servicio!r} (Claude "
+                                          f"pasó {_ce_serv!r})", flush=True)
+                                    tinput['servicio'] = last_servicio
+                                if not (tinput.get('zona') or '').strip() and last_zona:
+                                    print(f"[BRAIN] create_event: forzando "
+                                          f"zona={last_zona!r} (vacía en input)",
+                                          flush=True)
+                                    tinput['zona'] = last_zona
                             result = self._exec_tool(tname, tinput, sender_id)
                         tool_results.append({
                             'type': 'tool_result',
