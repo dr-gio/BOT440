@@ -167,6 +167,51 @@ results.append(check(
     f"Respuesta: {msg[:100]}"))
 clean(sender)
 
+# ── TEST 7: PREDIAGNÓSTICO PIDE CORREO ──
+sender = "573999900007"
+clean(sender)
+send_msg("/webhook-cx", sender, "Hola")
+time.sleep(8)
+send_msg("/webhook-cx", sender, "Quiero prediagnóstico gratuito")
+time.sleep(10)
+send_msg("/webhook-cx", sender, "María")
+time.sleep(10)
+msg = get_last_bot_msg(sender, 'cirugia')
+_low = msg.lower()
+results.append(check(
+    ("correo" in _low or "email" in _low) and
+    ("lunes" not in _low and "martes" not in _low and
+     "miércoles" not in _low and "miercoles" not in _low and
+     "jueves" not in _low and "viernes" not in _low and
+     "sábado" not in _low and "sabado" not in _low),
+    "TEST 7 — Prediagnóstico: pide correo, no muestra días",
+    f"Respuesta: {msg[:120]}"))
+clean(sender)
+
+# ── TEST 8: VALORACIÓN SIN SLOTS ──
+sender = "573999900008"
+clean(sender)
+msgs_v = [
+    "Hola", "quiero lipoescultura",
+    "Andrea", "Barranquilla",
+    "No", "Sí", "No", "No", "En 1 mes",
+]
+for m in msgs_v:
+    send_msg("/webhook-cx", sender, m)
+    time.sleep(10)
+send_msg("/webhook-cx", sender, "Valoración presencial")
+time.sleep(12)
+msg = get_last_bot_msg(sender, 'cirugia')
+_low = msg.lower()
+results.append(check(
+    ("asesora" in _low or "contactará" in _low or "contactara" in _low) and
+    "horario" not in _low and "disponible" not in _low and
+    "mañana" not in _low and "manana" not in _low and
+    "tarde" not in _low,
+    "TEST 8 — Valoración: asesora, sin slots, sin mañana/tarde",
+    f"Respuesta: {msg[:120]}"))
+clean(sender)
+
 # ── RESUMEN ──
 print("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 passed = sum(results)
