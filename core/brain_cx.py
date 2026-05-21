@@ -1712,6 +1712,106 @@ class BrainCX:
                 return 'cirugia_valoracion'
         return 'cirugia'
 
+    def _try_bypass_valoracion_cx(self, history, text, sender_id,
+                                  sender_name, canal, send):
+        """Si la conversación indica que el paciente eligió valoración
+        con Dr. Gio (opción 1/2 con precio en CALIENTE/URGENTE o 2/3
+        en TIBIO), Python genera cierre + NOTIFY tipo=valoracion sin
+        invocar Claude. Retorna user_facing (str) si bypass aplicó,
+        None si no aplica."""
+        if not self._es_eleccion_valoracion(history):
+            return None
+
+        # Dedup: si ya hay un mensaje saliente previo con NOTIFY
+        # tipo=valoracion en el historial, no volver a notificar.
+        for m in reversed(history[:-1]):
+            if m.get('role') == 'assistant':
+                c = m.get('content')
+                txt = c if isinstance(c, str) else ''
+                if ('<<<NOTIFY>>>' in txt and
+                        ('tipo: valoracion' in txt.lower() or
+                         'tipo:valoracion' in txt.lower())):
+                    return None  # ya notificado en este flujo
+
+        # Detectar opción específica del último mensaje del paciente
+        u = (text or '').strip().lower()
+        if 'presencial' in u or '260' in u:
+            opcion_label = 'Valoración presencial $260.000'
+        elif 'virtual' in u or '160' in u:
+            opcion_label = 'Valoración virtual $160.000'
+        else:
+            opcion_label = 'Valoración con Dr. Gio'
+
+        # Extraer nombre, ciudad, procedimiento del historial.
+        hist_text = ' '.join(
+            m.get('content', '') if isinstance(m.get('content'), str) else ''
+            for m in history)
+        nombre = sender_name or ''
+
+        # Ciudad: buscar palabras comunes en el historial.
+        ciudad = ''
+        for word in ('barranquilla', 'bogotá', 'bogota', 'medellín',
+                     'medellin', 'cali', 'cartagena', 'cúcuta', 'cucuta',
+                     'bucaramanga', 'santa marta', 'pereira'):
+            if word in hist_text.lower():
+                ciudad = word.title()
+                break
+
+        # Procedimiento: buscar términos quirúrgicos.
+        procedimiento = ''
+        for proc in ('lipoescultura', 'lipo', 'mamoplastia',
+                     'abdominoplastia', 'blefaroplastia', 'rinoplastia',
+                     'lifting', 'papada'):
+            if proc in hist_text.lower():
+                procedimiento = proc.capitalize()
+                break
+
+        saludo = f"¡Perfecto {nombre}! 💙" if nombre else "¡Perfecto! 💙"
+        cierre = (
+            f"{saludo}\n"
+            "En breve nuestra asesora\n"
+            "te contactará para coordinar\n"
+            "tu valoración con el Dr. Gio.\n"
+            "La Belleza 440 ✨"
+        )
+        notify_block = (
+            "<<<NOTIFY>>>\n"
+            f"nombre: {nombre or 'sin nombre'}\n"
+            f"telefono: {sender_id}\n"
+            f"canal: {canal}\n"
+            f"ciudad: {ciudad or 'desconocida'}\n"
+            f"procedimiento: {procedimiento or 'consulta general'}\n"
+            "score: CALIENTE\n"
+            "tipo: valoracion\n"
+            f"opcion_elegida: {opcion_label}\n"
+            "accion: Contactar HOY para coordinar valoración con Dr. Gio\n"
+            "prioridad: CALIENTE\n"
+            "<<<END>>>"
+        )
+        full_response = cierre + "\n\n" + notify_block
+
+        # Strip → user_facing.
+        user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '',
+                             full_response, flags=re.DOTALL).strip()
+        user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
+
+        # Enviar (si send=True) y guardar.
+        if user_facing and send:
+            client = self.instagram if canal.startswith('instagram') else self.whapi
+            r = client.send_text(sender_id, user_facing)
+            print(f"[CX] bypass valoracion send_text result={r}", flush=True)
+        if user_facing:
+            self._save_message(sender_id, sender_name, full_response,
+                               'saliente', 'bot', canal=canal)
+
+        # Notificar al staff (Sara/Sharon/Central/Dr. Gio según _turno_canal).
+        notify_data = notify_block.split('<<<NOTIFY>>>', 1)[1] \
+                                   .split('<<<END>>>', 1)[0].strip()
+        fields = self._parse_notify(notify_data)
+        self._notify_lead(fields, sender_id)
+
+        return user_facing
+
     def _notify_lead(self, fields, sender_id):
         """Routing por score y tipo:
 
@@ -2124,6 +2224,18 @@ class BrainCX:
             )
             print("[CX] FIX2 — sin correo aún, inyectada instrucción "
                   "para pedirlo antes de slots", flush=True)
+
+        # ── STATE MACHINE — esperando_eleccion (valoración con Dr. Gio) ──
+        # Si la conversación indica que el paciente eligió valoración
+        # (opciones 1/2 con precio en CALIENTE/URGENTE o 2/3 en TIBIO),
+        # Python genera el cierre + NOTIFY tipo=valoracion directamente
+        # sin invocar a Claude.
+        _bypass_text = self._try_bypass_valoracion_cx(
+            history, text, sender_id, sender_name, canal, send)
+        if _bypass_text is not None:
+            print("[CX] state=esperando_eleccion (valoracion) — "
+                  "bypass aplicado", flush=True)
+            return _bypass_text
 
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
