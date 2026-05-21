@@ -1762,12 +1762,16 @@ class Brain:
         zona = fields.get('zona', '') or ''
         esteticista = fields.get('esteticista', '—')
         fecha = fields.get('fecha', '—')
-        servicio_line = f"{servicio} {zona}".strip() if zona else servicio
+        servicio_label = {
+            'depilacion': 'Depilación Láser',
+            'hiperbarica': 'Cámara Hiperbárica',
+            'valoracion': 'Valoración Gratuita',
+        }.get(servicio.lower(), servicio)
         return (
             "📅 CITA AGENDADA\n"
             "━━━━━━━━━━━━━━━━━━━\n"
             f"👤 {nombre} ({ciudad})\n"
-            f"💆 {servicio_line}\n"
+            f"💆 {servicio_label}{' — ' + zona if zona else ''}\n"
             f"📅 {fecha}\n"
             f"👩 {esteticista}\n"
             f"📱 Tel: {telefono}\n"
