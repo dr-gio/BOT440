@@ -1719,30 +1719,42 @@ class Brain:
         fields = self._parse_notify_fields(data)
         servicio = (fields.get('servicio') or '').lower()
         tipo = (fields.get('tipo') or '').lower()
+        combo = f"{tipo} {servicio}"
 
-        # Armonía Facial 440 y Armonía Corporal 440 → Sara + Sharon + Central + Dr. Gio
-        # (sin rotación de asesoras por ahora)
-        _estetica_dst = [self.SARA_TEL, self.DRA_SHARON_TEL,
-                         self.CENTRAL_TEL, self.DR_GIO_TEL]
+        # Destinatarios fijos para CUALQUIER lead estético.
+        _fijos = [self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
 
         if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
             # Cita de depilación / hiperbárica / valoración estética agendada.
-            # SIEMPRE: Central + Dr. Gio + Dra. Sharon.
-            # Si contactar_sara=si → además Sara.
+            # SIEMPRE: Sharon + Central + Dr. Gio. Sara solo si contactar_sara=si.
             msg = self._build_cita_estetica_notify(fields, sender_id)
-            destinatarios = [self.CENTRAL_TEL, self.DR_GIO_TEL, self.DRA_SHARON_TEL]
+            destinatarios = list(_fijos)
             _contactar_sara = (fields.get('contactar_sara') or '').strip().lower()
             if _contactar_sara in ('si', 'sí', 'yes', 'true', '1'):
                 destinatarios.append(self.SARA_TEL)
-        elif 'armonía facial' in servicio or 'armonia facial' in servicio:
+        elif 'armonía facial' in combo or 'armonia facial' in combo:
+            # Lead de Armonía Facial 440 → Sara siempre + fijos.
             msg = self._build_facial_notify(fields, sender_id)
-            destinatarios = list(_estetica_dst)
-        elif 'armonía corporal' in servicio or 'armonia corporal' in servicio or 'body sculpt' in servicio or 'sharon' in servicio:
+            destinatarios = [self.SARA_TEL] + list(_fijos)
+        elif ('armonía corporal' in combo or 'armonia corporal' in combo
+              or 'body sculpt' in combo or 'sharon' in combo):
+            # Lead de Armonía Corporal 440 → Sara siempre + fijos.
             msg = self._build_body_sculpt_notify(fields, sender_id)
-            destinatarios = list(_estetica_dst)
+            destinatarios = [self.SARA_TEL] + list(_fijos)
+        elif any(k in combo for k in (
+                'botox', 'toxina', 'labios', 'rinomodelacion',
+                'rinomodelación', 'facial', 'tensamax', 'hydrash',
+                'exosomas', 'pdrn', 'bioestimulador')):
+            # Lead facial específico (botox/labios/rinomodelación/etc.)
+            # → Sara siempre + fijos.
+            msg = self._build_facial_notify(fields, sender_id)
+            destinatarios = [self.SARA_TEL] + list(_fijos)
         else:
-            msg = f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n📱 Canal: {sender_id}\n━━━━━━━━━━━━━"
-            destinatarios = [os.environ.get('ADMIN_WHATSAPP', self.CENTRAL_TEL)]
+            # Cualquier otro lead estético no clasificado → por defecto
+            # incluir a Sara + los 3 fijos.
+            msg = (f"🔔 LEAD ESTÉTICO\n━━━━━━━━━━━━━\n{data}\n"
+                   f"📱 Canal: {sender_id}\n━━━━━━━━━━━━━")
+            destinatarios = [self.SARA_TEL] + list(_fijos)
 
         for tel in destinatarios:
             if not tel:
