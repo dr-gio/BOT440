@@ -2258,6 +2258,33 @@ class BrainCX:
                     if _lbl and _num_clean and _num_clean in _lbl:
                         _chosen_n = _k
                         break
+                # Fallback: el paciente escribió una hora como "4 pm",
+                # "4:00 pm", "4:30", "16:00". Detectarla y comparar con
+                # los labels de los slots ("Lunes 25 may · 4:00 PM").
+                if _chosen_n is None:
+                    _time_m = re.match(
+                        r'^(?:a\s+las\s+)?(\d{1,2})(?::(\d{2}))?\s*'
+                        r'(a\.?m\.?|p\.?m\.?|am|pm)?\.?$',
+                        _num_clean)
+                    if _time_m:
+                        _h = int(_time_m.group(1))
+                        _mm = _time_m.group(2)
+                        _ap = (_time_m.group(3) or '').replace('.', '').lower()
+                        # 24h → 12h si aplica
+                        if _h > 12 and not _ap:
+                            _ap, _h = 'pm', _h - 12
+                        _needle = f"{_h}:{_mm}" if _mm else f"{_h}:"
+                        for _k, _s in _slots_dict.items():
+                            _lbl = (_s.get('slot_label') or _s.get('label') or '').lower()
+                            if _needle not in _lbl:
+                                continue
+                            if _ap:
+                                _ap_norm = 'am' if _ap.startswith('a') else 'pm'
+                                if _ap_norm not in _lbl:
+                                    continue
+                            _chosen_n = _k
+                            print(f"[CX] PASO E: match hora {_num_clean!r} → slot {_k} ({_lbl!r})", flush=True)
+                            break
             if _chosen_n and _chosen_n in _slots_dict:
                 _slot = _slots_dict[_chosen_n]
                 _hist_text = ' '.join(
