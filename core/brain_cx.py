@@ -18,6 +18,20 @@ from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 
+# Detección de mensajes "solo emojis" (👍😊🙏❤️✅, etc.).
+_EMOJI_ONLY_RE_CX = re.compile(
+    r'^[\s\.\,\!\?'
+    r'⌀-⏿─-➿⬀-⯿'
+    r'\U0001F300-\U0001FAFF\U0001F600-\U0001F64F'
+    r'\U0001F680-\U0001F6FF\U0001F900-\U0001F9FF'
+    r'‍️]+$'
+)
+
+def _is_emoji_only_cx(s: str) -> bool:
+    if not s: return False
+    if not _EMOJI_ONLY_RE_CX.match(s): return False
+    return any(ord(c) > 0x2000 for c in s)
+
 _BROWSER_UA = 'Mozilla/5.0 (compatible; BOT440-CX/1.0; +https://440clinic.com)'
 
 CX_SYSTEM = """Eres el asistente virtual
@@ -2082,6 +2096,28 @@ class BrainCX:
             str — texto visible al paciente (sin bloque NOTIFY). Vacío si no hay reply.
         """
         print(f"[CX] canal={canal!r} send={send} {sender_id}: {text[:60]!r}", flush=True)
+
+        # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
+        _s_in = (text or '').strip()
+        if _s_in == '[MEDIA]':
+            _nombre = (sender_name or '').split()[0] if sender_name else ''
+            _saludo = f"¡Hola {_nombre}!" if _nombre else "¡Hola!"
+            reply = (
+                f"{_saludo} 💙\n"
+                "No puedo ver imágenes aquí, pero puedes compartírsela "
+                "directamente a nuestra asesora cuando te contacte 😊\n\n"
+                "¿Hay algo en lo que pueda ayudarte mientras tanto?"
+            )
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+            if send:
+                client = self.instagram if canal.startswith('instagram') else self.whapi
+                try: client.send_text(sender_id, reply)
+                except Exception as e: print(f"[CX] media reply send err: {e}", flush=True)
+            self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+            return reply
+        if _s_in and _is_emoji_only_cx(_s_in):
+            print(f"[CX] emoji-only {text!r} → tratando como 'Sí'", flush=True)
+            text = 'Sí'
 
         history = self._load_history(sender_id, canal=canal)
 

@@ -3,6 +3,24 @@ from datetime import datetime, timezone, timedelta
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 
+# Detección de mensajes "solo emojis" (👍😊🙏❤️✅, etc.) — incluye signos
+# de puntuación, espacios y variation selectors. Si todo el string entra
+# en estos rangos lo tratamos como afirmación.
+_EMOJI_ONLY_RE = re.compile(
+    r'^[\s\.\,\!\?'
+    r'⌀-⏿─-➿⬀-⯿'
+    r'\U0001F300-\U0001FAFF\U0001F600-\U0001F64F'
+    r'\U0001F680-\U0001F6FF\U0001F900-\U0001F9FF'
+    r'‍️]+$'
+)
+
+def _is_emoji_only(s: str) -> bool:
+    if not s: return False
+    if not _EMOJI_ONLY_RE.match(s): return False
+    # Debe tener al menos un caracter "rico" (no solo puntuación/espacio).
+    return any(ord(c) > 0x2000 for c in s)
+
+
 SYSTEM = """Eres el asistente virtual de 440 Clinic
 by Dr. Giovanni Fuentes.
 Canal EXCLUSIVO de medicina estética
@@ -1801,6 +1819,31 @@ class Brain:
         """cuenta_receptora — slug del IG account ('440clinic'/'drgiovannifuentes')
         cuando canal=='instagram'. Para WhatsApp queda None."""
         print(f"[BRAIN] {sender_id}: {text[:50]} canal={canal} cuenta={cuenta_receptora!r}", flush=True)
+
+        # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
+        _s_in = (text or '').strip()
+        if _s_in == '[MEDIA]':
+            _nombre = (sender_name or '').split()[0] if sender_name else ''
+            _saludo = f"¡Hola {_nombre}!" if _nombre else "¡Hola!"
+            reply = (
+                f"{_saludo} 💙\n"
+                "No puedo ver imágenes aquí, pero puedes compartírsela "
+                "directamente a nuestra asesora cuando te contacte 😊\n\n"
+                "¿Hay algo en lo que pueda ayudarte mientras tanto?"
+            )
+            self._save_message(sender_id, sender_name, canal, text,
+                               direccion='entrante', remitente='paciente',
+                               cuenta_receptora=cuenta_receptora)
+            client = self.instagram if canal == 'instagram' else self.whapi
+            try: client.send_text(sender_id, reply)
+            except Exception as e: print(f"[BRAIN] media reply send err: {e}", flush=True)
+            self._save_message(sender_id, sender_name, canal, reply,
+                               direccion='saliente', remitente='bot',
+                               cuenta_receptora=cuenta_receptora)
+            return reply
+        if _s_in and _is_emoji_only(_s_in):
+            print(f"[BRAIN] emoji-only {text!r} → tratando como 'Sí'", flush=True)
+            text = 'Sí'
 
         history = self._load_history(sender_id, canal)
         is_first_time = len(history) == 0
