@@ -2218,9 +2218,10 @@ class Brain:
             'telefono': str(telefono),
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Estética',
-            'categoria': prioridad,
+            'categoria': 'estetica',
             'ciudad': ciudad or '',
-            'observaciones': observaciones or '',
+            'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
+                              + (f" | {observaciones}" if observaciones else ''),
             'etapa': 'lead',
             'fecha_lead': _dt.now(_tz.utc).isoformat(),
         }

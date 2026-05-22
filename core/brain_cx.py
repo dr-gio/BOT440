@@ -2096,9 +2096,10 @@ class BrainCX:
             'telefono': str(telefono),
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Cirugías',
-            'categoria': prioridad,
+            'categoria': 'quirurgico',
             'ciudad': ciudad or '',
-            'observaciones': observaciones or '',
+            'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
+                              + (f" | {observaciones}" if observaciones else ''),
             'etapa': 'lead',
             'fecha_lead': _dtt.now(_tzz.utc).isoformat(),
         }
