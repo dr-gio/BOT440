@@ -1849,51 +1849,55 @@ class Brain:
         is_first_time = len(history) == 0
         print(f"[BRAIN] is_first_time={is_first_time}", flush=True)
 
-        # Paciente recurrente — contexto dinámico para el system prompt.
-        # Lógica:
-        #   - history vacío + sin paciente en DB → primera vez (welcome).
-        #   - history vacío + paciente con ultimo_contacto < 4h →
-        #     continuar el hilo sin saludo nuevo.
-        #   - history vacío + paciente con ultimo_contacto >= 4h →
-        #     saludo personalizado corto "¡Hola [nombre]! Qué bueno
-        #     verte de nuevo".
-        #   - history NO vacío → continuar el hilo sin saludo extra.
-        paciente = self._check_paciente_recurrente(sender_id) if is_first_time else None
-        paciente_ctx = ''
-        if paciente:
-            _ultimo_raw = (paciente.get('ultimo_contacto') or '').strip()
+        # Detectar si el paciente regresa después de 4+ horas mirando el
+        # created_at del último mensaje en conversaciones_440 (no del row
+        # de pacientes_440, que puede estar desactualizado o vacío).
+        ultima_interaccion = None
+        if history and self.sb_url and self.sb_key:
             try:
-                _ultimo_dt = datetime.fromisoformat(
-                    _ultimo_raw.replace('Z', '+00:00'))
-                if _ultimo_dt.tzinfo is None:
-                    _ultimo_dt = _ultimo_dt.replace(tzinfo=timezone.utc)
-                _delta = datetime.now(timezone.utc) - _ultimo_dt
-            except Exception:
-                _delta = timedelta(days=999)
-            if _delta < timedelta(hours=4):
-                # Conversación reciente — continuar el hilo, sin
-                # bienvenida nueva ni saludo de "regreso".
-                is_first_time = False
-                print(f"[BRAIN] paciente reciente (<4h) — continuar hilo",
-                      flush=True)
-            else:
-                # Vuelve después de 4+ horas — saludo personalizado corto.
-                _nombre = paciente.get('nombre') or ''
-                paciente_ctx = (
-                    "\n\n[SISTEMA — PACIENTE QUE REGRESA]\n"
-                    f"Nombre: {_nombre or '—'}\n"
-                    f"Última visita: {_ultimo_raw or '—'}\n"
-                    "→ NO uses la bienvenida completa de primera vez.\n"
-                    "→ Saluda EXACTAMENTE con este texto:\n\n"
-                    f"  \"¡Hola {_nombre or 'amig@'}! 💙\n"
-                    "   Qué bueno verte de nuevo 😊\n"
-                    "   ¿En qué te puedo ayudar hoy?\"\n\n"
-                    "→ Luego espera la respuesta del paciente.\n"
-                    "→ NO repitas el flujo completo."
-                )
-                is_first_time = False
-                print(f"[BRAIN] paciente regresa (>4h) — saludo corto",
-                      flush=True)
+                _u_url = (f'{self.sb_url}/rest/v1/conversaciones_440?'
+                          f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}'
+                          f'&canal=eq.{urllib.parse.quote(canal)}'
+                          f'&select=created_at&order=created_at.desc&limit=1')
+                _req = urllib.request.Request(_u_url, headers=self._sb_headers(), method='GET')
+                with urllib.request.urlopen(_req, timeout=5) as r:
+                    _rows = json.loads(r.read())
+                if _rows and _rows[0].get('created_at'):
+                    _raw = _rows[0]['created_at'].replace('Z', '+00:00')
+                    ultima_interaccion = datetime.fromisoformat(_raw)
+                    if ultima_interaccion.tzinfo is None:
+                        ultima_interaccion = ultima_interaccion.replace(tzinfo=timezone.utc)
+            except Exception as e:
+                print(f"[BRAIN] ultima_interaccion err: {e}", flush=True)
+                ultima_interaccion = None
+
+        es_regreso = False
+        if ultima_interaccion:
+            if datetime.now(timezone.utc) - ultima_interaccion > timedelta(hours=4):
+                es_regreso = True
+
+        # Paciente recurrente — lookup si es first-time o regreso.
+        paciente = (self._check_paciente_recurrente(sender_id)
+                    if (is_first_time or es_regreso) else None)
+        paciente_ctx = ''
+        if es_regreso and paciente:
+            _nombre = paciente.get('nombre') or ''
+            _servicios = paciente.get('servicios_interes') or []
+            _servicio = _servicios[0] if isinstance(_servicios, list) and _servicios else (_servicios or '')
+            paciente_ctx = (
+                "\n\n[SISTEMA — PACIENTE QUE REGRESA]\n"
+                f"Nombre: {_nombre or '—'}\n"
+                f"Último servicio de interés: {_servicio or '—'}\n"
+                "→ NO uses la bienvenida completa.\n"
+                "→ Saluda con:\n\n"
+                f"  '¡Hola {_nombre or 'amig@'}! 💙\n"
+                "   Qué bueno verte de nuevo 😊\n"
+                "   ¿En qué te puedo ayudar hoy?'\n\n"
+                "→ Luego espera la respuesta.\n"
+                "→ NO repitas el flujo completo."
+            )
+            is_first_time = False
+            print(f"[BRAIN] paciente regresa (>4h, history no vacío) — saludo corto", flush=True)
 
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
