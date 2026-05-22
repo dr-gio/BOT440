@@ -1841,10 +1841,6 @@ class Brain:
                                direccion='saliente', remitente='bot',
                                cuenta_receptora=cuenta_receptora)
             return reply
-        if _s_in and _is_emoji_only(_s_in):
-            print(f"[BRAIN] emoji-only {text!r} → tratando como 'Sí'", flush=True)
-            text = 'Sí'
-
         history = self._load_history(sender_id, canal)
         is_first_time = len(history) == 0
         print(f"[BRAIN] is_first_time={is_first_time}", flush=True)
@@ -1898,6 +1894,56 @@ class Brain:
             )
             is_first_time = False
             print(f"[BRAIN] paciente regresa (>4h, history no vacío) — saludo corto", flush=True)
+
+        # ── BUG 1: saludo genérico con historial existente <4h ──────────
+        # No repetir bienvenida completa; responder corto "Hola de nuevo".
+        _low_in = (_s_in or '').lower().rstrip('.!?¿,. ')
+        _greetings = {'hola','holi','holiwi','holaa','holaaa','hi','hey',
+                      'buenas','buen dia','buen día','buenos dias','buenos días',
+                      'buenas tardes','buenas noches','que tal','qué tal',
+                      'saludos','ola'}
+        if history and not es_regreso and _low_in in _greetings:
+            _nombre_p = (paciente.get('nombre') if paciente else '') or ''
+            if not _nombre_p or not any(c.isalpha() for c in _nombre_p):
+                _nombre_p = ''
+            reply = (f"¡Hola de nuevo {_nombre_p}! 💙\n¿En qué más te puedo ayudar? 😊"
+                     if _nombre_p else
+                     "¡Hola de nuevo! 💙\n¿En qué más te puedo ayudar? 😊")
+            self._save_message(sender_id, sender_name, canal, text,
+                               direccion='entrante', remitente='paciente',
+                               cuenta_receptora=cuenta_receptora)
+            client = self.instagram if canal == 'instagram' else self.whapi
+            try: client.send_text(sender_id, reply)
+            except Exception as e: print(f"[BRAIN] greeting reply err: {e}", flush=True)
+            self._save_message(sender_id, sender_name, canal, reply,
+                               direccion='saliente', remitente='bot',
+                               cuenta_receptora=cuenta_receptora)
+            print(f"[BRAIN] BUG1 — saludo corto (history existe, <4h)", flush=True)
+            return reply
+
+        # ── BUG 2: si el bot acaba de pedir el nombre y el paciente
+        # responde solo emojis → NO guardar emoji, pedirlo de nuevo.
+        if _s_in and _is_emoji_only(_s_in):
+            _last_bot = ''
+            for _m in reversed(history):
+                if _m.get('role') == 'assistant':
+                    _last_bot = (_m.get('content') or '').lower()
+                    break
+            if 'nombre' in _last_bot and ('?' in _last_bot or 'cuál' in _last_bot or 'cual' in _last_bot or 'cómo' in _last_bot or 'como te llamas' in _last_bot):
+                reply = "¡Gracias! 💙\n¿Me puedes decir tu nombre? 😊"
+                self._save_message(sender_id, sender_name, canal, text,
+                                   direccion='entrante', remitente='paciente',
+                                   cuenta_receptora=cuenta_receptora)
+                client = self.instagram if canal == 'instagram' else self.whapi
+                try: client.send_text(sender_id, reply)
+                except Exception as e: print(f"[BRAIN] name re-ask err: {e}", flush=True)
+                self._save_message(sender_id, sender_name, canal, reply,
+                                   direccion='saliente', remitente='bot',
+                                   cuenta_receptora=cuenta_receptora)
+                print(f"[BRAIN] BUG2 — emoji como nombre, re-preguntando", flush=True)
+                return reply
+            print(f"[BRAIN] emoji-only {text!r} → tratando como 'Sí'", flush=True)
+            text = 'Sí'
 
         user_content = f"[{sender_name or sender_id}]: {text}" if sender_name else text
         history.append({'role': 'user', 'content': user_content})
