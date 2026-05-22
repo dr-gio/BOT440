@@ -1171,6 +1171,51 @@ class BrainCX:
             print(f"[CX] check_paciente error: {e}", flush=True)
             return None
 
+    def _check_lead_crm(self, sender_id):
+        """Lee leads_comerciales buscando asesora_asignada y datos básicos
+        del paciente. service_role bypassea RLS."""
+        import urllib.request, urllib.parse as _up, json as _json
+        crm_url = os.environ.get('SUPABASE_URL_CRM', '').rstrip('/')
+        crm_key = os.environ.get('SUPABASE_KEY_CRM', '')
+        if not crm_url or not crm_key or not sender_id:
+            return None
+        try:
+            tel = _up.quote(str(sender_id))
+            url = (f"{crm_url}/rest/v1/leads_comerciales?telefono=eq.{tel}"
+                   f"&select=nombre,asesora_asignada,procedimiento_interes,etapa"
+                   f"&limit=1")
+            req = urllib.request.Request(url, headers={
+                'apikey': crm_key, 'Authorization': f'Bearer {crm_key}'},
+                method='GET')
+            with urllib.request.urlopen(req, timeout=5) as r:
+                rows = _json.loads(r.read())
+            return rows[0] if rows else None
+        except Exception as e:
+            print(f"[CX] check_lead_crm err: {e}", flush=True)
+            return None
+
+    def _already_notified_cx(self, sender_id, canal, hours=24):
+        """True si ya hay un saliente con <<<NOTIFY>>> para este sender en
+        las últimas N horas."""
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return False
+        try:
+            since = (_dt.now(_tz.utc) - _td(hours=hours)).isoformat()
+            params = (f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}'
+                      f'&canal=eq.{urllib.parse.quote(canal)}'
+                      f'&direccion=eq.saliente'
+                      f'&mensaje=ilike.*NOTIFY*'
+                      f'&created_at=gte.{urllib.parse.quote(since)}'
+                      f'&select=created_at&limit=1')
+            url = f'{self.sb_url}/rest/v1/conversaciones_440?{params}'
+            req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=5) as r:
+                rows = json.loads(r.read())
+            return bool(rows)
+        except Exception as e:
+            print(f"[CX] already_notified err: {e}", flush=True)
+            return False
+
     @staticmethod
     def _extract_name_from_turn(history, text):
         """Si el último msg del bot pidió el nombre y `text` parece un
@@ -2206,6 +2251,56 @@ class BrainCX:
             )
             _is_first_time = False
             print("[CX] paciente regresa (>4h, history no vacío) — saludo corto", flush=True)
+
+        # ── PACIENTE RECURRENTE CON ASESORA ASIGNADA (>4h) ──────────────
+        if es_regreso:
+            _lead_crm = self._check_lead_crm(sender_id)
+            _asesora_lead = ((_lead_crm or {}).get('asesora_asignada') or '').strip().lower()
+            if _lead_crm and _asesora_lead:
+                _nombre_l = (_lead_crm.get('nombre') or (paciente.get('nombre') if paciente else '')) or ''
+                if not _nombre_l or not any(c.isalpha() for c in _nombre_l):
+                    _nombre_l = ''
+                _proc_l   = _lead_crm.get('procedimiento_interes') or '—'
+                _etapa_l  = _lead_crm.get('etapa') or 'lead'
+                reply = (f"¡Hola {_nombre_l}! 💙\nQué bueno saber de ti 😊\n"
+                         "En breve tu asesora te contactará para ayudarte."
+                         if _nombre_l else
+                         "¡Hola! 💙\nQué bueno saber de ti 😊\n"
+                         "En breve tu asesora te contactará para ayudarte.")
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                if send:
+                    client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: client.send_text(sender_id, reply)
+                    except Exception as e: print(f"[CX] recurrente reply err: {e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                if not self._already_notified_cx(sender_id, canal):
+                    notify_msg = (
+                        "🔄 PACIENTE RECURRENTE\n"
+                        "━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 {_nombre_l or '—'}\n"
+                        f"📱 Tel: {sender_id}\n"
+                        f"💉 Servicio: {_proc_l}\n"
+                        f"📊 Etapa: {_etapa_l}\n"
+                        f"👩 Asesora: {ASESORA_LABEL.get(_asesora_lead, _asesora_lead.capitalize())}\n"
+                        "━━━━━━━━━━━━━━━━━━━━\n"
+                        "Paciente regresa — tiene asesora asignada 💙"
+                    )
+                    _asesora_phone = os.environ.get(ASESORA_ENV.get(_asesora_lead, ''), '').strip()
+                    sharon = os.environ.get('DRA_SHARON', '').strip()
+                    admin  = os.environ.get('ADMIN_CX', '').strip()
+                    drgio  = os.environ.get('DRGIO_TEL', '573181800131').strip()
+                    for _tel in (_asesora_phone, sharon, admin, drgio):
+                        if not _tel: continue
+                        try: self.whapi.send_text(_tel, notify_msg)
+                        except Exception as e:
+                            print(f"[CX] recurrente notify {_tel} err: {e}", flush=True)
+                    self._save_message(sender_id, sender_name,
+                                       "<<<NOTIFY>>>tipo: recurrente<<<END>>>",
+                                       'saliente', 'bot', canal=canal)
+                    print(f"[CX] PACIENTE RECURRENTE NOTIFY enviado", flush=True)
+                else:
+                    print(f"[CX] PACIENTE RECURRENTE — ya notificado <24h, skip", flush=True)
+                return reply
 
         # ── BUG 1: saludo genérico con historial existente <4h ──────────
         _low_in = (_s_in or '').lower().rstrip('.!?¿,. ')

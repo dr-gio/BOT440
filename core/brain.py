@@ -1517,6 +1517,31 @@ class Brain:
             print(f"[BRAIN] check_paciente error: {e}", flush=True)
             return None
 
+    def _check_lead_crm(self, sender_id):
+        """Lee leads_comerciales (proyecto historia-clinica) buscando
+        nombre, asesora_asignada, procedimiento_interes, etapa para el
+        teléfono dado. Usa SUPABASE_KEY_CRM (service_role) para bypassear
+        RLS. Devuelve dict o None."""
+        import urllib.request, urllib.parse, json as _json
+        crm_url = os.environ.get('SUPABASE_URL_CRM', '').rstrip('/')
+        crm_key = os.environ.get('SUPABASE_KEY_CRM', '')
+        if not crm_url or not crm_key or not sender_id:
+            return None
+        try:
+            tel = urllib.parse.quote(str(sender_id))
+            url = (f"{crm_url}/rest/v1/leads_comerciales?telefono=eq.{tel}"
+                   f"&select=nombre,asesora_asignada,procedimiento_interes,etapa"
+                   f"&limit=1")
+            req = urllib.request.Request(url, headers={
+                'apikey': crm_key, 'Authorization': f'Bearer {crm_key}'},
+                method='GET')
+            with urllib.request.urlopen(req, timeout=5) as r:
+                rows = _json.loads(r.read())
+            return rows[0] if rows else None
+        except Exception as e:
+            print(f"[BRAIN] check_lead_crm err: {e}", flush=True)
+            return None
+
     def _already_notified(self, sender_id, canal, hours=24):
         """True si ya hay un mensaje saliente con <<<NOTIFY>>> para este
         sender_id en las últimas `hours` horas. Evita enviar el lead
@@ -1928,6 +1953,66 @@ class Brain:
             )
             is_first_time = False
             print(f"[BRAIN] paciente regresa (>4h, history no vacío) — saludo corto", flush=True)
+
+        # ── PACIENTE RECURRENTE CON ASESORA ASIGNADA (>4h) ──────────────
+        # Si ya hay un lead en el CRM con asesora_asignada Y el historial
+        # es de hace más de 4h → saludo breve + NOTIFY de "regresa" a la
+        # asesora + Sharon + Central + Dr. Gio. Cierra el flujo aquí.
+        if es_regreso:
+            _lead_crm = self._check_lead_crm(sender_id)
+            _asesora_lead = ((_lead_crm or {}).get('asesora_asignada') or '').strip().lower()
+            if _lead_crm and _asesora_lead:
+                _nombre_l = (_lead_crm.get('nombre') or paciente.get('nombre') if paciente else '') or ''
+                if not _nombre_l or not any(c.isalpha() for c in _nombre_l):
+                    _nombre_l = ''
+                _proc_l   = _lead_crm.get('procedimiento_interes') or '—'
+                _etapa_l  = _lead_crm.get('etapa') or 'lead'
+                reply = (f"¡Hola {_nombre_l}! 💙\nQué bueno saber de ti 😊\n"
+                         "En breve tu asesora te contactará para ayudarte."
+                         if _nombre_l else
+                         "¡Hola! 💙\nQué bueno saber de ti 😊\n"
+                         "En breve tu asesora te contactará para ayudarte.")
+                self._save_message(sender_id, sender_name, canal, text,
+                                   direccion='entrante', remitente='paciente',
+                                   cuenta_receptora=cuenta_receptora)
+                client = self.instagram if canal == 'instagram' else self.whapi
+                try: client.send_text(sender_id, reply)
+                except Exception as e: print(f"[BRAIN] recurrente reply err: {e}", flush=True)
+                self._save_message(sender_id, sender_name, canal, reply,
+                                   direccion='saliente', remitente='bot',
+                                   cuenta_receptora=cuenta_receptora)
+                # NOTIFY al staff — solo si no se envió en las últimas 24h.
+                if not self._already_notified(sender_id, canal):
+                    notify_msg = (
+                        "🔄 PACIENTE RECURRENTE\n"
+                        "━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 {_nombre_l or '—'}\n"
+                        f"📱 Tel: {sender_id}\n"
+                        f"💆 Servicio: {_proc_l}\n"
+                        f"📊 Etapa: {_etapa_l}\n"
+                        f"👩 Asesora: {_asesora_lead.capitalize()}\n"
+                        "━━━━━━━━━━━━━━━━━━━━\n"
+                        "Paciente regresa — tiene asesora asignada 💙"
+                    )
+                    # Para estética la asesora siempre es Sara → SARA_TEL.
+                    _asesora_phone = self.SARA_TEL if _asesora_lead == 'sara' else ''
+                    destinatarios = [_asesora_phone, self.DRA_SHARON_TEL,
+                                     self.CENTRAL_TEL, self.DR_GIO_TEL]
+                    for _tel in destinatarios:
+                        if not _tel: continue
+                        try:
+                            self.whapi.send_text(_tel, notify_msg)
+                        except Exception as e:
+                            print(f"[BRAIN] recurrente notify {_tel} err: {e}", flush=True)
+                    # Guardar marca de NOTIFY (dedup) en conversaciones_440.
+                    self._save_message(sender_id, sender_name, canal,
+                                       f"<<<NOTIFY>>>tipo: recurrente<<<END>>>",
+                                       direccion='saliente', remitente='bot',
+                                       cuenta_receptora=cuenta_receptora)
+                    print(f"[BRAIN] PACIENTE RECURRENTE NOTIFY enviado", flush=True)
+                else:
+                    print(f"[BRAIN] PACIENTE RECURRENTE — ya notificado <24h, skip", flush=True)
+                return reply
 
         # ── BUG 1: saludo genérico con historial existente <4h ──────────
         # No repetir bienvenida completa; responder corto "Hola de nuevo".
