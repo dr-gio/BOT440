@@ -1918,6 +1918,7 @@ class BrainCX:
         drgio  = os.environ.get('DRGIO_TEL', '573181800131').strip()
 
         results = {}
+        _assigned_slug = ''  # se asigna en la rama correspondiente para el CRM
 
         # ── Prediagnóstico virtual agendado — formato especial ────────────
         if 'prediagnostico' in tipo:
@@ -1955,7 +1956,8 @@ class BrainCX:
                 self._upsert_lead_comercial(nombre=nombre, telefono=tel,
                     procedimiento=proc, canal=canal_crm,
                     prioridad='PREDIAGNOSTICO', ciudad=ciudad,
-                    observaciones=motivacion or '')
+                    observaciones=motivacion or '',
+                    asesora_asignada=asesora_slug)
             except Exception as e:
                 print(f"[CX] upsert lead_comercial (predia) error: {e}", flush=True)
             return score
@@ -2031,6 +2033,7 @@ class BrainCX:
             if asesora_phone:
                 results['asesora'] = self.whapi.send_text(asesora_phone, msg_asesora)
                 self._set_ultima_asesora(slug, turno_canal)
+                _assigned_slug = slug
                 print(f"[CX] {tag} → asesora={slug} turno avanzado", flush=True)
             else:
                 print(f"[CX] ⚠ asesora {slug} sin teléfono — no se notifica", flush=True)
@@ -2074,6 +2077,7 @@ class BrainCX:
                 prioridad=score,
                 ciudad=ciudad,
                 observaciones=motivacion or '',
+                asesora_asignada=_assigned_slug,
             )
         except Exception as e:
             print(f"[CX] upsert lead_comercial error: {e}", flush=True)
@@ -2081,7 +2085,7 @@ class BrainCX:
 
     def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
                                 canal='whatsapp', prioridad='CALIENTE',
-                                ciudad='', observaciones=''):
+                                ciudad='', observaciones='', asesora_asignada=''):
         """INSERT en leads_comerciales del CRM (proyecto historia-clinica)."""
         import urllib.request, json as _json
         from datetime import datetime as _dtt, timezone as _tzz
@@ -2097,6 +2101,7 @@ class BrainCX:
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Cirugías',
             'categoria': 'quirurgico',
+            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','sara','lucero') else None,
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),

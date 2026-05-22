@@ -2219,6 +2219,7 @@ class Brain:
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Estética',
             'categoria': 'estetica',
+            'asesora_asignada': 'sara',
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),
