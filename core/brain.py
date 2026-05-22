@@ -1543,6 +1543,40 @@ class Brain:
             print(f"[BRAIN] already_notified error: {e}", flush=True)
             return False
 
+    @staticmethod
+    def _extract_name_from_turn(history, text):
+        """Si el último msg del bot pidió el nombre y `text` parece un
+        nombre real (≥2 letras, sin emojis ni dígitos ni @), devuelve
+        el nombre limpio. Si no, None."""
+        last_bot = ''
+        for m in reversed(history):
+            if m.get('role') == 'assistant':
+                last_bot = (m.get('content') or '').lower()
+                break
+        asked = ('nombre' in last_bot and
+                 ('?' in last_bot or 'cuál' in last_bot or 'cual' in last_bot
+                  or 'cómo te llamas' in last_bot or 'como te llamas' in last_bot))
+        if not asked:
+            return None
+        cand = (text or '').strip().strip('.,!?¿¡')
+        if not cand or len(cand) > 60:
+            return None
+        if '@' in cand or any(ch.isdigit() for ch in cand):
+            return None
+        letters = sum(1 for ch in cand if ch.isalpha())
+        if letters < 2:
+            return None
+        return cand[:60].title()
+
+    @staticmethod
+    def _safe_sender_name(sender_name):
+        """sender_name (WhatsApp profile) solo es válido como nombre si
+        tiene ≥2 letras. Si es emoji o tel, devolver None."""
+        if not sender_name:
+            return None
+        letters = sum(1 for ch in sender_name if ch.isalpha())
+        return sender_name if letters >= 2 else None
+
     def _upsert_paciente(self, sender_id, nombre=None, email=None,
                          canal=None, servicio=None):
         if not self.sb_url or not self.sb_key or not sender_id:
@@ -1903,6 +1937,10 @@ class Brain:
                       'buenas tardes','buenas noches','que tal','qué tal',
                       'saludos','ola'}
         if history and not es_regreso and _low_in in _greetings:
+            # BUG A fix: cargar paciente aquí si no se cargó arriba (el bloque
+            # de memoria solo lo hace si is_first_time o es_regreso).
+            if paciente is None:
+                paciente = self._check_paciente_recurrente(sender_id)
             _nombre_p = (paciente.get('nombre') if paciente else '') or ''
             if not _nombre_p or not any(c.isalpha() for c in _nombre_p):
                 _nombre_p = ''
@@ -1952,11 +1990,15 @@ class Brain:
                            direccion='entrante', remitente='paciente',
                            cuenta_receptora=cuenta_receptora)
 
-        # Guardar / actualizar paciente (nombre + email si aparece en el texto)
+        # Guardar / actualizar paciente. nombre se extrae de la conversación
+        # cuando el bot acaba de pedirlo; sender_name (WhatsApp profile) solo
+        # se usa como fallback y descartado si es emoji / sin letras.
         _email_match = re.search(
             r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', text)
+        _nombre_real = (self._extract_name_from_turn(history, text)
+                        or self._safe_sender_name(sender_name))
         self._upsert_paciente(
-            sender_id, nombre=sender_name or None,
+            sender_id, nombre=_nombre_real,
             email=_email_match.group(0) if _email_match else None,
             canal=canal)
 
