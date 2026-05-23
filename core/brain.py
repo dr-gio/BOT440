@@ -1530,7 +1530,7 @@ class Brain:
         try:
             tel = urllib.parse.quote(str(sender_id))
             url = (f"{crm_url}/rest/v1/leads_comerciales?telefono=eq.{tel}"
-                   f"&select=nombre,asesora_asignada,procedimiento_interes,etapa"
+                   f"&select=nombre,asesora_asignada,procedimiento_interes,etapa,bot_pausado"
                    f"&limit=1")
             req = urllib.request.Request(url, headers={
                 'apikey': crm_key, 'Authorization': f'Bearer {crm_key}'},
@@ -1878,6 +1878,17 @@ class Brain:
         """cuenta_receptora — slug del IG account ('440clinic'/'drgiovannifuentes')
         cuando canal=='instagram'. Para WhatsApp queda None."""
         print(f"[BRAIN] {sender_id}: {text[:50]} canal={canal} cuenta={cuenta_receptora!r}", flush=True)
+
+        # ── BOT PAUSADO: guardar entrante y salir sin responder ─────────
+        # Si la asesora marcó este lead como pausado desde el CRM, NO
+        # invocamos a Claude ni respondemos — solo registramos el mensaje.
+        _lead_pause = self._check_lead_crm(sender_id)
+        if _lead_pause and _lead_pause.get('bot_pausado'):
+            print(f"[BRAIN] bot_pausado=True para {sender_id} — solo guardar entrante", flush=True)
+            self._save_message(sender_id, sender_name, canal, text,
+                               direccion='entrante', remitente='paciente',
+                               cuenta_receptora=cuenta_receptora)
+            return
 
         # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
         _s_in = (text or '').strip()

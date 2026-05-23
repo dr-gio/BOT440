@@ -1182,7 +1182,7 @@ class BrainCX:
         try:
             tel = _up.quote(str(sender_id))
             url = (f"{crm_url}/rest/v1/leads_comerciales?telefono=eq.{tel}"
-                   f"&select=nombre,asesora_asignada,procedimiento_interes,etapa"
+                   f"&select=nombre,asesora_asignada,procedimiento_interes,etapa,bot_pausado"
                    f"&limit=1")
             req = urllib.request.Request(url, headers={
                 'apikey': crm_key, 'Authorization': f'Bearer {crm_key}'},
@@ -2181,6 +2181,15 @@ class BrainCX:
             str — texto visible al paciente (sin bloque NOTIFY). Vacío si no hay reply.
         """
         print(f"[CX] canal={canal!r} send={send} {sender_id}: {text[:60]!r}", flush=True)
+
+        # ── BOT PAUSADO: guardar entrante y salir sin responder ─────────
+        # Si la asesora marcó este lead como pausado desde el CRM, NO
+        # invocamos a Claude ni respondemos — solo registramos el mensaje.
+        _lead_pause = self._check_lead_crm(sender_id)
+        if _lead_pause and _lead_pause.get('bot_pausado'):
+            print(f"[CX] bot_pausado=True para {sender_id} — solo guardar entrante", flush=True)
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+            return ''
 
         # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
         _s_in = (text or '').strip()
