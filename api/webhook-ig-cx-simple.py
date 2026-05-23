@@ -255,6 +255,43 @@ def _send_dm(recipient, text):
         return {'error': str(e)}
 
 
+def _save_conversacion(sender_id, sender_name, mensaje, direccion, remitente):
+    """INSERT mínimo en conversaciones_440 para que el CRM vea el hilo.
+    Usa SUPABASE_URL + SUPABASE_ANON_KEY (mismo proyecto historia-clinica).
+    canal='instagram', cuenta_receptora='drgiovannifuentes' fijos.
+    Falla silenciosa: no rompe el flujo de auto-respuesta IG."""
+    sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
+    sb_key = os.environ.get('SUPABASE_ANON_KEY', '')
+    if not sb_url or not sb_key or not mensaje or not sender_id:
+        return
+    body = {
+        'contacto_nombre': sender_name or None,
+        'contacto_telefono': str(sender_id),
+        'canal': 'instagram',
+        'cuenta_receptora': 'drgiovannifuentes',
+        'mensaje': mensaje,
+        'direccion': direccion,
+        'remitente': remitente,
+        'leido': direccion == 'saliente',
+    }
+    url = f'{sb_url}/rest/v1/conversaciones_440'
+    headers = {
+        'apikey': sb_key, 'Authorization': f'Bearer {sb_key}',
+        'Content-Type': 'application/json', 'Prefer': 'return=minimal',
+    }
+    try:
+        req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                      headers=headers, method='POST')
+        with urllib.request.urlopen(req, timeout=5) as r:
+            print(f"[IG-CX-SIMPLE] sb_insert {direccion}/{remitente} OK status={r.status}", flush=True)
+    except urllib.error.HTTPError as e:
+        try: err = e.read().decode()[:200]
+        except: err = ''
+        print(f"[IG-CX-SIMPLE] sb_insert HTTPError {e.code} body={err!r}", flush=True)
+    except Exception as e:
+        print(f"[IG-CX-SIMPLE] sb_insert err: {e}", flush=True)
+
+
 def _claude_reply(text):
     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY',''))
     response = client.messages.create(
@@ -312,6 +349,15 @@ class handler(BaseHTTPRequestHandler):
                     if comment_id and reply:
                         result['public'] = _graph_post(
                             f'{comment_id}/replies', {'message': reply})
+                # Persistir comentario + respuesta en conversaciones_440.
+                # Para comentarios el "sender_id" lo construimos con el
+                # comment_id (no tenemos teléfono real) para que el thread
+                # quede agrupado pero distinguible.
+                _cmt_id = sender_id or (f'cmt_{comment_id}' if comment_id else '')
+                if _cmt_id:
+                    _save_conversacion(_cmt_id, nombre, text, 'entrante', 'paciente')
+                    if reply:
+                        _save_conversacion(_cmt_id, nombre, reply, 'saliente', 'bot')
                 self._respond(200, result)
                 return
 
@@ -325,6 +371,11 @@ class handler(BaseHTTPRequestHandler):
                 reply = _dm_link()
             else:
                 reply = _claude_reply(text)
+
+            # Persistir DM entrante + respuesta del bot.
+            _save_conversacion(sender_id, nombre, text, 'entrante', 'paciente')
+            if reply:
+                _save_conversacion(sender_id, nombre, reply, 'saliente', 'bot')
 
             self._respond(200, {'status': 'ok', 'tipo': 'dm', 'reply': reply})
 
