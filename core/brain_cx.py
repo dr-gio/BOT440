@@ -1024,6 +1024,30 @@ REGLAS CRÍTICAS
 ❌ No presiones al paciente
 ❌ No des diagnósticos médicos
 ❌ No hagas rinoplastia ni bichectomía
+
+DETECCIÓN DE ABUSO:
+Si el mensaje del usuario:
+→ Contiene groserías o insultos directos al bot/clínica
+→ Es sexualmente explícito
+→ Es spam o sin sentido
+→ No tiene NINGUNA relación con servicios médicos/estéticos/quirúrgicos
+→ Es agresivo o amenazante
+→ Son preguntas irrelevantes repetidas (clima, política,
+  chistes, juegos, programación, etc.)
+
+Responde ÚNICAMENTE con el texto exacto:
+<<<BLOQUEAR>>>
+
+No agregues nada más. NO incluyas <<<BLOQUEAR>>> dentro
+de una respuesta normal — o respondes normal, o respondes
+solo con esa etiqueta.
+
+IMPORTANTE: NO bloquear por:
+→ Primera pregunta rara o ambigua (dale el beneficio de la duda)
+→ Saludos cortos ("hola", "buenas")
+→ Mensajes en otro idioma si parecen genuinos
+→ Preguntas sobre la clínica aunque sean básicas
+→ Confusión sobre cómo funciona el chat
 """
 
 # ---------------------------------------------------------------------------
@@ -1276,6 +1300,62 @@ class BrainCX:
                 print(f"[CX] upsert_paciente OK status={r.status}", flush=True)
         except Exception as e:
             print(f"[CX] upsert_paciente error: {e}", flush=True)
+
+    # ------------------------------------------------------------------
+    # Bloqueo por spam / contenido inapropiado (pacientes_440)
+    # ------------------------------------------------------------------
+    def _check_bloqueado(self, sender_id):
+        """True si bot_bloqueado=true y bloqueado_hasta > NOW(). Si el
+        bloqueo expiró, lo limpia y devuelve False. Fail-open en error."""
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return False
+        try:
+            params = (f'telefono=eq.{urllib.parse.quote(sender_id)}'
+                      f'&select=bot_bloqueado,bloqueado_hasta&limit=1')
+            url = f'{self.sb_url}/rest/v1/pacientes_440?{params}'
+            req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=5) as r:
+                rows = json.loads(r.read())
+            if not rows or not rows[0].get('bot_bloqueado'):
+                return False
+            hasta_raw = rows[0].get('bloqueado_hasta')
+            if not hasta_raw:
+                return True
+            hasta = _dt.fromisoformat(hasta_raw.replace('Z', '+00:00'))
+            if hasta.tzinfo is None:
+                hasta = hasta.replace(tzinfo=_tz.utc)
+            if hasta > _dt.now(_tz.utc):
+                return True
+            self._set_bloqueado(sender_id, razon=None, bloquear=False)
+            print(f"[CX] bloqueo expirado para {sender_id} — desbloqueado", flush=True)
+            return False
+        except Exception as e:
+            print(f"[CX] check_bloqueado error: {e}", flush=True)
+            return False
+
+    def _set_bloqueado(self, sender_id, razon=None, hours=24, bloquear=True):
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return
+        try:
+            body = {'telefono': sender_id}
+            if bloquear:
+                hasta = _dt.now(_tz.utc) + _td(hours=hours)
+                body['bot_bloqueado'] = True
+                body['bloqueado_hasta'] = hasta.isoformat()
+                body['razon_bloqueo'] = razon or 'Contenido inapropiado/spam'
+            else:
+                body['bot_bloqueado'] = False
+                body['bloqueado_hasta'] = None
+                body['razon_bloqueo'] = None
+            url = f'{self.sb_url}/rest/v1/pacientes_440?on_conflict=telefono'
+            headers = self._sb_headers()
+            headers['Prefer'] = 'resolution=merge-duplicates,return=minimal'
+            data = json.dumps(body).encode()
+            req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                print(f"[CX] set_bloqueado={bloquear} {sender_id} status={r.status}", flush=True)
+        except Exception as e:
+            print(f"[CX] set_bloqueado error: {e}", flush=True)
 
     def _load_history(self, sender_id, canal='cirugia'):
         if not self.sb_url or not self.sb_key:
@@ -2191,6 +2271,12 @@ class BrainCX:
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             return ''
 
+        # ── BOT BLOQUEADO: spam/abuso. Guardar entrante y salir silencioso.
+        if self._check_bloqueado(sender_id):
+            print(f"[CX] bot_bloqueado=True para {sender_id} — guardar entrante y silencio", flush=True)
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+            return ''
+
         # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
         _s_in = (text or '').strip()
         if _s_in == '[MEDIA]':
@@ -2596,6 +2682,26 @@ class BrainCX:
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
+
+        # ── INTERCEPTAR <<<BLOQUEAR>>>: spam/abuso detectado por Claude ──
+        if '<<<BLOQUEAR>>>' in full_response:
+            print(f"[CX] <<<BLOQUEAR>>> detectado para {sender_id} — despedida + bloqueo 24h", flush=True)
+            despedida = (
+                "Gracias por escribirnos 💙\n"
+                "En este espacio solo podemos ayudarte con temas "
+                "relacionados con nuestros servicios médicos y estéticos.\n\n"
+                "Si en algún momento deseas información sobre nuestros "
+                "tratamientos, con gusto te atendemos 😊\n\n"
+                "¡Que tengas un excelente día!\n"
+                "440 Clinic · Dr. Giovanni Fuentes"
+            )
+            if send:
+                client = self.instagram if canal.startswith('instagram') else self.whapi
+                try: client.send_text(sender_id, despedida)
+                except Exception as e: print(f"[CX] despedida send err: {e}", flush=True)
+            self._save_message(sender_id, sender_name, despedida, 'saliente', 'bot', canal=canal)
+            self._set_bloqueado(sender_id, razon='Contenido inapropiado/spam', hours=24)
+            return despedida
 
         # NOTIFY block
         notify = None

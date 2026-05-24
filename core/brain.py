@@ -1221,6 +1221,30 @@ REGLAS CRÍTICAS
    número de teléfono. Ya lo tenemos.
 ✅ Si canal=instagram, sí pídelo —
    es la única forma de contactarlo.
+
+DETECCIÓN DE ABUSO:
+Si el mensaje del usuario:
+→ Contiene groserías o insultos directos al bot/clínica
+→ Es sexualmente explícito
+→ Es spam o sin sentido
+→ No tiene NINGUNA relación con servicios médicos/estéticos/spa
+→ Es agresivo o amenazante
+→ Son preguntas irrelevantes repetidas (clima, política,
+  chistes, juegos, programación, etc.)
+
+Responde ÚNICAMENTE con el texto exacto:
+<<<BLOQUEAR>>>
+
+No agregues nada más. NO incluyas <<<BLOQUEAR>>> dentro
+de una respuesta normal — o respondes normal, o respondes
+solo con esa etiqueta.
+
+IMPORTANTE: NO bloquear por:
+→ Primera pregunta rara o ambigua (dale el beneficio de la duda)
+→ Saludos cortos ("hola", "buenas")
+→ Mensajes en otro idioma si parecen genuinos
+→ Preguntas sobre la clínica aunque sean básicas
+→ Confusión sobre cómo funciona el chat
 """
 
 # Default headers including User-Agent (gate.whapi.cloud and supabase are
@@ -1630,6 +1654,67 @@ class Brain:
             print(f"[BRAIN] upsert_paciente error: {e}", flush=True)
 
     # ------------------------------------------------------------------
+    # Bloqueo por spam / contenido inapropiado (pacientes_440)
+    # ------------------------------------------------------------------
+    def _check_bloqueado(self, sender_id):
+        """True si el paciente tiene bot_bloqueado=true y bloqueado_hasta
+        > NOW(). Si el bloqueo expiró, lo limpia y devuelve False.
+        Cualquier error → False (fail-open: mejor responder que dejar
+        a un paciente legítimo sin atención)."""
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return False
+        try:
+            params = (f'telefono=eq.{urllib.parse.quote(sender_id)}'
+                      f'&select=bot_bloqueado,bloqueado_hasta&limit=1')
+            url = f'{self.sb_url}/rest/v1/pacientes_440?{params}'
+            req = urllib.request.Request(url, headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=5) as r:
+                rows = json.loads(r.read())
+            if not rows or not rows[0].get('bot_bloqueado'):
+                return False
+            hasta_raw = rows[0].get('bloqueado_hasta')
+            if not hasta_raw:
+                return True  # bloqueo sin expiración → mantener
+            hasta = datetime.fromisoformat(hasta_raw.replace('Z', '+00:00'))
+            if hasta.tzinfo is None:
+                hasta = hasta.replace(tzinfo=timezone.utc)
+            if hasta > datetime.now(timezone.utc):
+                return True
+            # Expirado — desbloquear
+            self._set_bloqueado(sender_id, razon=None, bloquear=False)
+            print(f"[BRAIN] bloqueo expirado para {sender_id} — desbloqueado", flush=True)
+            return False
+        except Exception as e:
+            print(f"[BRAIN] check_bloqueado error: {e}", flush=True)
+            return False
+
+    def _set_bloqueado(self, sender_id, razon=None, hours=24, bloquear=True):
+        """Upsert pacientes_440 con bot_bloqueado / bloqueado_hasta /
+        razon_bloqueo. Si bloquear=False, limpia los 3 campos."""
+        if not self.sb_url or not self.sb_key or not sender_id:
+            return
+        try:
+            body = {'telefono': sender_id}
+            if bloquear:
+                hasta = datetime.now(timezone.utc) + timedelta(hours=hours)
+                body['bot_bloqueado'] = True
+                body['bloqueado_hasta'] = hasta.isoformat()
+                body['razon_bloqueo'] = razon or 'Contenido inapropiado/spam'
+            else:
+                body['bot_bloqueado'] = False
+                body['bloqueado_hasta'] = None
+                body['razon_bloqueo'] = None
+            url = f'{self.sb_url}/rest/v1/pacientes_440?on_conflict=telefono'
+            headers = self._sb_headers()
+            headers['Prefer'] = 'resolution=merge-duplicates,return=minimal'
+            data = json.dumps(body).encode()
+            req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                print(f"[BRAIN] set_bloqueado={bloquear} {sender_id} status={r.status}", flush=True)
+        except Exception as e:
+            print(f"[BRAIN] set_bloqueado error: {e}", flush=True)
+
+    # ------------------------------------------------------------------
     # W21 webhook callers (tools)
     # ------------------------------------------------------------------
     def _post_json(self, url, payload):
@@ -1890,6 +1975,15 @@ class Brain:
                                cuenta_receptora=cuenta_receptora)
             return
 
+        # ── BOT BLOQUEADO: spam/abuso. Guardar entrante y salir silencioso.
+        # Si bloqueado_hasta expiró, _check_bloqueado lo desbloquea solo.
+        if self._check_bloqueado(sender_id):
+            print(f"[BRAIN] bot_bloqueado=True para {sender_id} — guardar entrante y silencio", flush=True)
+            self._save_message(sender_id, sender_name, canal, text,
+                               direccion='entrante', remitente='paciente',
+                               cuenta_receptora=cuenta_receptora)
+            return
+
         # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
         _s_in = (text or '').strip()
         if _s_in == '[MEDIA]':
@@ -2112,6 +2206,27 @@ class Brain:
         full_response = self._claude_loop(history, sender_id, is_first_time=is_first_time,
                                           canal=canal, paciente_ctx=paciente_ctx)
         print(f"[BRAIN] Claude final len={len(full_response)} preview={full_response[:100]!r}", flush=True)
+
+        # ── INTERCEPTAR <<<BLOQUEAR>>>: spam/abuso detectado por Claude ──
+        if '<<<BLOQUEAR>>>' in full_response:
+            print(f"[BRAIN] <<<BLOQUEAR>>> detectado para {sender_id} — despedida + bloqueo 24h", flush=True)
+            despedida = (
+                "Gracias por escribirnos 💙\n"
+                "En este espacio solo podemos ayudarte con temas "
+                "relacionados con nuestros servicios médicos y estéticos.\n\n"
+                "Si en algún momento deseas información sobre nuestros "
+                "tratamientos, con gusto te atendemos 😊\n\n"
+                "¡Que tengas un excelente día!\n"
+                "440 Clinic · Dr. Giovanni Fuentes"
+            )
+            client = self.instagram if canal == 'instagram' else self.whapi
+            try: client.send_text(sender_id, despedida)
+            except Exception as e: print(f"[BRAIN] despedida send err: {e}", flush=True)
+            self._save_message(sender_id, sender_name, canal, despedida,
+                               direccion='saliente', remitente='bot',
+                               cuenta_receptora=cuenta_receptora)
+            self._set_bloqueado(sender_id, razon='Contenido inapropiado/spam', hours=24)
+            return
 
         # NOTIFY block (legacy lead notifications still supported)
         notify = None
