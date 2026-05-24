@@ -1681,7 +1681,7 @@ class Brain:
     def _call_claude_raw(self, messages, system_extra=''):
         full_system = SYSTEM + ('\n\n' + system_extra if system_extra else '')
         payload = json.dumps({
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-haiku-4-5-20251001",
             "max_tokens": 800,
             "system": full_system,
             "tools": TOOLS,
