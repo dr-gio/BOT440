@@ -2731,7 +2731,10 @@ class BrainCX:
         if notify:
             fields = self._parse_notify(notify)
             print(f"[CX] NOTIFY fields={fields}", flush=True)
-            self._notify_lead(fields, sender_id, canal=canal)
+            if self._already_notified_cx(sender_id, canal):
+                print(f"[CX] NOTIFY duplicado para {sender_id} — skip (ya notificado <24h)", flush=True)
+            else:
+                self._notify_lead(fields, sender_id, canal=canal)
 
         return user_facing
 
