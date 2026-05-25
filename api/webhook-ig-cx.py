@@ -60,8 +60,16 @@ def _extract_event(payload):
                 continue
             text = message.get('text', '')
             if not text:
-                if message.get('attachments'):
-                    text = '[MEDIA]'
+                _atts = message.get('attachments') or []
+                if _atts:
+                    # Instagram tags: image / sticker / share / story_mention / etc.
+                    _at = (_atts[0] or {}).get('type', '').lower()
+                    if _at == 'image':
+                        text = '[IMAGEN]'
+                    elif _at in ('sticker', 'reaction'):
+                        text = '[STICKER]'
+                    else:
+                        text = '[MEDIA]'
                 else:
                     continue
             out.append({'igsid': sender, 'page_id': recipient, 'text': text, 'from_name': ''})

@@ -25,7 +25,15 @@ class handler(BaseHTTPRequestHandler):
                 print(f"[WEBHOOK-CX] echo (from_me)", flush=True)
                 self._ok({'status': 'echo'}); return
             sender_id = msg.get('from', '').replace('@s.whatsapp.net', '')
-            text = msg.get('text', {}).get('body', '') if msg.get('type') == 'text' else '[MEDIA]'
+            _tipo = msg.get('type', 'text')
+            if _tipo == 'text':
+                text = msg.get('text', {}).get('body', '')
+            elif _tipo == 'image':
+                text = '[IMAGEN]'
+            elif _tipo in ('sticker', 'reaction'):
+                text = '[STICKER]'
+            else:
+                text = '[MEDIA]'
             name = msg.get('from_name', '')
             print(f"[WEBHOOK-CX] sender={sender_id} name={name!r} text={text[:60]!r}", flush=True)
             if text and sender_id:

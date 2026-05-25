@@ -2442,34 +2442,76 @@ class BrainCX:
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             return ''
 
-        # ── Mensajes especiales: [MEDIA] / solo emojis ──────────────────
+        # ── Mensajes especiales: [IMAGEN] / [STICKER] / [MEDIA] ─────────
+        # IMAGEN = foto real → orientar al paciente sobre prediag/valoración
+        #          (o pedirle guardar si ya agendó)
+        # STICKER/REACCIÓN = ignorar si ya cerró, sino dejar pasar a Claude
+        # MEDIA = audio/video/documento → mismo trato que IMAGEN
         _s_in = (text or '').strip()
-        if _s_in == '[MEDIA]':
+        if _s_in in ('[IMAGEN]', '[STICKER]', '[MEDIA]'):
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             _nombre = (sender_name or '').split()[0] if sender_name else ''
             _saludo = f"¡Hola {_nombre}!" if _nombre else "¡Hola!"
-            reply = (
-                f"{_saludo} 💙\n"
-                "No puedo evaluar imágenes aquí,\n"
-                "pero puedo orientarte 😊\n\n"
-                "¿Qué prefieres?\n\n"
-                "📋 *Prediagnóstico GRATUITO*\n"
-                "Una asesora te contactará\n"
-                "y podrás compartir tus fotos\n"
-                "para evaluar tu caso 💙\n\n"
-                "🎥 Valoración virtual $160.000\n"
-                "🏥 Valoración presencial $260.000\n"
-                "Con el Dr. Gio directamente\n\n"
-                "💬 Seguimos hablando por aquí\n"
-                "Te oriento sin imágenes\n"
-                "y cuando estés list@ decides 😊"
-            )
-            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-            if send:
-                client = self.instagram if canal.startswith('instagram') else self.whapi
-                try: client.send_text(sender_id, reply)
-                except Exception as e: print(f"[CX] media reply send err: {e}", flush=True)
-            self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
-            return reply
+            # Cargar contexto para detectar si ya agendó o ya cerró
+            _media_hist = self._load_history(sender_id, canal=canal)
+            _hist_txt = ' '.join(
+                m.get('content', '') if isinstance(m.get('content'), str) else ''
+                for m in _media_hist
+            ).lower()
+            _ya_agendo = ('quedó agendado' in _hist_txt or 'quedo agendado' in _hist_txt
+                          or 'tu prediagnóstico quedó' in _hist_txt
+                          or 'prediagnóstico agendado' in _hist_txt)
+            _lead = self._check_lead_crm(sender_id) or {}
+            _etapa_ok = (_lead.get('etapa') or '').lower() in (
+                'prediagnostico', 'consulta_agendada', 'pago_consulta',
+                'en_consulta', 'vendido', 'servicio_programado', 'completado')
+            _agendado = _ya_agendo or _etapa_ok
+
+            # CASO B — STICKER/REACCIÓN
+            if _s_in == '[STICKER]':
+                if _agendado:
+                    # Ya cerró / agendó → no responder, solo guardar
+                    print(f"[CX] [STICKER] tras agendamiento — silencio", flush=True)
+                    return ''
+                # Sino: continuar el flujo normal (no responder menú de imágenes)
+                # Reemplazamos por un placeholder ligero para que Claude vea algo
+                # natural sin romper el flujo.
+                text = '👍'
+                _s_in = '👍'
+                # Sigue al flujo principal de Claude más abajo
+            else:
+                # CASO A/C — IMAGEN o MEDIA
+                if _agendado:
+                    reply = (
+                        f"{_saludo} 💙\n"
+                        "Guarda tus imágenes para\n"
+                        "mostrárselas a tu asesora\n"
+                        "en tu videollamada 😊\n"
+                        "¡Te esperamos! ✨"
+                    )
+                else:
+                    reply = (
+                        f"{_saludo} 💙\n"
+                        "No puedo evaluar imágenes aquí,\n"
+                        "pero puedo orientarte 😊\n\n"
+                        "¿Qué prefieres?\n\n"
+                        "📋 *Prediagnóstico GRATUITO*\n"
+                        "Una asesora te contactará\n"
+                        "y podrás compartir tus fotos\n"
+                        "para evaluar tu caso 💙\n\n"
+                        "🎥 Valoración virtual $160.000\n"
+                        "🏥 Valoración presencial $260.000\n"
+                        "Con el Dr. Gio directamente\n\n"
+                        "💬 Seguimos hablando por aquí\n"
+                        "Te oriento sin imágenes\n"
+                        "y cuando estés list@ decides 😊"
+                    )
+                if send:
+                    client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: client.send_text(sender_id, reply)
+                    except Exception as e: print(f"[CX] media reply send err: {e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                return reply
         history = self._load_history(sender_id, canal=canal)
         _is_first_time = len(history) == 0
 
