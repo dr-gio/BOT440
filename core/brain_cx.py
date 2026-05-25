@@ -13,7 +13,7 @@ Env vars esperadas:
   DRA_SHARON
   ADMIN_CX
 """
-import os, json, re, urllib.request, urllib.error, urllib.parse
+import os, json, re, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
@@ -2450,10 +2450,38 @@ class BrainCX:
         _s_in = (text or '').strip()
         if _s_in in ('[IMAGEN]', '[STICKER]', '[MEDIA]'):
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-            _nombre = (sender_name or '').split()[0] if sender_name else ''
-            _saludo = f"¡Hola {_nombre}!" if _nombre else "¡Hola!"
-            # Cargar contexto para detectar si ya agendó o ya cerró
+
+            # ── ANTI-RACE: si llegó texto + media casi simultáneos
+            # (típico cuando el paciente saluda + manda foto al mismo
+            # tiempo), dormir 2.5s y verificar si hay un mensaje
+            # ENTRANTE de TEXTO real reciente del mismo sender. Si lo
+            # hay, dejamos que esa otra invocación maneje la respuesta
+            # (más rica que el menú de imágenes).
+            time.sleep(2.5)
+            try:
+                _desde = (_dt.now(_tz.utc) - _td(seconds=8)).isoformat()
+                _params = (f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}'
+                           f'&canal=eq.{urllib.parse.quote(canal)}'
+                           f'&direccion=eq.entrante'
+                           f'&created_at=gte.{urllib.parse.quote(_desde)}'
+                           f'&select=mensaje,created_at&order=created_at.desc&limit=10')
+                _url = f'{self.sb_url}/rest/v1/conversaciones_440?{_params}'
+                _req = urllib.request.Request(_url, headers=self._sb_headers(), method='GET')
+                with urllib.request.urlopen(_req, timeout=5) as _r:
+                    _recientes = json.loads(_r.read()) or []
+                for _row in _recientes:
+                    _m = (_row.get('mensaje') or '').strip()
+                    if _m and _m not in ('[MEDIA]', '[IMAGEN]', '[STICKER]'):
+                        print(f"[CX] media abort — texto reciente '{_m[:40]}' del mismo sender, deja que text handler responda", flush=True)
+                        return ''
+            except Exception as _e:
+                print(f"[CX] media abort check err: {_e}", flush=True)
+
+            # Cargar contexto fresco (post-sleep) para detectar si ya
+            # agendó o ya cerró, y extraer nombre del historial.
             _media_hist = self._load_history(sender_id, canal=canal)
+            _nombre = self._extract_name_from_history(_media_hist, sender_name) or ''
+            _saludo = f"¡Hola {_nombre}!" if _nombre else "¡Hola!"
             _hist_txt = ' '.join(
                 m.get('content', '') if isinstance(m.get('content'), str) else ''
                 for m in _media_hist
