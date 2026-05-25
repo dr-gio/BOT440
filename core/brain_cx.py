@@ -1883,16 +1883,15 @@ class BrainCX:
 
     def _extract_name_from_history(self, history, sender_name):
         """Busca un nombre real del paciente. Prioridad:
-        1. sender_name (WhApi profile) si tiene ≥2 letras y no es solo emoji/símbolo.
-        2. Primera frase del paciente del estilo 'me llamo X', 'soy X', o
-           una respuesta corta (≤3 palabras) tras una pregunta del bot sobre nombre.
+        1. Primera frase del paciente del estilo 'me llamo X', 'soy X',
+           'mi nombre es X' (más confiable que el sender_name).
+        2. Respuesta corta del paciente justo después de pregunta del
+           bot sobre nombre.
+        3. sender_name (WhApi profile) — solo si tiene ≥2 letras, NO está
+           rodeado de emojis/símbolos, y no es un alias TODO-MAYÚSCULAS
+           tipo 'TEST', 'USER', etc.
         Devuelve '' si nada confiable."""
-        # 1. sender_name
-        nm = (sender_name or '').strip()
-        letters = sum(1 for ch in nm if ch.isalpha())
-        if letters >= 2 and nm not in ('.', '—', '-'):
-            return nm.split()[0].title()
-        # 2. Escanear historial
+        # 1. y 2. Escanear historial
         for i, m in enumerate(history):
             if m.get('role') != 'user':
                 continue
@@ -1905,15 +1904,23 @@ class BrainCX:
                     cand = ''.join(ch for ch in cand if ch.isalpha())
                     if len(cand) >= 2:
                         return cand.title()
-            # Respuesta corta tras pregunta del bot sobre nombre
             if i > 0 and history[i-1].get('role') == 'assistant':
                 bot = (history[i-1].get('content') or '').lower()
                 if ('nombre' in bot or 'cómo te llamas' in bot or 'como te llamas' in bot):
                     cand = txt.replace('.', '').strip().split()
                     if cand:
                         first = ''.join(ch for ch in cand[0] if ch.isalpha())
-                        if len(first) >= 2:
+                        if len(first) >= 2 and first.lower() not in ('si', 'sí', 'no', 'ok'):
                             return first.title()
+        # 3. sender_name como último recurso
+        nm = (sender_name or '').strip()
+        # Si tiene chars no-alfanuméricos adjacentes (emojis, símbolos), filtrarlos
+        has_non_letter_symbol = any(not (ch.isalnum() or ch.isspace()) for ch in nm)
+        if has_non_letter_symbol:
+            return ''  # 💕TEST💕, 💕 ASHLY 💕 → no confiable
+        letters = sum(1 for ch in nm if ch.isalpha())
+        if letters >= 2 and nm not in ('.', '—', '-'):
+            return nm.split()[0].title()
         return ''
 
     def _validate_notify_fields(self, fields, history, sender_name, sender_id):
