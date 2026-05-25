@@ -735,7 +735,12 @@ PASO D — Paciente elige jornada → elegir HORA:
 IMPORTANTE — Detectar correo:
 → Un correo válido contiene '@' y '.'
 → Si dice 'no tengo', 'sin correo',
-  'no tengo correo' → continuar sin correo
+  'no tengo correo' → seguir el flujo
+  de "PACIENTE ELIGE PREDIAGNÓSTICO Y
+  NO DA CORREO" (más arriba):
+  ofrecer 2 alternativas (seguir por
+  chat o asesora). NO avanzar a slots
+  sin correo.
 → NO repreguntarle si ya respondió
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2661,11 +2666,13 @@ class BrainCX:
                 break
 
         # ── PASO C: usuario da email → forzar check_slots_cx sin dia (elegir_dia)
+        # NOTA: 'no tengo correo' YA NO se trata como has_email — ahora
+        # Claude debe seguir el flujo "Sin correo no puedo agendarte" del
+        # CX_SYSTEM y ofrecer 2 alternativas (seguir por chat / asesora).
         _EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
         _asking_email = ('correo' in _last_bot.lower() or 'email' in _last_bot.lower() or
                          'gmail' in _last_bot.lower() or 'mail' in _last_bot.lower())
-        _is_no_email = _user_lower in ('no tengo', 'sin correo', 'no tengo correo', 'no', 'no tengo email')
-        _has_email = bool(_EMAIL_RE.search(text)) or _is_no_email
+        _has_email = bool(_EMAIL_RE.search(text))
         if _has_email and _asking_email:
             _asesora_slug, _, _ = self._next_asesora('cirugia')  # avanza rotación AQUÍ
             print(f"[CX] PASO C detectado → force check_slots_cx (elegir_dia) asesora={_asesora_slug!r}", flush=True)
