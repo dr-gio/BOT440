@@ -1669,6 +1669,107 @@ class Brain:
             print(f"[BRAIN] set_bloqueado error: {e}", flush=True)
 
     # ------------------------------------------------------------------
+    # Validación/rescate de campos NOTIFY (portado de brain_cx.py)
+    # ------------------------------------------------------------------
+    _CIUDADES_CANONICAS = (
+        'barranquilla', 'bogotá', 'bogota', 'medellín', 'medellin',
+        'cali', 'cartagena', 'cúcuta', 'cucuta', 'bucaramanga',
+        'santa marta', 'pereira', 'manizales', 'ibagué', 'ibague',
+        'villavicencio', 'neiva', 'pasto', 'montería', 'monteria',
+        'miami', 'new york', 'nueva york', 'panamá', 'panama',
+        'venezuela', 'ecuador', 'peru', 'perú', 'mexico', 'méxico',
+    )
+    _CIUDAD_PATRONES = ('vivo en ', 'soy de ', 'estoy en ', 'ciudad ',
+                        'desde ', 'vengo de ', 'somos de ')
+
+    def _ciudad_from_history(self, history):
+        """Recorre el historial en orden ASC y devuelve la PRIMERA
+        ciudad mencionada por el paciente con contexto explícito
+        ('vivo en X', 'soy de X', etc.). Fallback a primera mención simple."""
+        for m in history:
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').lower()
+            for pat in self._CIUDAD_PATRONES:
+                for c in self._CIUDADES_CANONICAS:
+                    if (pat + c) in txt:
+                        return c.title()
+        for m in history:
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').lower()
+            posiciones = []
+            for c in self._CIUDADES_CANONICAS:
+                idx = txt.find(c)
+                if idx >= 0:
+                    posiciones.append((idx, c))
+            if posiciones:
+                posiciones.sort()
+                return posiciones[0][1].title()
+        return ''
+
+    def _extract_name_from_history(self, history, sender_name):
+        """Busca nombre real del paciente. Prioridad:
+        1. 'me llamo X' / 'soy X' / 'mi nombre es X' del historial.
+        2. Respuesta corta tras pregunta del bot sobre nombre.
+        3. sender_name (sin emojis/símbolos adyacentes)."""
+        for i, m in enumerate(history):
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').strip()
+            low = txt.lower()
+            for pat in ('me llamo ', 'soy ', 'mi nombre es '):
+                if pat in low:
+                    rest = low.split(pat, 1)[1].strip()
+                    cand = rest.split()[0] if rest else ''
+                    cand = ''.join(ch for ch in cand if ch.isalpha())
+                    if len(cand) >= 2:
+                        return cand.title()
+            if i > 0 and history[i-1].get('role') == 'assistant':
+                bot = (history[i-1].get('content') or '').lower()
+                if ('nombre' in bot or 'cómo te llamas' in bot or 'como te llamas' in bot):
+                    cand = txt.replace('.', '').strip().split()
+                    if cand:
+                        first = ''.join(ch for ch in cand[0] if ch.isalpha())
+                        if len(first) >= 2 and first.lower() not in ('si', 'sí', 'no', 'ok'):
+                            return first.title()
+        nm = (sender_name or '').strip()
+        has_non_letter_symbol = any(not (ch.isalnum() or ch.isspace()) for ch in nm)
+        if has_non_letter_symbol:
+            return ''
+        letters = sum(1 for ch in nm if ch.isalpha())
+        if letters >= 2 and nm not in ('.', '—', '-'):
+            return nm.split()[0].title()
+        return ''
+
+    def _validate_notify_fields(self, fields, history, sender_name, sender_id):
+        """Limpia/rescata campos críticos del NOTIFY in-place.
+        Aplica a los 3 templates de estética (cita_estetica,
+        armonia_facial, armonia_corporal): nombre y ciudad."""
+        # nombre
+        nombre = (fields.get('nombre') or '').strip()
+        bad_name = (not nombre or
+                    not any(c.isalpha() for c in nombre) or
+                    nombre.lower() in ('.', '—', '-', 'sin nombre', 'no especificado'))
+        if bad_name:
+            recovered = self._extract_name_from_history(history, sender_name)
+            fields['nombre'] = recovered or 'Paciente'
+            print(f"[BRAIN] NOTIFY nombre rescued: {nombre!r} → {fields['nombre']!r}", flush=True)
+        # ciudad — solo si el template la usa (cita_estetica + corporal sí; facial no la pide)
+        if 'ciudad' in fields or any(k in fields for k in ('servicio', 'tratamiento', 'meta')):
+            ciudad = (fields.get('ciudad') or '').strip().lower()
+            bad_city = (not ciudad or
+                        ciudad in ('desconocida', '—', '-', 'no especificada', 'no especificado'))
+            if bad_city:
+                recovered = self._ciudad_from_history(history)
+                if recovered:
+                    fields['ciudad'] = recovered
+                    print(f"[BRAIN] NOTIFY ciudad rescued: → {recovered!r}", flush=True)
+                elif not fields.get('ciudad'):
+                    fields['ciudad'] = ''  # facial no la pide → dejar vacío en vez de 'desconocida'
+        return fields
+
+    # ------------------------------------------------------------------
     # W21 webhook callers (tools)
     # ------------------------------------------------------------------
     def _post_json(self, url, payload):
@@ -2205,7 +2306,7 @@ class Brain:
 
         if should_notify:
             print(f"[BRAIN] notify_admin trigger", flush=True)
-            self._notify_admin(notify, sender_id, canal=canal)
+            self._notify_admin(notify, sender_id, canal=canal, history=history)
 
     # Destinatarios fijos de las notificaciones de leads
     SARA_TEL = '573105762900'
@@ -2294,19 +2395,23 @@ class Brain:
                                cuenta_receptora=cuenta_receptora)
         return True
 
-    def _notify_admin(self, data, sender_id, canal='whatsapp'):
+    def _notify_admin(self, data, sender_id, canal='whatsapp', history=None):
         fields = self._parse_notify_fields(data)
+        # Rescate de nombre/ciudad si Claude los dejó vacíos o con '.', etc.
+        if history is None:
+            try: history = self._load_history(sender_id, canal)
+            except Exception: history = []
+        self._validate_notify_fields(fields, history or [], sender_name='', sender_id=sender_id)
+
         servicio_raw = (fields.get('servicio') or '').lower()
         tipo = (fields.get('tipo') or '').lower()
         combo = f"{tipo} {servicio_raw}"
 
-        # Destinatarios fijos para CUALQUIER lead estético.
-        _fijos = [self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
-
         # Servicio "display": para cita_estetica mapeamos slug a nombre
         # legible y agregamos zona. Para los demás usamos el tratamiento
         # si está presente, o el servicio crudo.
-        if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
+        is_cita = ('cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo)
+        if is_cita:
             _label = {
                 'depilacion': 'Depilación Láser',
                 'hiperbarica': 'Cámara Hiperbárica',
@@ -2321,18 +2426,36 @@ class Brain:
         nombre = fields.get('nombre', '—')
         ciudad = (fields.get('ciudad') or '').strip()
         telefono = fields.get('telefono', sender_id)
-        msg = self._build_notify_message(nombre, servicio_display,
-                                          telefono, ciudad)
 
-        # Routing de destinatarios.
-        if 'cita_estetica' in tipo or 'cita estetica' in tipo or 'cita estética' in tipo:
-            destinatarios = list(_fijos)
-            _contactar_sara = (fields.get('contactar_sara') or '').strip().lower()
-            if _contactar_sara in ('si', 'sí', 'yes', 'true', '1'):
-                destinatarios.append(self.SARA_TEL)
+        # Mensaje según tipo: cita_estetica usa formato "CITA AGENDADA"
+        # con CTA explícito para Sara; resto usa formato genérico.
+        if is_cita:
+            esteticista = fields.get('esteticista', '—')
+            fecha = fields.get('fecha', '—')
+            ciudad_line = f"📍 440 Clinic · {ciudad}" if ciudad else "📍 440 Clinic · Barranquilla"
+            msg = (
+                "📅 CITA AGENDADA — ESTÉTICA\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                f"👤 {nombre}\n"
+                f"📱 {telefono}\n"
+                f"💆 {servicio_display}\n"
+                f"📅 {fecha}\n"
+                f"👩 Esteticista: {esteticista}\n"
+                f"{ciudad_line}\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "Sara: contacta para confirmar\n"
+                "y hacer la gestión comercial 💙"
+            )
         else:
-            # Para cualquier otro lead estético: Sara siempre + 3 fijos.
-            destinatarios = [self.SARA_TEL] + list(_fijos)
+            msg = self._build_notify_message(nombre, servicio_display,
+                                              telefono, ciudad)
+
+        # Routing — Sara SIEMPRE recibe el NOTIFY (incluyendo cita_estetica)
+        # para que pueda hacer la gestión comercial post-agendamiento.
+        # contactar_sara queda obsoleto pero se respeta si por alguna razón
+        # se quisiera escalar (Sara igual ya está).
+        _fijos = [self.SARA_TEL, self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
+        destinatarios = list(_fijos)
 
         for tel in destinatarios:
             if not tel:
