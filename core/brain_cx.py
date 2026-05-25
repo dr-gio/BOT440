@@ -2284,9 +2284,19 @@ class BrainCX:
             _saludo = f"¡Hola {_nombre}!" if _nombre else "¡Hola!"
             reply = (
                 f"{_saludo} 💙\n"
-                "No puedo ver imágenes aquí, pero puedes compartírsela "
-                "directamente a nuestra asesora cuando te contacte 😊\n\n"
-                "¿Hay algo en lo que pueda ayudarte mientras tanto?"
+                "No puedo evaluar imágenes aquí,\n"
+                "pero puedo orientarte 😊\n\n"
+                "¿Qué prefieres?\n\n"
+                "📋 *Prediagnóstico GRATUITO*\n"
+                "Una asesora te contactará\n"
+                "y podrás compartir tus fotos\n"
+                "para evaluar tu caso 💙\n\n"
+                "🎥 Valoración virtual $160.000\n"
+                "🏥 Valoración presencial $260.000\n"
+                "Con el Dr. Gio directamente\n\n"
+                "💬 Seguimos hablando por aquí\n"
+                "Te oriento sin imágenes\n"
+                "y cuando estés list@ decides 😊"
             )
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             if send:
