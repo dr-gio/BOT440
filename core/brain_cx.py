@@ -1025,6 +1025,46 @@ REGLAS CRÍTICAS
 ❌ No des diagnósticos médicos
 ❌ No hagas rinoplastia ni bichectomía
 
+DATOS OBLIGATORIOS ANTES DE NOTIFY:
+→ Si no tienes el nombre real del
+  paciente → pregúntalo
+→ Si no tienes la ciudad donde VIVE
+  el paciente → pregunta '¿Desde qué
+  ciudad nos escribes?'
+→ Si no tienes el procedimiento
+  específico → pregúntalo
+→ NUNCA emitas NOTIFY con:
+  nombre='.', ciudad='desconocida'
+  o procedimiento vacío
+→ La ciudad es donde VIVE el
+  paciente, NO donde opera el Dr.
+  Si el paciente dice "Dr. opera en
+  Barranquilla pero yo vivo en Cali"
+  → ciudad: Cali
+
+CUANDO EL PACIENTE ELIGE
+PREDIAGNÓSTICO Y NO DA CORREO:
+
+Pide el correo:
+"Para enviarte el link de tu
+prediagnóstico gratuito necesito
+tu correo electrónico 📧
+¿Cuál es? 😊"
+
+Si no da el correo responde:
+"Sin tu correo no puedo
+agendarte el prediagnóstico 💙
+
+¿Qué prefieres?
+💬 Que te siga informando por aquí
+📞 Que una asesora te contacte"
+
+Si elige asesora → emite NOTIFY
+con nota: 'Sin correo — coordinar
+prediagnóstico por WhatsApp' y
+score TIBIO. NO emitas tipo
+'prediagnostico virtual' sin correo.
+
 DETECCIÓN DE ABUSO:
 Si el mensaje del usuario:
 → Contiene groserías o insultos directos al bot/clínica
@@ -1797,6 +1837,115 @@ class BrainCX:
             out[k.strip().lower()] = v.strip()
         return out
 
+    # Ciudades canónicas usadas por _validate_notify_fields y bypass.
+    # El orden de detección es por aparición cronológica en el historial,
+    # NO por orden de esta lista.
+    _CIUDADES_CANONICAS = (
+        'barranquilla', 'bogotá', 'bogota', 'medellín', 'medellin',
+        'cali', 'cartagena', 'cúcuta', 'cucuta', 'bucaramanga',
+        'santa marta', 'pereira', 'manizales', 'ibagué', 'ibague',
+        'villavicencio', 'neiva', 'pasto', 'montería', 'monteria',
+        'miami', 'new york', 'nueva york', 'panamá', 'panama',
+        'venezuela', 'ecuador', 'peru', 'perú', 'mexico', 'méxico',
+    )
+    _CIUDAD_PATRONES = ('vivo en ', 'soy de ', 'estoy en ', 'ciudad ',
+                        'desde ', 'vengo de ', 'somos de ')
+
+    def _ciudad_from_history(self, history):
+        """Recorre el historial en orden ASC y devuelve la PRIMERA
+        ciudad mencionada por el paciente con contexto explícito
+        ('vivo en X', 'soy de X', 'desde X', etc.). Si no hay contexto
+        explícito, hace fallback al primer match simple. Devuelve '' si nada."""
+        # First pass — con patrones de contexto (más confiable)
+        for m in history:
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').lower()
+            for pat in self._CIUDAD_PATRONES:
+                for c in self._CIUDADES_CANONICAS:
+                    if (pat + c) in txt:
+                        return c.title()
+        # Second pass — primera ciudad mencionada sin contexto
+        for m in history:
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').lower()
+            # Buscar en orden de aparición, no de la lista
+            posiciones = []
+            for c in self._CIUDADES_CANONICAS:
+                idx = txt.find(c)
+                if idx >= 0:
+                    posiciones.append((idx, c))
+            if posiciones:
+                posiciones.sort()
+                return posiciones[0][1].title()
+        return ''
+
+    def _extract_name_from_history(self, history, sender_name):
+        """Busca un nombre real del paciente. Prioridad:
+        1. sender_name (WhApi profile) si tiene ≥2 letras y no es solo emoji/símbolo.
+        2. Primera frase del paciente del estilo 'me llamo X', 'soy X', o
+           una respuesta corta (≤3 palabras) tras una pregunta del bot sobre nombre.
+        Devuelve '' si nada confiable."""
+        # 1. sender_name
+        nm = (sender_name or '').strip()
+        letters = sum(1 for ch in nm if ch.isalpha())
+        if letters >= 2 and nm not in ('.', '—', '-'):
+            return nm.split()[0].title()
+        # 2. Escanear historial
+        for i, m in enumerate(history):
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').strip()
+            low = txt.lower()
+            for pat in ('me llamo ', 'soy ', 'mi nombre es '):
+                if pat in low:
+                    rest = low.split(pat, 1)[1].strip()
+                    cand = rest.split()[0] if rest else ''
+                    cand = ''.join(ch for ch in cand if ch.isalpha())
+                    if len(cand) >= 2:
+                        return cand.title()
+            # Respuesta corta tras pregunta del bot sobre nombre
+            if i > 0 and history[i-1].get('role') == 'assistant':
+                bot = (history[i-1].get('content') or '').lower()
+                if ('nombre' in bot or 'cómo te llamas' in bot or 'como te llamas' in bot):
+                    cand = txt.replace('.', '').strip().split()
+                    if cand:
+                        first = ''.join(ch for ch in cand[0] if ch.isalpha())
+                        if len(first) >= 2:
+                            return first.title()
+        return ''
+
+    def _validate_notify_fields(self, fields, history, sender_name, sender_id):
+        """Limpia campos críticos del NOTIFY in-place. Aplica fallbacks
+        desde el historial cuando el modelo dejó '.', 'desconocida',
+        'sin nombre', '—', vacío, etc."""
+        # nombre
+        nombre = (fields.get('nombre') or '').strip()
+        bad_name = (not nombre or
+                    not any(c.isalpha() for c in nombre) or
+                    nombre.lower() in ('.', '—', '-', 'sin nombre', 'no especificado'))
+        if bad_name:
+            recovered = self._extract_name_from_history(history, sender_name)
+            fields['nombre'] = recovered or 'Paciente'
+            print(f"[CX] NOTIFY nombre rescued: {nombre!r} → {fields['nombre']!r}", flush=True)
+        # ciudad
+        ciudad = (fields.get('ciudad') or '').strip().lower()
+        bad_city = (not ciudad or
+                    ciudad in ('desconocida', '—', '-', 'no especificada', 'no especificado'))
+        if bad_city:
+            recovered = self._ciudad_from_history(history)
+            if recovered:
+                fields['ciudad'] = recovered
+                print(f"[CX] NOTIFY ciudad rescued: → {recovered!r}", flush=True)
+            else:
+                fields['ciudad'] = 'desconocida'
+        # procedimiento — fallback suave (no inventar)
+        proc = (fields.get('procedimiento') or '').strip().lower()
+        if not proc or proc in ('—', '-', 'no especificado', 'desconocido'):
+            fields['procedimiento'] = fields.get('procedimiento') or 'consulta general'
+        return fields
+
     @staticmethod
     def _es_eleccion_valoracion(msgs):
         """True si en la conversación el paciente está eligiendo una
@@ -1937,24 +2086,28 @@ class BrainCX:
         hist_text = ' '.join(
             m.get('content', '') if isinstance(m.get('content'), str) else ''
             for m in history)
-        nombre = sender_name or ''
+        nombre = self._extract_name_from_history(history, sender_name)
 
-        # Ciudad: buscar palabras comunes en el historial.
-        ciudad = ''
-        for word in ('barranquilla', 'bogotá', 'bogota', 'medellín',
-                     'medellin', 'cali', 'cartagena', 'cúcuta', 'cucuta',
-                     'bucaramanga', 'santa marta', 'pereira'):
-            if word in hist_text.lower():
-                ciudad = word.title()
-                break
+        # Ciudad: primera mención cronológica con contexto ('vivo en',
+        # 'soy de', etc.) > primera mención simple. Evita el bug del
+        # keyword-match por orden de lista (que devolvía 'barranquilla'
+        # aunque el paciente dijera 'vivo en Medellín').
+        ciudad = self._ciudad_from_history(history)
 
-        # Procedimiento: buscar términos quirúrgicos.
+        # Procedimiento: buscar términos quirúrgicos en primer mensaje
+        # del paciente que mencione uno (orden cronológico).
         procedimiento = ''
-        for proc in ('lipoescultura', 'lipo', 'mamoplastia',
-                     'abdominoplastia', 'blefaroplastia', 'rinoplastia',
-                     'lifting', 'papada'):
-            if proc in hist_text.lower():
-                procedimiento = proc.capitalize()
+        for m in history:
+            if m.get('role') != 'user':
+                continue
+            txt = (m.get('content') or '').lower()
+            for proc in ('lipoescultura 360', 'lipoescultura', 'lipo',
+                         'mamoplastia', 'abdominoplastia', 'blefaroplastia',
+                         'rinoplastia', 'lifting', 'papada'):
+                if proc in txt:
+                    procedimiento = proc.title()
+                    break
+            if procedimiento:
                 break
 
         saludo = f"¡Perfecto {nombre}! 💙" if nombre else "¡Perfecto! 💙"
@@ -2740,6 +2893,7 @@ class BrainCX:
 
         if notify:
             fields = self._parse_notify(notify)
+            self._validate_notify_fields(fields, history, sender_name, sender_id)
             print(f"[CX] NOTIFY fields={fields}", flush=True)
             if self._already_notified_cx(sender_id, canal):
                 print(f"[CX] NOTIFY duplicado para {sender_id} — skip (ya notificado <24h)", flush=True)
