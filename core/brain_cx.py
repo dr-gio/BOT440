@@ -2962,6 +2962,18 @@ class BrainCX:
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
 
+        # DEDUP CHECK *ANTES* de _save_message para evitar self-block.
+        # _save_message persiste full_response (que contiene el literal
+        # "<<<NOTIFY>>>...<<<END>>>") con direccion='saliente'. Si chequeáramos
+        # dedup DESPUÉS, _already_notified_cx (que busca mensaje ILIKE '%NOTIFY%'
+        # en saliente últimas 24h) encontraría el row recién insertado y trataría
+        # todo NOTIFY como duplicado — bug introducido en 795519f que bloqueó
+        # todos los avisos al staff desde el 25-may 06:15.
+        # Mismo patrón ya aplicado en brain.py (ver comentario línea ~2374).
+        # TODO(fase 2): cambiar la señal de dedup a leads_comerciales.notificado_at
+        # (opción C) para desacoplar persistencia de aviso.
+        already_notified = self._already_notified_cx(sender_id, canal) if notify else False
+
         if user_facing:
             if send:
                 print(f"[CX] sending reply len={len(user_facing)} via canal={canal} to={sender_id}", flush=True)
@@ -2979,7 +2991,7 @@ class BrainCX:
             fields = self._parse_notify(notify)
             self._validate_notify_fields(fields, history, sender_name, sender_id)
             print(f"[CX] NOTIFY fields={fields}", flush=True)
-            if self._already_notified_cx(sender_id, canal):
+            if already_notified:
                 print(f"[CX] NOTIFY duplicado para {sender_id} — skip (ya notificado <24h)", flush=True)
             else:
                 self._notify_lead(fields, sender_id, canal=canal)
