@@ -8,20 +8,32 @@ Disparado por:
   - curl manual (POST) — para dry-run / pruebas
 
 Auth: header `Authorization: Bearer <CRON_SECRET>` — validado en GET y POST.
+
+NOTA: las env vars se leen DENTRO de las funciones (no a nivel de módulo) para
+que el import del módulo nunca reviente por una env var faltante. Esto permite
+que en environments incompletos (Preview, dev) Vercel pueda al menos cargar el
+handler y devolver un error controlado, en lugar de FUNCTION_INVOCATION_FAILED.
 """
 from http.server import BaseHTTPRequestHandler
-import os, json, datetime, urllib.request
+import os, re, json, time, datetime, urllib.request
 from zoneinfo import ZoneInfo
 
 
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_ANON_KEY"]
-WHAPI_URL    = os.environ.get("WHAPI_URL", "https://gate.whapi.cloud")
-CRON_SECRET  = os.environ["CRON_SECRET"]
+# Postgres a veces devuelve microsegundos con 4-5 dígitos (no 0/3/6), y
+# datetime.fromisoformat en Python <3.11 es estricto. Helper portable.
+_FRAC_RE = re.compile(r'(\.\d{1,5})(?=[+\-Z]|$)')
+
+def _iso(s):
+    """Parsea ISO-8601 tolerando 'Z' y fracciones de microsegundo no estándar."""
+    s = s.replace('Z', '+00:00')
+    s = _FRAC_RE.sub(lambda m: m.group(1).ljust(7, '0'), s)  # '.5714' → '.571400'
+    return datetime.datetime.fromisoformat(s)
+
 
 CUENTAS = {
     ("drgio_wa",     "cirugia"):  {"token": "WHAPI_TOKEN_CX", "tipo": "cirugia"},
-    ("440clinic_wa", "whatsapp"): {"token": "WHAPI_TOKEN",    "tipo": "estetica"},
+    # desactivado: 403 WhApi en envío masivo, investigar
+    # ("440clinic_wa", "whatsapp"): {"token": "WHAPI_TOKEN",    "tipo": "estetica"},
 }
 
 COPY = {
@@ -31,20 +43,26 @@ COPY = {
     ("estetica", 2): "{n}, te escribo de nuevo de 440 Clinic ✨ Tenemos espacios disponibles esta semana. ¿Quieres que te comparta los horarios? Aquí sigo para lo que necesites 💙",
 }
 
-CAP_HORA = 2
+CAP_HORA = 2                  # máximo INTENTOS de envío por corrida (no éxitos)
 HORA_INI, HORA_FIN = 9, 20
-VENTANA_T1_HORAS = 4
-VENTANA_T2_HORAS = 24
+VENTANA_T1_HORAS = 4          # silencio mínimo para tocar T1
+VENTANA_T2_HORAS = 24         # silencio mínimo desde T1 para tocar T2
+VENTANA_MAX_SILENCIO_H = 24   # tope: si lleva más de esto, lead frío → skip
+THROTTLE_SEG = 2              # pausa entre envíos (anti-rate-limit WhApi)
 TZ = ZoneInfo("America/Bogota")
 
 
 # ---------------- Supabase REST helpers ----------------
 
 def _sb(path, method="GET", body=None):
-    url = f"{SUPABASE_URL}/rest/v1/{path}"
+    base = os.environ.get("SUPABASE_URL")
+    key  = os.environ.get("SUPABASE_ANON_KEY")
+    if not base or not key:
+        raise RuntimeError("SUPABASE_URL / SUPABASE_ANON_KEY no configurados")
+    url = f"{base}/rest/v1/{path}"
     headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
     if method == "POST":
@@ -61,8 +79,9 @@ def _send_whapi(token_env, to, text):
     if not token:
         print(f"[CRON] ❌ token vacío: {token_env}", flush=True)
         return False
+    whapi_url = os.environ.get("WHAPI_URL", "https://gate.whapi.cloud")
     req = urllib.request.Request(
-        f"{WHAPI_URL}/messages/text",
+        f"{whapi_url}/messages/text",
         data=json.dumps({"to": to, "body": text}).encode(),
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST",
@@ -97,15 +116,30 @@ def _toques_previos(tel, canal):
 
 def _run_cron():
     ahora = datetime.datetime.now(TZ)
-    if not (HORA_INI <= ahora.hour < HORA_FIN):
-        print(f"[CRON] fuera de franja ({ahora.hour}h) — skip", flush=True)
+    # Las constantes HORA_INI/HORA_FIN pueden sobreescribirse vía env var
+    # (útil para pruebas locales fuera de la franja real). En Production
+    # no se setean → se usa el default 9-20 Bogotá.
+    hora_ini = int(os.environ.get("HORA_INI", HORA_INI))
+    hora_fin = int(os.environ.get("HORA_FIN", HORA_FIN))
+    if not (hora_ini <= ahora.hour < hora_fin):
+        print(f"[CRON] fuera de franja ({ahora.hour}h, vent={hora_ini}-{hora_fin}) — skip", flush=True)
         return {"status": "fuera_de_franja", "hora_local": ahora.hour}
 
-    enviados_hora = 0
-    resumen = {"t1": 0, "t2": 0, "skip": 0}
+    # CAP por INTENTOS (no éxitos). Si _send_whapi falla con 403/timeout,
+    # el contador igual avanza → el break se dispara aunque el canal esté caído.
+    intentos_hora = 0
+    enviados_ok   = 0
+    resumen = {"t1": 0, "t2": 0, "skip": 0, "intentos": 0, "ok": 0, "fail": 0}
+
+    dry_run = os.environ.get("DRY_RUN", "") == "1"
+    only_tel = os.environ.get("DRY_RUN_TEL", "").strip()
+    if dry_run:  print("[CRON] 🧪 DRY_RUN=1 — no se enviará ni se insertará", flush=True)
+    if only_tel: print(f"[CRON] 🧪 DRY_RUN_TEL={only_tel} — solo procesa ese número", flush=True)
 
     for (cuenta, canal), cfg in CUENTAS.items():
-        desde = (ahora - datetime.timedelta(hours=72)).astimezone(datetime.timezone.utc).isoformat()
+        # PostgREST decodifica '+' como espacio en el query string → '+00:00' rompe
+        # el parsing del timestamp. Sustituir por 'Z' (UTC), aceptado por Postgres.
+        desde = (ahora - datetime.timedelta(hours=72)).astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
         rows = _sb(
             f"conversaciones_440?cuenta_receptora=eq.{cuenta}&canal=eq.{canal}"
             f"&created_at=gte.{desde}&select=contacto_telefono,contacto_nombre,"
@@ -124,14 +158,22 @@ def _run_cron():
                 leads[tel]["entrantes"].append(r["created_at"])
 
         for tel, d in leads.items():
-            if enviados_hora >= CAP_HORA:
-                print("[CRON] cap/hora alcanzado", flush=True); break
+            if intentos_hora >= CAP_HORA:
+                print(f"[CRON] cap/hora alcanzado ({intentos_hora}/{CAP_HORA} intentos) — break", flush=True); break
+
+            # Filtro test: solo procesar el número indicado
+            if only_tel and tel != only_tel:
+                continue
 
             if d["msgs"] < 2 or not d["entrantes"]:
                 resumen["skip"] += 1; continue
 
-            ult_entrante = max(datetime.datetime.fromisoformat(x) for x in d["entrantes"])
+            ult_entrante = max(_iso(x) for x in d["entrantes"])
             silencio_h = (ahora - ult_entrante.astimezone(TZ)).total_seconds() / 3600
+
+            # Filtro warm: lead frío (>24h sin escribir) → skip
+            if silencio_h > VENTANA_MAX_SILENCIO_H:
+                resumen["skip"] += 1; continue
 
             if _ya_notificado(tel, cuenta) or _bot_pausado(tel):
                 resumen["skip"] += 1; continue
@@ -145,7 +187,7 @@ def _run_cron():
             if n_toques == 0 and silencio_h >= VENTANA_T1_HORAS:
                 toque = 1
             elif n_toques == 1:
-                ult_toque = max(datetime.datetime.fromisoformat(p["enviado_at"]) for p in previos)
+                ult_toque = max(_iso(p["enviado_at"]) for p in previos)
                 if (ahora - ult_toque.astimezone(TZ)).total_seconds()/3600 >= VENTANA_T2_HORAS:
                     toque = 2
             if not toque:
@@ -157,7 +199,23 @@ def _run_cron():
             else:
                 text = COPY[(cfg["tipo"], toque)].format(n="").lstrip(", ").replace("¡Hola ! ", "¡Hola! ").replace("  ", " ")
 
-            if _send_whapi(cfg["token"], tel, text):
+            # ── INTENTO DE ENVÍO ──
+            # Contar intento ANTES de llamar a WhApi: el CAP se respeta aunque
+            # el envío falle (403/timeout). Crítico para no martillar WhApi.
+            intentos_hora += 1
+            resumen["intentos"] += 1
+            print(f"[CRON] intento {intentos_hora}/{CAP_HORA} → {tel} toque={toque} silencio_h={silencio_h:.1f}", flush=True)
+
+            if dry_run:
+                print(f"[CRON] 🧪 DRY_RUN — habría enviado a {tel}: {text[:80]!r}", flush=True)
+                resumen[f"t{toque}"] += 1
+                resumen["ok"] += 1
+                # En dry-run no se inserta en seguimientos_440.
+                time.sleep(THROTTLE_SEG)
+                continue
+
+            ok = _send_whapi(cfg["token"], tel, text)
+            if ok:
                 try:
                     _sb("seguimientos_440", "POST", {
                         "contacto_telefono": tel, "canal": canal,
@@ -166,19 +224,32 @@ def _run_cron():
                     })
                 except Exception as e:
                     print(f"[CRON] ❌ insert seguimientos falló {tel} toque={toque}: {e}", flush=True)
-                enviados_hora += 1
+                enviados_ok += 1
                 resumen[f"t{toque}"] += 1
+                resumen["ok"] += 1
+            else:
+                resumen["fail"] += 1
+            # Throttle entre envíos (anti-rate-limit WhApi). También en fallos.
+            time.sleep(THROTTLE_SEG)
 
-    print(f"[CRON] resumen={resumen} enviados={enviados_hora}", flush=True)
-    return {"resumen": resumen, "enviados": enviados_hora}
+    print(f"[CRON] resumen={resumen} intentos={intentos_hora} enviados_ok={enviados_ok}", flush=True)
+    return {"resumen": resumen, "intentos": intentos_hora, "enviados_ok": enviados_ok}
 
 
 # ---------------- HTTP handler (patrón de webhook-cx.py) ----------------
 
 class handler(BaseHTTPRequestHandler):
     def _check_auth(self):
+        secret = os.environ.get("CRON_SECRET", "")
+        if not secret:
+            print("[CRON] ❌ CRON_SECRET no configurado", flush=True)
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "CRON_SECRET not configured"}).encode())
+            return False
         auth = self.headers.get('Authorization', '') or self.headers.get('authorization', '')
-        if auth != f"Bearer {CRON_SECRET}":
+        if auth != f"Bearer {secret}":
             print("[CRON] 401 unauthorized", flush=True)
             self.send_response(401)
             self.send_header('Content-Type', 'application/json')
