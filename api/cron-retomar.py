@@ -43,6 +43,41 @@ COPY = {
     ("estetica", 2): "{n}, te escribo de nuevo de 440 Clinic ✨ Tenemos espacios disponibles esta semana. ¿Quieres que te comparta los horarios? Aquí sigo para lo que necesites 💙",
 }
 
+# Fallback sin nombre — saludo neutro y bien formateado. Se usa cuando
+# contacto_nombre viene vacío, sucio (emojis, números, basura) o muy corto
+# (ej. "Ec", "L", iniciales). Mejor un saludo limpio que un "¡Hola Ec!".
+COPY_NEUTRO = {
+    ("cirugia", 1):  "¡Hola! 💙 Vi que quedamos a mitad de la conversación sobre tu procedimiento. ¿Te quedó alguna duda que pueda resolverte? Estoy aquí para ayudarte 😊",
+    ("cirugia", 2):  "Hola 💙 No quiero que se te pase — el Dr. Gio tiene agenda disponible esta semana para valoración. ¿Te gustaría que coordinemos un espacio? Cuéntame y seguimos.",
+    ("estetica", 1): "¡Hola! ✨ Quedé pendiente de tu mensaje en 440 Clinic. ¿Sigues interesad@ en conocer más? Con gusto te ayudo con lo que necesites 💙",
+    ("estetica", 2): "Hola ✨ Te escribo de nuevo de 440 Clinic — tenemos espacios disponibles esta semana. ¿Quieres que te comparta los horarios? Aquí sigo para lo que necesites 💙",
+}
+
+# Lista corta de nombres "raros" que se ven feo en saludo — usar fallback.
+_NOMBRE_INVALIDO = {"media", "imagen", "sticker", "audio", "video", "amigo", "amiga", "hola"}
+
+def _saneo_nombre(raw):
+    """Devuelve un primer nombre limpio, o '' si no es presentable.
+
+    Reglas:
+      - quita emojis, números, signos
+      - toma el primer token
+      - largo entre 3 y 20 chars
+      - no está en lista de basura común ("Media", "Imagen", etc.)
+      - title-case
+    """
+    if not raw:
+        return ""
+    limpio = re.sub(r"[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s'-]", "", str(raw)).strip()
+    if not limpio:
+        return ""
+    primero = limpio.split()[0]
+    if len(primero) < 3 or len(primero) > 20:
+        return ""
+    if primero.lower() in _NOMBRE_INVALIDO:
+        return ""
+    return primero.capitalize()
+
 CAP_HORA = 2                  # máximo INTENTOS de envío por corrida (no éxitos)
 HORA_INI, HORA_FIN = 9, 20
 VENTANA_T1_HORAS = 4          # silencio mínimo para tocar T1
@@ -193,11 +228,11 @@ def _run_cron():
             if not toque:
                 resumen["skip"] += 1; continue
 
-            nombre = (d["nombre"] or "").split(" ")[0] if d["nombre"] else ""
+            nombre = _saneo_nombre(d["nombre"])
             if nombre:
                 text = COPY[(cfg["tipo"], toque)].format(n=nombre)
             else:
-                text = COPY[(cfg["tipo"], toque)].format(n="").lstrip(", ").replace("¡Hola ! ", "¡Hola! ").replace("  ", " ")
+                text = COPY_NEUTRO[(cfg["tipo"], toque)]
 
             # ── INTENTO DE ENVÍO ──
             # Contar intento ANTES de llamar a WhApi: el CAP se respeta aunque
