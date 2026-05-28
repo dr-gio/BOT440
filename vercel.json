@@ -9,6 +9,10 @@
     {"src": "/webhook-ig-cx", "dest": "/api/webhook-ig-cx.py"},
     {"src": "/webhook-ig-cx-simple", "dest": "/api/webhook-ig-cx-simple.py"},
     {"src": "/test-ig-send", "dest": "/api/test-ig-send.py"},
-    {"src": "/test-ig-roles", "dest": "/api/test-ig-roles.py"}
+    {"src": "/test-ig-roles", "dest": "/api/test-ig-roles.py"},
+    {"src": "/cron-retomar", "dest": "/api/cron-retomar.py"}
+  ],
+  "crons": [
+    {"path": "/cron-retomar", "schedule": "0,30 14-23 * * *"}
   ]
 }
