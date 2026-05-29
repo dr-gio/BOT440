@@ -26,6 +26,7 @@ _DRGIO_PAGE_IDS = {
 # @drgio440 page IDs
 _DRGIO440_PAGE_IDS = {
     '27049498358050909',
+    '17841476035768675',  # ig_account_id real confirmado en Meta app
 }
 
 # Map page_id → cuenta_receptora slug
@@ -34,6 +35,7 @@ _PAGE_TO_CUENTA = {
     '26562617856680827': 'drgiovannifuentes',
     '17841400339315123': 'drgiovannifuentes',
     '27049498358050909': 'drgio440',
+    '17841476035768675': 'drgio440',  # ig_account_id real confirmado en Meta app
 }
 
 

@@ -14,6 +14,7 @@ IG_DRGIO440_ACCOUNT_ID = os.environ.get('DRGIO440_IG_ACCOUNT_ID','27049498358050
 # Map page_id → (token, account_id)
 _IG_ACCOUNT_MAP = {
     '27049498358050909': (IG_DRGIO440_TOKEN, IG_DRGIO440_ACCOUNT_ID),
+    '17841476035768675': (IG_DRGIO440_TOKEN, IG_DRGIO440_ACCOUNT_ID),  # ig_account_id real confirmado
 }
 
 def _get_token_and_account(ig_account_id=''):

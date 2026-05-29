@@ -1225,7 +1225,7 @@ class BrainCX:
         }
         self._ig_accounts = {
             'drgiovannifuentes': os.environ.get('IG_CX_ACCOUNT_ID', '17841400339315123').strip(),
-            'drgio440': os.environ.get('DRGIO440_IG_ACCOUNT_ID', '27049498358050909').strip(),
+            'drgio440': os.environ.get('DRGIO440_IG_ACCOUNT_ID', '17841476035768675').strip(),
         }
         # Default: @drgiovannifuentes (se sobreescribe en process() según cuenta_receptora)
         ig_cx_token = self._ig_tokens['drgiovannifuentes']
