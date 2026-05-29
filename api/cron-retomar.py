@@ -164,6 +164,9 @@ def _run_cron():
 
     # CAP por INTENTOS (no éxitos). Si _send_whapi falla con 403/timeout,
     # el contador igual avanza → el break se dispara aunque el canal esté caído.
+    # El cap es POR CUENTA: cada (cuenta, canal) tiene su propio presupuesto de
+    # CAP_HORA intentos, independiente. Cirugía no consume el cap de estética ni
+    # viceversa. `intentos_hora` queda como total global solo para log/return.
     intentos_hora = 0
     enviados_ok   = 0
     resumen = {"t1": 0, "t2": 0, "skip": 0, "intentos": 0, "ok": 0, "fail": 0}
@@ -194,9 +197,10 @@ def _run_cron():
             if r.get("direccion") == "entrante":
                 leads[tel]["entrantes"].append(r["created_at"])
 
+        intentos_cuenta = 0
         for tel, d in leads.items():
-            if intentos_hora >= CAP_HORA:
-                print(f"[CRON] cap/hora alcanzado ({intentos_hora}/{CAP_HORA} intentos) — break", flush=True); break
+            if intentos_cuenta >= CAP_HORA:
+                print(f"[CRON] cap/hora alcanzado para {cuenta}/{canal} ({intentos_cuenta}/{CAP_HORA} intentos) — break", flush=True); break
 
             # Filtro test: solo procesar el número indicado
             if only_tel and tel != only_tel:
@@ -239,9 +243,10 @@ def _run_cron():
             # ── INTENTO DE ENVÍO ──
             # Contar intento ANTES de llamar a WhApi: el CAP se respeta aunque
             # el envío falle (403/timeout). Crítico para no martillar WhApi.
+            intentos_cuenta += 1
             intentos_hora += 1
             resumen["intentos"] += 1
-            print(f"[CRON] intento {intentos_hora}/{CAP_HORA} → {tel} toque={toque} silencio_h={silencio_h:.1f}", flush=True)
+            print(f"[CRON] intento {cuenta}/{canal} {intentos_cuenta}/{CAP_HORA} (global {intentos_hora}) → {tel} toque={toque} silencio_h={silencio_h:.1f}", flush=True)
 
             if dry_run:
                 print(f"[CRON] 🧪 DRY_RUN — habría enviado a {tel}: {text[:80]!r}", flush=True)
