@@ -8,6 +8,19 @@ import anthropic
 
 IG_CX_TOKEN = os.environ.get('IG_CX_PAGE_ACCESS_TOKEN','')
 IG_CX_ACCOUNT_ID = os.environ.get('IG_CX_ACCOUNT_ID','17841400339315123')
+IG_DRGIO440_TOKEN = os.environ.get('IG_DRGIO440_TOKEN','')
+IG_DRGIO440_ACCOUNT_ID = os.environ.get('DRGIO440_IG_ACCOUNT_ID','27049498358050909')
+
+# Map page_id → (token, account_id)
+_IG_ACCOUNT_MAP = {
+    '27049498358050909': (IG_DRGIO440_TOKEN, IG_DRGIO440_ACCOUNT_ID),
+}
+
+def _get_token_and_account(ig_account_id=''):
+    """Devuelve (token, account_id) según la cuenta que recibió el evento."""
+    if ig_account_id in _IG_ACCOUNT_MAP:
+        return _IG_ACCOUNT_MAP[ig_account_id]
+    return (IG_CX_TOKEN, IG_CX_ACCOUNT_ID)
 
 SYSTEM_SIMPLE = """Eres el community
 manager de @drgiovannifuentes —
@@ -217,10 +230,11 @@ def _dm_interes(text):
             f'La Belleza 440 ✨')
 
 
-def _graph_post(path, data):
-    """POST a graph.instagram.com con el token CX."""
+def _graph_post(path, data, token=None):
+    """POST a graph.instagram.com."""
+    token = token or IG_CX_TOKEN
     url = f'https://graph.instagram.com/v21.0/{path}'
-    body = urllib.parse.urlencode({**data, 'access_token': IG_CX_TOKEN}).encode()
+    body = urllib.parse.urlencode({**data, 'access_token': token}).encode()
     req = urllib.request.Request(url, data=body, method='POST')
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
@@ -234,15 +248,17 @@ def _graph_post(path, data):
         return {'error': str(e)}
 
 
-def _send_dm(recipient, text):
+def _send_dm(recipient, text, token=None, account_id=None):
     """Envía DM. recipient = {'id': igsid} o {'comment_id': cid}."""
-    url = f'https://graph.instagram.com/v21.0/{IG_CX_ACCOUNT_ID}/messages'
+    token = token or IG_CX_TOKEN
+    account_id = account_id or IG_CX_ACCOUNT_ID
+    url = f'https://graph.instagram.com/v21.0/{account_id}/messages'
     payload = json.dumps({'recipient': recipient,
                           'message': {'text': text}}).encode()
     req = urllib.request.Request(
         url, data=payload, method='POST',
         headers={'Content-Type': 'application/json',
-                 'Authorization': f'Bearer {IG_CX_TOKEN}'})
+                 'Authorization': f'Bearer {token}'})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             return json.loads(r.read())
@@ -317,6 +333,9 @@ class handler(BaseHTTPRequestHandler):
             text = body.get('text', '') or body.get('message', '')
             comment_id = body.get('comment_id', '') or body.get('id', '')
             nombre = body.get('from_username', '') or body.get('name', '')
+            ig_account_id = str(body.get('ig_account_id', '') or body.get('recipient_id', ''))
+            _token, _account_id = _get_token_and_account(ig_account_id)
+            print(f"[IG-CX-SIMPLE] tipo={tipo!r} ig_account_id={ig_account_id!r} sender={sender_id!r}", flush=True)
 
             if not text:
                 self._respond(200, {'status': 'ok', 'reply': ''})
@@ -340,15 +359,15 @@ class handler(BaseHTTPRequestHandler):
                     reply = _public_interes(text, nombre)
                     if comment_id:
                         result['public'] = _graph_post(
-                            f'{comment_id}/replies', {'message': reply})
+                            f'{comment_id}/replies', {'message': reply}, token=_token)
                         result['dm'] = _send_dm(
-                            {'comment_id': comment_id}, _dm_link())
+                            {'comment_id': comment_id}, _dm_link(), token=_token, account_id=_account_id)
                 else:
                     # admiración / saludo → solo respuesta pública, sin DM
                     reply = _claude_reply(text)
                     if comment_id and reply:
                         result['public'] = _graph_post(
-                            f'{comment_id}/replies', {'message': reply})
+                            f'{comment_id}/replies', {'message': reply}, token=_token)
                 # Persistir comentario + respuesta en conversaciones_440.
                 # Para comentarios el "sender_id" lo construimos con el
                 # comment_id (no tenemos teléfono real) para que el thread
@@ -376,6 +395,9 @@ class handler(BaseHTTPRequestHandler):
             _save_conversacion(sender_id, nombre, text, 'entrante', 'paciente')
             if reply:
                 _save_conversacion(sender_id, nombre, reply, 'saliente', 'bot')
+                # Enviar DM directamente via Graph API
+                dm_result = _send_dm({'id': sender_id}, reply, token=_token, account_id=_account_id)
+                print(f"[IG-CX-SIMPLE] _send_dm result={dm_result}", flush=True)
 
             self._respond(200, {'status': 'ok', 'tipo': 'dm', 'reply': reply})
 
