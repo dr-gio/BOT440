@@ -359,7 +359,22 @@ definición / flacidez / lipoescultura
 / abdominoplastia hacer estas
 preguntas UNA por mensaje:
 
-PREGUNTA 1:
+⚠️ ANTES DE PREGUNTAR: ten en cuenta
+el SEXO del paciente.
+→ Si el paciente es HOMBRE (o el
+  sistema te lo indica): NO preguntes
+  "¿Has tenido hijos?" ni asumas
+  embarazos/cesáreas. Usa en su lugar:
+  PREGUNTA 1 (hombre):
+  "¿Has tenido cambios importantes
+  de peso recientemente [nombre]? 😊"
+  y luego sigue con peso ideal/
+  ejercicio y flacidez/exceso de piel.
+→ Si NO sabes el sexo y no es evidente,
+  primero pregunta de forma natural
+  para no asumir.
+
+PREGUNTA 1 (mujer):
 "¿Has tenido hijos [nombre]? 😊"
 
 SEGÚN RESPUESTA:
@@ -1208,7 +1223,7 @@ class BrainCX:
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
         self.sb_key = os.environ.get('SUPABASE_ANON_KEY', '')
-        self.history_limit = 8
+        self.history_limit = 30
         print(f"[CX INIT] sb_url={self.sb_url!r} sb_key_len={len(self.sb_key)} "
               f"anth_key_len={len(self.api_key)} cx_token={'custom' if cx_token else 'default'}", flush=True)
 
@@ -1320,7 +1335,7 @@ class BrainCX:
         return sender_name if letters >= 2 else None
 
     def _upsert_paciente(self, sender_id, nombre=None, email=None,
-                         canal=None, servicio=None):
+                         canal=None, servicio=None, sexo=None):
         if not self.sb_url or not self.sb_key or not sender_id:
             return
         try:
@@ -1332,6 +1347,8 @@ class BrainCX:
                 body['nombre'] = nombre
             if email:
                 body['email'] = email
+            if sexo:
+                body['sexo'] = sexo
             if canal:
                 body['canal'] = canal
             if servicio:
@@ -1886,6 +1903,45 @@ class BrainCX:
                 return posiciones[0][1].title()
         return ''
 
+    # Marcadores de sexo. Solo se usan frases explícitas / autodescriptivas
+    # del paciente para evitar falsos positivos (p.ej. "mi esposo" NO implica
+    # que el paciente sea hombre).
+    _SEXO_HOMBRE_PATRONES = (
+        'soy hombre', 'soy un hombre', 'soy masculino', 'sexo masculino',
+        'género masculino', 'genero masculino', 'soy varón', 'soy varon',
+        'soy chico', 'soy un chico', 'hombre,', 'masculino',
+    )
+    _SEXO_MUJER_PATRONES = (
+        'soy mujer', 'soy una mujer', 'soy femenina', 'sexo femenino',
+        'género femenino', 'genero femenino', 'soy chica', 'soy una chica',
+        'mujer,', 'femenino', 'femenina',
+        'embarazada', 'tuve a mi bebé', 'di a luz', 'cesárea', 'cesarea',
+        'estoy lactando',
+    )
+
+    def _detect_sexo(self, history, text=''):
+        """Detecta sexo del paciente a partir de frases explícitas en el
+        historial + el mensaje actual. Devuelve 'hombre', 'mujer' o ''.
+        Toma la PRIMERA afirmación explícita en orden cronológico."""
+        partes = []
+        for m in history:
+            if m.get('role') != 'user':
+                continue
+            c = m.get('content')
+            if isinstance(c, str):
+                partes.append(c)
+        if text:
+            partes.append(text)
+        for txt in partes:
+            low = (txt or '').lower()
+            for pat in self._SEXO_HOMBRE_PATRONES:
+                if pat in low:
+                    return 'hombre'
+            for pat in self._SEXO_MUJER_PATRONES:
+                if pat in low:
+                    return 'mujer'
+        return ''
+
     def _extract_name_from_history(self, history, sender_name):
         """Busca un nombre real del paciente. Prioridad:
         1. Primera frase del paciente del estilo 'me llamo X', 'soy X',
@@ -2403,7 +2459,7 @@ class BrainCX:
             'apikey': crm_key,
             'Authorization': f'Bearer {crm_key}',
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=ignore-duplicates,return=minimal',
+            'Prefer': 'resolution=merge-duplicates,return=minimal',
         }
         req = urllib.request.Request(url, data=_json.dumps(body).encode(),
                                       headers=headers, method='POST')
@@ -2705,10 +2761,43 @@ class BrainCX:
             r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', text)
         _nombre_real = (self._extract_name_from_turn(history, text)
                         or self._safe_sender_name(sender_name))
+        # Sexo: detectado de la conversación, o el ya guardado del paciente.
+        _sexo = self._detect_sexo(history, text)
+        if not _sexo and paciente:
+            _sexo = (paciente.get('sexo') or '').strip().lower() or ''
         self._upsert_paciente(
             sender_id, nombre=_nombre_real,
             email=_email_m.group(0) if _email_m else None,
-            canal=canal, servicio='Cirugía Plástica')
+            canal=canal, servicio='Cirugía Plástica',
+            sexo=_sexo or None)
+
+        # ── Anamnesis condicionada por sexo ──────────────────────────────
+        # Si sabemos que el paciente es HOMBRE, instruir al modelo a NO
+        # preguntar "¿Has tenido hijos?" ni asumir embarazo/cesáreas, y a
+        # usar el árbol de preguntas adecuado para hombres.
+        if _sexo == 'hombre':
+            paciente_ctx += (
+                "\n\n[SISTEMA — SEXO DEL PACIENTE: HOMBRE]\n"
+                "El paciente es HOMBRE. En las preguntas médicas (PASO 5B):\n"
+                "→ NO preguntes '¿Has tenido hijos?' ni asumas embarazos, "
+                "cesáreas o lactancia.\n"
+                "→ Para abdomen/grasa/flacidez, PREGUNTA 1: "
+                "'¿Has tenido cambios importantes de peso recientemente "
+                "[nombre]? 😊'\n"
+                "→ Luego: '¿Estás cerca de tu peso ideal o haces ejercicio "
+                "regularmente?' y '¿Has notado flacidez o exceso de piel en "
+                "el abdomen?'\n"
+                "→ Orienta igual: poca flacidez + cerca del peso ideal → "
+                "lipoescultura; flacidez/exceso de piel marcado → "
+                "abdominoplastia (lipectomía). El Dr. Gio confirma en la "
+                "valoración."
+            )
+            print("[CX] anamnesis condicionada: paciente HOMBRE", flush=True)
+        elif _sexo == 'mujer':
+            paciente_ctx += (
+                "\n\n[SISTEMA — SEXO DEL PACIENTE: MUJER]\n"
+                "El paciente es MUJER. Sigue el árbol normal del PASO 5B."
+            )
 
         # ── PASO C/D: forzar check_slots_cx para evitar alucinación ──────────
         # Claude tiende a inventar slots en lugar de llamar al tool.
