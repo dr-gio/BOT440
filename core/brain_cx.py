@@ -1211,14 +1211,30 @@ class BrainCX:
         self.whapi = WhapiClient(
             token=os.environ.get('WHAPI_TOKEN_CX', os.environ.get('WHAPI_TOKEN', ''))
         )
-        # InstagramClient para @drgiovannifuentes — usa IG_CX_PAGE_ACCESS_TOKEN si existe,
-        # si no cae en IG_PAGE_ACCESS_TOKEN (fallback).
-        ig_cx_token = os.environ.get('IG_CX_PAGE_ACCESS_TOKEN', '').strip()
-        ig_cx_account = os.environ.get('IG_CX_ACCOUNT_ID', '17841400339315123').strip()
+        # InstagramClient — token se elige según cuenta_receptora en process().
+        # Precargamos los tokens disponibles aquí.
+        self._ig_tokens = {
+            'drgiovannifuentes': (
+                os.environ.get('IG_CX_PAGE_ACCESS_TOKEN', '').strip()
+                or os.environ.get('IG_PAGE_ACCESS_TOKEN', '')
+            ),
+            'drgio440': (
+                os.environ.get('IG_DRGIO440_TOKEN', '').strip()
+                or os.environ.get('IG_CX_PAGE_ACCESS_TOKEN', '').strip()
+            ),
+        }
+        self._ig_accounts = {
+            'drgiovannifuentes': os.environ.get('IG_CX_ACCOUNT_ID', '17841400339315123').strip(),
+            'drgio440': os.environ.get('DRGIO440_IG_ACCOUNT_ID', '27049498358050909').strip(),
+        }
+        # Default: @drgiovannifuentes (se sobreescribe en process() según cuenta_receptora)
+        ig_cx_token = self._ig_tokens['drgiovannifuentes']
+        ig_cx_account = self._ig_accounts['drgiovannifuentes']
         self.instagram = InstagramClient(
-            token=ig_cx_token or os.environ.get('IG_PAGE_ACCESS_TOKEN', ''),
+            token=ig_cx_token,
             account_id=ig_cx_account,
         )
+        self._cuenta_receptora_activa = 'drgiovannifuentes'
         cx_token = os.environ.get('WHAPI_TOKEN_CX', '').strip()  # solo para el log
         self.api_key = os.environ.get('ANTHROPIC_API_KEY', '')
         self.sb_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
@@ -1468,9 +1484,11 @@ class BrainCX:
                       canal='cirugia', cuenta_receptora=None):
         if not self.sb_url or not self.sb_key or not mensaje:
             return
-        # Para instagram_cx inferir cuenta_receptora automáticamente
+        # Para instagram_cx inferir cuenta_receptora automáticamente.
+        # Usa self._cuenta_receptora_activa si está disponible (set en process())
+        # para distinguir drgio440 de drgiovannifuentes.
         if cuenta_receptora is None and canal == 'instagram_cx':
-            cuenta_receptora = 'drgiovannifuentes'
+            cuenta_receptora = getattr(self, '_cuenta_receptora_activa', 'drgiovannifuentes')
         # Para WhatsApp del bot cirugías: marca 'drgio_wa' para que el CRM
         # pueda distinguirlo del bot estética (brain → 440clinic_wa).
         if cuenta_receptora is None and canal in ('whatsapp', 'cirugia'):
@@ -2481,7 +2499,18 @@ class BrainCX:
         Returns:
             str — texto visible al paciente (sin bloque NOTIFY). Vacío si no hay reply.
         """
-        print(f"[CX] canal={canal!r} send={send} {sender_id}: {text[:60]!r}", flush=True)
+        print(f"[CX] canal={canal!r} send={send} cuenta={cuenta_receptora!r} {sender_id}: {text[:60]!r}", flush=True)
+
+        # ── Seleccionar token/account de Instagram según cuenta_receptora ──
+        # Guardar en self para que _save_message lo use sin tener que
+        # propagar el parámetro en cada llamada interna.
+        if cuenta_receptora:
+            self._cuenta_receptora_activa = cuenta_receptora
+        if cuenta_receptora in self._ig_accounts:
+            _ig_token = self._ig_tokens.get(cuenta_receptora, '')
+            _ig_account = self._ig_accounts.get(cuenta_receptora, '')
+            if _ig_token and _ig_account:
+                self.instagram = InstagramClient(token=_ig_token, account_id=_ig_account)
 
         # ── BOT PAUSADO: guardar entrante y salir sin responder ─────────
         # Si la asesora marcó este lead como pausado desde el CRM, NO

@@ -1,12 +1,14 @@
-"""Instagram (Meta Graph) webhook endpoint for BOT440-CX — @drgiovannifuentes DMs.
+"""Instagram (Meta Graph) webhook endpoint for BOT440-CX — @drgiovannifuentes + @drgio440 DMs.
 
 GET  /webhook-ig-cx  → handles Meta's subscription verification (hub.challenge).
 POST /webhook-ig-cx  → receives messaging events and processes them via BrainCX.
 
 Expected env vars:
-  IG_VERIFY_TOKEN       — same verify token used by /webhook-ig.
-  IG_CX_PAGE_ACCESS_TOKEN or IG_PAGE_ACCESS_TOKEN — used to send replies.
-  DRGIO_IG_ACCOUNT_ID   — optional; page_id for @drgiovannifuentes (17841400339315123).
+  IG_VERIFY_TOKEN            — same verify token used by /webhook-ig.
+  IG_CX_PAGE_ACCESS_TOKEN    — token for @drgiovannifuentes (fallback: IG_PAGE_ACCESS_TOKEN).
+  IG_DRGIO440_TOKEN          — token for @drgio440.
+  DRGIO_IG_ACCOUNT_ID        — optional; page_id for @drgiovannifuentes (17841400339315123).
+  DRGIO440_IG_ACCOUNT_ID     — optional; page_id for @drgio440 (27049498358050909).
 """
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -19,6 +21,19 @@ _DRGIO_PAGE_IDS = {
     '26640901062231544',
     '26562617856680827',
     '17841400339315123',
+}
+
+# @drgio440 page IDs
+_DRGIO440_PAGE_IDS = {
+    '27049498358050909',
+}
+
+# Map page_id → cuenta_receptora slug
+_PAGE_TO_CUENTA = {
+    '26640901062231544': 'drgiovannifuentes',
+    '26562617856680827': 'drgiovannifuentes',
+    '17841400339315123': 'drgiovannifuentes',
+    '27049498358050909': 'drgio440',
 }
 
 
@@ -123,10 +138,11 @@ class handler(BaseHTTPRequestHandler):
             for ev in events:
                 if not ev['igsid'] or not ev['text']:
                     continue
-                print(f"[WEBHOOK-IG-CX] igsid={ev['igsid']} page_id={ev['page_id']} text={ev['text'][:60]!r}", flush=True)
+                cuenta = _PAGE_TO_CUENTA.get(ev['page_id'], 'drgiovannifuentes')
+                print(f"[WEBHOOK-IG-CX] igsid={ev['igsid']} page_id={ev['page_id']} cuenta={cuenta!r} text={ev['text'][:60]!r}", flush=True)
                 # send=False → BrainCX devuelve el texto, W20 se encarga de enviarlo via IG
                 reply_text = BrainCX().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram_cx',
-                                               cuenta_receptora='drgiovannifuentes', send=False)
+                                               cuenta_receptora=cuenta, send=False)
             print(f"[WEBHOOK-IG-CX] Procesado OK reply_len={len(reply_text)}", flush=True)
             self._ok({'status': 'ok', 'reply': reply_text})
         except Exception as e:
