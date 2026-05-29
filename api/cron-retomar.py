@@ -32,8 +32,10 @@ def _iso(s):
 
 CUENTAS = {
     ("drgio_wa",     "cirugia"):  {"token": "WHAPI_TOKEN_CX", "tipo": "cirugia"},
-    # desactivado: 403 WhApi en envío masivo, investigar
-    # ("440clinic_wa", "whatsapp"): {"token": "WHAPI_TOKEN",    "tipo": "estetica"},
+    # reactivado 2026-05-29: el 403 anterior lo causó el bug de cap (213 envíos
+    # en una corrida); ya resuelto con cap por INTENTOS=2 + throttle 2s + filtro
+    # warm 24h. Canal estética sano y enviando con normalidad.
+    ("440clinic_wa", "whatsapp"): {"token": "WHAPI_TOKEN",    "tipo": "estetica"},
 }
 
 COPY = {
