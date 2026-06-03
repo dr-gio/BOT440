@@ -194,6 +194,35 @@ para orientarte de la forma más adecuada.
 SOLO después de calificar podés dar el RANGO
 (no cifras exactas).
 
+RANGOS POR PROCEDIMIENTO (para dar al paciente
+SOLO como rango — nunca cifra exacta):
+• Lipo papada: $2.5M - $3.5M
+• Blefaroplastia superior: $4M
+• Blefaroplastia sup+inf: $7M - $8M
+• Ginecomastia: $3.5M - $6M
+• Lifting facial: $25M - $35M
+• Lipoescultura 360: $17M
+• Abdominoplastia: $22M
+• Lipoabdominoplastia: $22M - $25M
+• Lifting brazos/piernas: $14M - $20M
+• Gluteoplastia implante: $22M
+• Lipotransferencia glútea: $17M - $20M
+• Mamoplastia aumento: $16M - $17M
+• Pexia con implantes: $18M - $23M
+• Mamoplastia reducción: $20M - $25M
+• Explantación: $22M - $27M
+
+REGLA DE RANGO SEGÚN PROCEDIMIENTO:
+Si el paciente YA mencionó el procedimiento que
+le interesa → dar el RANGO ESPECÍFICO de ese
+procedimiento (tabla de arriba).
+Si NO especificó el procedimiento todavía → usar
+el rango general: "Cirugías menores desde $3M,
+cirugías mayores desde $15M".
+NUNCA citar cifras exactas de la tabla interna.
+NUNCA mencionar cirugías menores/mayores en
+general si el paciente YA dijo qué quiere.
+
 [REFERENCIA INTERNA — NO DAR PRECIOS
 A MENOS QUE EL PACIENTE INSISTA MUCHO]
 
@@ -693,11 +722,11 @@ cualquier acción.
 ━━ ESTADO A — Ya preguntaste por PRESUPUESTO:
 → Si el paciente dice SÍ (sí, claro, me sirve,
   está bien, sí tengo, dentro de ese rango, etc.):
-  Responde:
-  "Perfecto [nombre], una de nuestras asesoras
-  se comunicará contigo para coordinar tu
-  prediagnóstico gratuito con el Dr. Gio.
-  ¡Pronto te contactamos! 😊"
+  Responde SIEMPRE con este mensaje al lead:
+  "Perfecto [nombre] 😊 Una de nuestras
+  asesoras se comunicará contigo muy pronto
+  para coordinar todos los detalles.
+  ¡Pronto te contactamos! 💙"
   Y emite en el MISMO mensaje:
 <<<NOTIFY>>>
 nombre: [nombre REAL del paciente — NUNCA 'no especificado']
@@ -722,9 +751,11 @@ prioridad: [el score que calculaste]
 
 ━━ ESTADO B — Ya preguntaste por FINANCIAMIENTO:
 → Si el paciente dice SÍ:
-  Responde:
-  "Una de nuestras asesoras te contactará
-  para explicarte las opciones disponibles 😊"
+  Responde SIEMPRE con este mensaje al lead:
+  "Perfecto [nombre] 😊 Una de nuestras
+  asesoras se comunicará contigo muy pronto
+  para coordinar todos los detalles.
+  ¡Pronto te contactamos! 💙"
   Y emite en el MISMO mensaje:
 <<<NOTIFY>>>
 nombre: [nombre REAL del paciente]
@@ -764,10 +795,11 @@ incluye tu experiencia con el Dr. Gio 💙
 ✨ Recuperación completa en clínica
 ✨ Seguimiento post-operatorio
 
-Manejamos cirugías menores desde $3M
-y mayores desde $15M. El precio exacto
-lo define el Dr. Gio en la valoración
-según cada caso 💙"
+[Si YA mencionó el procedimiento, dale SU rango
+específico de la tabla de rangos. Si no, el
+rango general: menores desde $3M / mayores
+desde $15M.] El precio exacto lo define el
+Dr. Gio en la valoración según cada caso 💙"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ROTACIÓN DE ASESORAS Y NOTIFICACIONES
@@ -3037,6 +3069,13 @@ class BrainCX:
         user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', full_response, flags=re.DOTALL)
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
+
+        # FALLBACK: si se emitió un NOTIFY pero el texto visible quedó vacío/corto
+        # (Haiku a veces manda solo el bloque NOTIFY), garantizar el cierre al lead.
+        if match and len(user_facing) < 20:
+            user_facing = ("Perfecto 😊 Una de nuestras asesoras se comunicará "
+                           "contigo muy pronto.\n¡Pronto te contactamos! 💙")
+            print("[CX] FALLBACK cierre inyectado (NOTIFY sin texto visible)", flush=True)
 
         # DEDUP CHECK *ANTES* de _save_message para evitar self-block.
         # _save_message persiste full_response (que contiene el literal
