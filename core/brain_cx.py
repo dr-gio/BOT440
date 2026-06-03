@@ -529,6 +529,12 @@ FRÍO ❄️:
 → Sin presupuesto
 → Múltiples objeciones
 
+⚠️ Si el lead necesita financiamiento para
+el procedimiento → asignar score TIBIO
+(necesita orientación, no presión).
+Solo el lead con presupuesto propio disponible
+puede ser CALIENTE o URGENTE.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OFERTA SEGÚN SCORE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -735,9 +741,9 @@ ciudad: [ciudad REAL — NUNCA 'no especificado']
 procedimiento: [procedimiento REAL mencionado]
 motivacion: [qué le molesta o quiere mejorar]
 presupuesto: ok
-score: [el score que calculaste]
+score: CALIENTE
 tipo: prediagnostico
-prioridad: [el score que calculaste]
+prioridad: CALIENTE
 <<<END>>>
 
 → Si el paciente dice NO (no, es mucho, no me
@@ -764,9 +770,9 @@ ciudad: [ciudad REAL]
 procedimiento: [procedimiento REAL]
 motivacion: [qué le molesta o quiere mejorar]
 presupuesto: financiamiento
-score: [el score que calculaste]
+score: TIBIO
 tipo: prediagnostico
-prioridad: [el score que calculaste]
+prioridad: TIBIO
 <<<END>>>
 
 → Si el paciente dice NO:
