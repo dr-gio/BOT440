@@ -1803,7 +1803,7 @@ class BrainCX:
                         # BUG 1 FIX: SIEMPRE usar rotación — ignorar asesora que Claude proponga.
                         # _next_asesora lee asesoras_turno y devuelve a quien le toca.
                         # El turno avanza solo en _notify_lead (cuando el prediagnóstico se confirma).
-                        slug, _, _ = self._next_asesora('cirugia')
+                        slug, _, _ = self._next_asesora('cirugia_prediag')
                         asesora = slug
                         print(f"[CX] check_slots_cx: rotación → asesora={asesora!r} (ignorando input de Claude)", flush=True)
                         raw_response = self._check_slots_cx(
@@ -2128,14 +2128,15 @@ class BrainCX:
     @staticmethod
     def _turno_canal(opcion):
         """Determina qué fila de asesoras_turno usar según la opción elegida.
-        Opción 1 (virtual) o 2 (presencial) → valoración con Dr. Gio → 'cirugia_valoracion'
-        Opción 3 (prediagnóstico) o cualquier otra → 'cirugia'
+        FUSIÓN: valoración (opción 1/2) y leads calientes comparten el MISMO
+        sistema de turno → canal 'cirugia'. El prediagnóstico tiene su propio
+        canal 'cirugia_prediag' (no pasa por aquí).
         """
         opcion_str = str(opcion or '').lower()
         if any(k in opcion_str for k in ('1', 'virtual', '2', 'presencial', 'valoracion', 'valoración')):
             # Solo si NO menciona 'prediagnóstico' / 'gratuito'
             if not any(k in opcion_str for k in ('3', 'prediag', 'gratuito')):
-                return 'cirugia_valoracion'
+                return 'cirugia'
         return 'cirugia'
 
     def _try_bypass_valoracion_cx(self, history, text, sender_id,
@@ -2256,8 +2257,8 @@ class BrainCX:
         FRÍO     → solo Sharon + Central, NO rota turno
 
         Canal de turno:
-          opción 1/2 (valoración Dr. Gio) → asesoras_turno canal='cirugia_valoracion'
-          opción 3 (prediagnóstico)        → asesoras_turno canal='cirugia'
+          leads calientes + valoración Dr. Gio (opción 1/2) → canal='cirugia'
+          prediagnóstico (canal propio, fuera de _turno_canal) → canal='cirugia_prediag'
         """
         nombre     = fields.get('nombre', '—')
         proc       = fields.get('procedimiento', '—')
@@ -2286,9 +2287,8 @@ class BrainCX:
 
         # ── Prediagnóstico virtual agendado — formato especial ────────────
         if 'prediagnostico' in tipo:
-            asesora_slug = fields.get('asesora', '').lower().strip()
-            if not asesora_slug or asesora_slug not in ASESORAS:
-                asesora_slug, _, _ = self._next_asesora('cirugia')
+            # Prediagnóstico SIEMPRE por rotación — ignorar asesora propuesta por el LLM.
+            asesora_slug, _, _ = self._next_asesora('cirugia_prediag')
             asesora_label = ASESORA_LABEL.get(asesora_slug, asesora_slug.capitalize())
             asesora_phone = os.environ.get(ASESORA_ENV.get(asesora_slug, ''), '').strip()
             msg = (
@@ -2303,7 +2303,7 @@ class BrainCX:
             )
             if asesora_phone:
                 results['asesora'] = self.whapi.send_text(asesora_phone, msg)
-                self._set_ultima_asesora(asesora_slug, 'cirugia')
+                self._set_ultima_asesora(asesora_slug, 'cirugia_prediag')
                 print(f"[CX] PREDIAGNÓSTICO → asesora={asesora_slug} turno avanzado", flush=True)
             else:
                 print(f"[CX] ⚠ asesora {asesora_slug} sin teléfono", flush=True)
@@ -2862,7 +2862,7 @@ class BrainCX:
                          'gmail' in _last_bot.lower() or 'mail' in _last_bot.lower())
         _has_email = bool(_EMAIL_RE.search(text))
         if _has_email and _asking_email:
-            _asesora_slug, _, _ = self._next_asesora('cirugia')  # avanza rotación AQUÍ
+            _asesora_slug, _, _ = self._next_asesora('cirugia_prediag')  # peek siguiente (no persiste)
             print(f"[CX] PASO C detectado → force check_slots_cx (elegir_dia) asesora={_asesora_slug!r}", flush=True)
             _dias_result = self._check_slots_cx(asesora=_asesora_slug, sender_id=sender_id, preferencia='proximo')
             if isinstance(_dias_result, dict) and _dias_result.get('paso') == 'elegir_dia':
@@ -2895,7 +2895,7 @@ class BrainCX:
                                     _dia = _match.group(1)
                                     break
                 # Asesora: usar la que está actualmente asignada (sin avanzar)
-                _asesora_d = self._get_ultima_asesora('cirugia') or ''
+                _asesora_d = self._next_asesora('cirugia_prediag')[0] or ''
                 if _dia and _asesora_d:
                     print(f"[CX] PASO D detectado → force check_slots_cx dia={_dia!r} jornada={_jornada!r} asesora={_asesora_d!r}", flush=True)
                     _slots_result = self._check_slots_cx(
