@@ -2940,7 +2940,7 @@ class BrainCX:
             r'prediagn[oó]stico\s*(gratuito|gratis)?', _hist_str, re.IGNORECASE))
         _has_email_in_hist = bool(re.search(
             r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', _hist_str))
-        if _has_prediag_intent and not _has_email_in_hist:
+        if False:  # FIX 2 neutralizado — nuevo flujo califica presupuesto (no pide correo)
             paciente_ctx += (
                 "\n\n[SISTEMA — REGLA RUNTIME]:\n"
                 "El paciente eligió el prediagnóstico GRATUITO pero "
