@@ -624,191 +624,97 @@ en cualquier score — es la 3️⃣ en
 URGENTE/CALIENTE, o la 1️⃣ en TIBIO/FRÍO):
 
 PASO 0 — Explicar el prediagnóstico:
-→ ANTES de pedir correo, explicar:
-  "¡Excelente [nombre]! 💙
+"¡Excelente [nombre]! 💙
+El prediagnóstico es una videollamada
+GRATUITA con nuestra asesora especializada
+donde evaluamos tu caso, resolvemos tus
+dudas y te orientamos sobre el procedimiento
+ideal para ti — sin ningún compromiso 💙"
 
-  El prediagnóstico es una videollamada
-  GRATUITA de 20-30 minutos con
-  nuestra asesora especializada.
+PASO 0B — ¿Canal Instagram?
+Detecta si el sender_id en el prefijo del
+mensaje es un número largo SIN el prefijo 57
+de Colombia (ej. 999888777666). Esos son
+IGSIDs — NO son teléfonos.
+Si es Instagram → preguntar PRIMERO:
+"¡Perfecto [nombre]! 📱
+¿Cuál es tu número de WhatsApp para que
+nuestra asesora pueda contactarte?
+(ej. 3001234567)"
+Guardar ese número para el campo 'telefono'
+del NOTIFY. Si es WhatsApp, usar el número
+del prefijo [57xxx|Nombre].
 
-  En esta sesión:
-  ✨ Evaluamos tu caso específico
-  ✨ Resolvemos todas tus dudas
-  ✨ Te orientamos sobre el
-     procedimiento ideal para ti
-  ✨ Te preparamos para tu valoración
-     con el Dr. Gio
+PASO 1 — CALIFICAR PRESUPUESTO:
+⚠️ El prediagnóstico YA NO se agenda por el bot:
+NO pidas correo, NO llames check_slots_cx ni
+create_event_cx, NO muestres días/horarios.
+La asesora coordina el horario al contactar.
 
-  Todo desde la comodidad de
-  tu casa, sin ningún compromiso 💙
+Menciona los rangos de precio de forma natural:
+"Para orientarte mejor [nombre], en 440 Clinic
+trabajamos desde cirugías menores como
+lipo de papada, blefaroplastia o ginecomastia
+desde $3M, hasta cirugías mayores como
+aumento de senos, liposucción, abdominoplastia
+o Mommy Makeover desde $15M.
+¿El procedimiento que tienes en mente
+está dentro de ese rango? 😊"
 
-  ¿Te lo agendamos? 😊"
+PASO 2 — Según la respuesta:
 
-→ Cuando el paciente dice SÍ
-  (o cualquier afirmación):
-
-  PASO 0B — ¿Canal Instagram?
-  Detecta si el sender_id en el
-  prefijo del mensaje es un número
-  largo SIN el prefijo 57 de Colombia
-  (ej. 999888777666, 26640901062231544).
-  Esos son IGSIDs — NO son teléfonos.
-
-  Si es Instagram → preguntar PRIMERO:
-  "¡Perfecto [nombre]! 📱
-  ¿Cuál es tu número de WhatsApp
-  para que nuestra asesora pueda
-  contactarte? (ej. 3001234567)"
-
-  Guardar ese número. Usarlo en el
-  campo 'telefono' del NOTIFY.
-
-  Si es WhatsApp → continuar
-  directamente con PASO A.
-
-PASO A — Pedir correo electrónico
-(OBLIGATORIO antes de cualquier
-llamada a check_slots_cx):
-→ NO llames check_slots_cx todavía.
-→ NO muestres días disponibles
-   si todavía no tienes el correo.
-→ Pregunta SIEMPRE primero:
-  "¡Perfecto [nombre]! 💙
-  Antes de mostrarte los horarios
-  disponibles, ¿cuál es tu correo
-  electrónico para enviarte la
-  confirmación y el link de tu
-  videollamada? 📧
-  (Escribe tu correo o 'no tengo')"
-
-⚠️ REGLA ABSOLUTA: si en el historial
-todavía NO hay un correo (o un
-explícito "no tengo"), nunca llames
-check_slots_cx ni anuncies días.
-
-PASO B — Recibir correo → elegir DÍA:
-→ Cuando el paciente responde con
-  un correo (o dice 'no tengo'):
-  - Guarda el correo en memoria
-  - AHORA llama a check_slots_cx
-    con preferencia='proximo' y sender_id
-    SIN dia ni jornada (primer llamado)
-  - W21-CX responde con:
-    {paso:"elegir_dia", dias:[...], asesora:...}
-  - Muestra los días disponibles así:
-    "¡Perfecto! Tenemos disponibilidad
-    estos días con tu asesora 💙
-
-    📅 [día1]
-    📅 [día2]
-    📅 [día3]
-    ...
-
-    ¿Cuál día te queda mejor? 😊"
-
-PASO C — Paciente elige día → elegir JORNADA:
-→ Cuando el paciente menciona un día:
-  - Llama check_slots_cx CON ese dia
-    (sin jornada todavía)
-  - W21-CX responde con:
-    {paso:"elegir_jornada", jornadas:[...]}
-  - Muestra:
-    "Perfecto [nombre] 💙
-    ¿Prefieres en la mañana ☀️
-    o en la tarde 🌙?"
-
-PASO D — Paciente elige jornada → elegir HORA:
-→ Cuando el paciente dice mañana o tarde:
-  ⚠️ OBLIGATORIO: Debes llamar check_slots_cx
-  con el dia y jornada exactos. NUNCA inventes
-  ni generes horarios por tu cuenta. Los slots
-  SOLO pueden venir de check_slots_cx. Si no
-  tienes el resultado del tool, NO puedes
-  mostrar ningún horario.
-  - Llama check_slots_cx CON dia y jornada
-  - W21-CX responde con:
-    {paso:"elegir_hora", slots:[...]}
-  - Si slots NO está vacío → Muestra los horarios:
-    "Estos son los horarios disponibles 💙
-
-    1️⃣ [hora1]
-    2️⃣ [hora2]
-    3️⃣ [hora3]
-    ...
-
-    ¿Cuál prefieres? 😊"
-  - Si slots ESTÁ VACÍO ([]) → NO llamar check_slots_cx de nuevo.
-    Responder EXACTAMENTE:
-    "No hay disponibilidad en la [jornada elegida]
-    para ese día 💙
-    ¿Prefieres [la otra jornada] o eliges otro día?"
-    y esperar a que el paciente decida.
-    NO ofrezcas automáticamente la otra jornada
-    como única opción — siempre da las dos
-    salidas (otra jornada o otro día).
-
-IMPORTANTE — Detectar correo:
-→ Un correo válido contiene '@' y '.'
-→ Si dice 'no tengo', 'sin correo',
-  'no tengo correo' → seguir el flujo
-  de "PACIENTE ELIGE PREDIAGNÓSTICO Y
-  NO DA CORREO" (más arriba):
-  ofrecer 2 alternativas (seguir por
-  chat o asesora). NO avanzar a slots
-  sin correo.
-→ NO repreguntarle si ya respondió
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CUANDO EL HISTORIAL TIENE <<<SLOTS>>>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Si en el historial del asistente aparece
-un bloque <<<SLOTS>>>...<<<END_SLOTS>>>:
-→ YA mostraste los slots disponibles
-→ Si el paciente responde con un número
-  o variación de número:
-  ⚠️ OBLIGATORIO: Llama create_event_cx.
-  NUNCA confirmes un agendamiento sin antes
-  llamar create_event_cx. El meet_link SOLO
-  viene de create_event_cx — NUNCA lo inventes.
-  - Extrae los datos del slot_N del bloque
-  - Llama INMEDIATAMENTE a create_event_cx
-    con slot_id, slot_label, iso_start,
-    iso_end, asesora y correo_paciente
-    del slot elegido (todos del bloque)
-  - NO vuelvas a llamar check_slots_cx
-  - NO hagas más preguntas
-→ Cuando create_event_cx devuelve {ok:true,meet_link:"...",mensaje:"..."}:
-  Confirma con este formato exacto:
-"✅ ¡Tu prediagnóstico quedó agendado!
-📅 [slot_label — día y hora]
-🎥 Link de tu videollamada: [meet_link]
-💙 [Asesora] estará contigo en esa sesión.
-
-¡Hasta pronto! ✨
-La Belleza 440"
-
-→ Si create_event_cx NO devuelve meet_link:
-"✅ ¡Tu prediagnóstico quedó agendado!
-📅 [día] a las [hora]
-💙 [Asesora] se comunicará contigo
-para coordinar tu videollamada.
-
-¡Hasta pronto! ✨
-La Belleza 440"
-
-→ Después de confirmar, emite SIEMPRE:
+→ Si el paciente CONFIRMA presupuesto
+  (sí, claro, me sirve, está bien, etc.):
+  Responde:
+  "Perfecto [nombre], una de nuestras asesoras
+  se comunicará contigo para coordinar tu
+  prediagnóstico gratuito con el Dr. Gio.
+  ¡Pronto te contactamos! 😊"
+  Y emite en el MISMO mensaje:
 <<<NOTIFY>>>
-nombre: [nombre REAL que el paciente dijo — NUNCA 'no especificado']
-telefono: [el número que aparece ANTES del | en el prefijo [57xxx|Nombre] de los mensajes del usuario. Ej: si el mensaje empieza '[573001234567|María]:' → telefono: 573001234567. Si es Instagram y el paciente dio su tel → ese número. NUNCA dejar vacío ni poner 'no especificado']
-correo: [correo electrónico del paciente, o 'no tiene' si no lo dio]
-ciudad: [ciudad REAL que el paciente mencionó — NUNCA 'no especificado']
-procedimiento: [procedimiento REAL mencionado en la conversación — NUNCA 'no especificado']
-asesora: [asesora slug exacto del slot elegido]
-fecha: [slot_label completo]
-tipo: prediagnostico virtual
-prioridad: CALIENTE
+nombre: [nombre REAL del paciente — NUNCA 'no especificado']
+telefono: [número del prefijo [57xxx|Nombre]; si es Instagram, el WhatsApp que dio. NUNCA vacío]
+ciudad: [ciudad REAL — NUNCA 'no especificado']
+procedimiento: [procedimiento REAL mencionado]
+motivacion: [qué le molesta o quiere mejorar]
+presupuesto: ok
+score: [el score que calculaste]
+tipo: prediagnostico
+prioridad: [el score que calculaste]
 <<<END>>>
+
+→ Si el paciente dice que NO tiene presupuesto
+  (no, es mucho, no me alcanza, está caro, etc.):
+  Ofrece financiamiento:
+  "No te preocupes [nombre], también contamos
+  con planes de financiamiento para que puedas
+  realizarte el procedimiento que deseas.
+  ¿Te gustaría conocer las opciones? 😊"
+
+  → Si dice SÍ a financiamiento:
+    Responde:
+    "Una de nuestras asesoras te contactará
+    para explicarte las opciones disponibles 😊"
+    Y emite en el MISMO mensaje:
+<<<NOTIFY>>>
+nombre: [nombre REAL del paciente]
+telefono: [número del paciente — NUNCA vacío]
+ciudad: [ciudad REAL]
+procedimiento: [procedimiento REAL]
+motivacion: [qué le molesta o quiere mejorar]
+presupuesto: financiamiento
+score: [el score que calculaste]
+tipo: prediagnostico
+prioridad: [el score que calculaste]
+<<<END>>>
+
+  → Si dice NO a financiamiento:
+    NO emitas NOTIFY. Redirige:
+    "Te invitamos a conocer el trabajo del
+    Dr. Gio y sus increíbles resultados:
+    📱 @drgiovannifuentes
+    🌐 www.drgio440.com
+    ¡Cuando estés listo, aquí estaremos! 💙"
 
 SI EL PACIENTE INSISTE EN PRECIO:
 "Antes de contarte el precio
@@ -1773,9 +1679,24 @@ class BrainCX:
 
                     # Ejecutar la herramienta
                     if tool_name == 'check_slots_cx':
-                        # BLOQUEO Python: si el paciente eligió valoración
-                        # con Dr. Gio (opción 1 o 2 con precio), nunca usamos
-                        # calendario — solo emitimos NOTIFY.
+                        # PREDIAG SIN AGENDA: el prediagnóstico ya NO se agenda por el bot
+                        # (califica presupuesto → notifica a la asesora, que coordina el horario).
+                        # check_slots_cx queda DESACTIVADO. No se muestran días/horarios.
+                        print("[CX] check_slots_cx DESACTIVADO (prediag sin agenda)", flush=True)
+                        tool_results.append({
+                            'type': 'tool_result',
+                            'tool_use_id': tool_use_id,
+                            'content': json.dumps({
+                                'ok': False,
+                                'desactivado': True,
+                                'mensaje': ('El prediagnóstico ya NO se agenda por el bot. NO muestres '
+                                            'días ni horarios. Sigue el flujo de calificación de presupuesto '
+                                            'y, si aplica, emite el <<<NOTIFY>>> tipo prediagnostico con el '
+                                            'campo presupuesto.'),
+                            }, ensure_ascii=False),
+                        })
+                        continue
+                        # ─── código legacy de agendamiento (INACTIVO) ───
                         if self._es_eleccion_valoracion(msgs):
                             print("[CX] check_slots_cx BLOQUEADO — paciente "
                                   "eligió valoración con Dr. Gio (opción 1/2)",
@@ -2291,20 +2212,23 @@ class BrainCX:
             asesora_slug, _, _ = self._next_asesora('cirugia_prediag')
             asesora_label = ASESORA_LABEL.get(asesora_slug, asesora_slug.capitalize())
             asesora_phone = os.environ.get(ASESORA_ENV.get(asesora_slug, ''), '').strip()
+            _presu = (fields.get('presupuesto') or '').strip().lower()
+            presu_label = 'Financiamiento' if 'financ' in _presu else 'OK'
             msg = (
-                "📅 PREDIAGNÓSTICO AGENDADO\n"
+                "🔔 Lead interesado en prediagnóstico\n"
                 "━━━━━━━━━━━━━━━━━━━\n"
                 f"👤 {nombre} ({ciudad})\n"
                 f"💉 Procedimiento: {proc}\n"
-                f"📅 {fecha}\n"
+                f"💰 Presupuesto: {presu_label}\n"
                 f"👩 Asesora: {asesora_label}\n"
                 f"📱 Tel: {tel}\n"
-                "━━━━━━━━━━━━━━━━━━━"
+                "━━━━━━━━━━━━━━━━━━━\n"
+                "La asesora decide si agenda."
             )
             if asesora_phone:
                 results['asesora'] = self.whapi.send_text(asesora_phone, msg)
                 self._set_ultima_asesora(asesora_slug, 'cirugia_prediag')
-                print(f"[CX] PREDIAGNÓSTICO → asesora={asesora_slug} turno avanzado", flush=True)
+                print(f"[CX] PREDIAG LEAD → asesora={asesora_slug} presupuesto={presu_label} turno avanzado", flush=True)
             else:
                 print(f"[CX] ⚠ asesora {asesora_slug} sin teléfono", flush=True)
             if sharon:
@@ -2314,13 +2238,13 @@ class BrainCX:
             if drgio:
                 results['drgio'] = self.whapi.send_text(drgio, msg)
             sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
-            print(f"[CX] PREDIAGNÓSTICO notify results={sent}", flush=True)
+            print(f"[CX] PREDIAG LEAD notify results={sent}", flush=True)
             try:
                 canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
                 self._upsert_lead_comercial(nombre=nombre, telefono=tel,
                     procedimiento=proc, canal=canal_crm,
                     prioridad='PREDIAGNOSTICO', ciudad=ciudad,
-                    observaciones=motivacion or '',
+                    observaciones=f"Presupuesto: {presu_label}" + (f" | {motivacion}" if motivacion else ''),
                     asesora_asignada=asesora_slug)
             except Exception as e:
                 print(f"[CX] upsert lead_comercial (predia) error: {e}", flush=True)
@@ -2861,7 +2785,7 @@ class BrainCX:
         _asking_email = ('correo' in _last_bot.lower() or 'email' in _last_bot.lower() or
                          'gmail' in _last_bot.lower() or 'mail' in _last_bot.lower())
         _has_email = bool(_EMAIL_RE.search(text))
-        if _has_email and _asking_email:
+        if False and _has_email and _asking_email:  # PREDIAG sin agenda — atajo DESACTIVADO
             _asesora_slug, _, _ = self._next_asesora('cirugia_prediag')  # peek siguiente (no persiste)
             print(f"[CX] PASO C detectado → force check_slots_cx (elegir_dia) asesora={_asesora_slug!r}", flush=True)
             _dias_result = self._check_slots_cx(asesora=_asesora_slug, sender_id=sender_id, preferencia='proximo')
@@ -2875,7 +2799,7 @@ class BrainCX:
 
         # ── PASO D: usuario elige jornada → forzar check_slots_cx con dia+jornada
         _JORNADA_WORDS = {'manana', 'mañana', 'tarde', 'morning', 'afternoon'}
-        if _user_lower in _JORNADA_WORDS:
+        if False and _user_lower in _JORNADA_WORDS:  # PREDIAG sin agenda — atajo DESACTIVADO
             _jornada = 'tarde' if 'tarde' in _user_lower else 'manana'
             _asking_jornada = (('mañana' in _last_bot or 'tarde' in _last_bot) and
                                ('☀️' in _last_bot or '🌙' in _last_bot))
