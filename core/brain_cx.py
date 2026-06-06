@@ -2447,7 +2447,7 @@ class BrainCX:
                                 canal='whatsapp', prioridad='CALIENTE',
                                 ciudad='', observaciones='', asesora_asignada=''):
         """INSERT en leads_comerciales del CRM (proyecto historia-clinica)."""
-        import urllib.request, json as _json
+        import urllib.request, urllib.parse, json as _json
         from datetime import datetime as _dtt, timezone as _tzz
         crm_url = os.environ.get('SUPABASE_URL_CRM', '').rstrip('/')
         crm_key = os.environ.get('SUPABASE_KEY_CRM', '')
@@ -2473,15 +2473,43 @@ class BrainCX:
             'apikey': crm_key,
             'Authorization': f'Bearer {crm_key}',
             'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates,return=minimal',
+            'Prefer': 'resolution=merge-duplicates,return=representation',
         }
         req = urllib.request.Request(url, data=_json.dumps(body).encode(),
                                       headers=headers, method='POST')
+        lead_id_creado = None
         try:
             with urllib.request.urlopen(req, timeout=5) as r:
                 print(f"[CX] CRM lead upsert → {r.status} tel={telefono}", flush=True)
+                try:
+                    rows = _json.loads(r.read().decode() or '[]')
+                    if isinstance(rows, list) and rows:
+                        lead_id_creado = rows[0].get('id')
+                except Exception:
+                    pass
         except Exception as e:
             print(f"[CX] CRM lead upsert err: {e}", flush=True)
+
+        # Vincular conversaciones_440.lead_id ← lead recién creado (mismo proyecto Supabase).
+        if lead_id_creado:
+            tel = str(telefono)
+            base = tel.lstrip('+')
+            if base.startswith('57'):
+                base = base[2:]
+            cands = {tel, base, '57' + base, '+57' + base}
+            try:
+                ors = ','.join(f'contacto_telefono.eq.{urllib.parse.quote(c)}' for c in cands if c)
+                upd_url = (f"{crm_url}/rest/v1/conversaciones_440"
+                           f"?lead_id=is.null&or=({ors})")
+                upd_req = urllib.request.Request(
+                    upd_url, data=_json.dumps({'lead_id': lead_id_creado}).encode(),
+                    headers={'apikey': crm_key, 'Authorization': f'Bearer {crm_key}',
+                             'Content-Type': 'application/json', 'Prefer': 'return=minimal'},
+                    method='PATCH')
+                with urllib.request.urlopen(upd_req, timeout=5) as ur:
+                    print(f"[CX] conversaciones lead_id link → {ur.status} lead={lead_id_creado}", flush=True)
+            except Exception as e:
+                print(f"[CX] conversaciones link err: {e}", flush=True)
 
     # ------------------------------------------------------------------
     # Flujo principal

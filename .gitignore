@@ -1,0 +1,6 @@
+.vercel
+
+# Secrets / entornos locales
+.env
+.env.*
+*.bak
