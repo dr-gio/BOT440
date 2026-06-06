@@ -2465,7 +2465,7 @@ class BrainCX:
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),
-            'etapa': 'lead',
+            'etapa': 'nuevo_lead',
             'fecha_lead': _dtt.now(_tzz.utc).isoformat(),
         }
         url = f"{crm_url}/rest/v1/leads_comerciales?on_conflict=telefono"
@@ -2710,7 +2710,7 @@ class BrainCX:
                 if not _nombre_l or not any(c.isalpha() for c in _nombre_l):
                     _nombre_l = ''
                 _proc_l   = _lead_crm.get('procedimiento_interes') or '—'
-                _etapa_l  = _lead_crm.get('etapa') or 'lead'
+                _etapa_l  = _lead_crm.get('etapa') or 'nuevo_lead'
                 reply = (f"¡Hola {_nombre_l}! 💙\nQué bueno saber de ti 😊\n"
                          "En breve tu asesora te contactará para ayudarte."
                          if _nombre_l else
