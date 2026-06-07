@@ -35,9 +35,8 @@ class handler(BaseHTTPRequestHandler):
                 text = '[IMAGEN]'
                 _img = msg.get('image', {}) or {}
                 _media_caption = _img.get('caption') or None
-                _link = _img.get('link') or ''
                 _tok = os.environ.get('WHAPI_TOKEN_CX') or os.environ.get('WHAPI_TOKEN', '')
-                _media_url = store_whapi_media(_link, _tok, _img.get('mime_type'), prefix='cx') if _link else None
+                _media_url = store_whapi_media(_img, _tok, prefix='cx')
             elif _tipo in ('sticker', 'reaction'):
                 text = '[STICKER]'
             else:

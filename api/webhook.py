@@ -28,9 +28,8 @@ class handler(BaseHTTPRequestHandler):
                 text = '[IMAGEN]'
                 _img = msg.get('image', {}) or {}
                 _media_caption = _img.get('caption') or None
-                _link = _img.get('link') or ''
                 _tok = os.environ.get('WHAPI_TOKEN') or os.environ.get('WHAPI_TOKEN_CX', '')
-                _media_url = store_whapi_media(_link, _tok, _img.get('mime_type'), prefix='est') if _link else None
+                _media_url = store_whapi_media(_img, _tok, prefix='est')
             else:
                 text = '[MEDIA]'
             name = msg.get('from_name','')
