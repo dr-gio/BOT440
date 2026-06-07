@@ -2246,6 +2246,21 @@ class BrainCX:
 
         return user_facing
 
+    def _push_core440_lead(self, nombre, asesora_slug, canal_crm):
+        """Notificación push a admin/dr_gio en CORE440 (best-effort)."""
+        try:
+            import urllib.request as _u, json as _j
+            label = ASESORA_LABEL.get(asesora_slug, (asesora_slug or '').capitalize()) if asesora_slug else '—'
+            payload = _j.dumps({
+                'tipo': 'nuevo_lead', 'paciente_nombre': nombre, 'asesora': label,
+                'canal': 'Instagram' if canal_crm == 'instagram' else 'WhatsApp', 'linea': 'quirurgico',
+            }).encode()
+            req = _u.Request('https://core440-440clinic.vercel.app/api/push/notify',
+                             data=payload, headers={'Content-Type': 'application/json'}, method='POST')
+            _u.urlopen(req, timeout=6)
+        except Exception as e:
+            print(f"[CX] push core440 lead error: {e}", flush=True)
+
     def _notify_lead(self, fields, sender_id, canal='whatsapp'):
         """Routing por score y tipo:
 
@@ -2330,6 +2345,7 @@ class BrainCX:
                     asesora_asignada=asesora_slug)
             except Exception as e:
                 print(f"[CX] upsert lead_comercial (predia) error: {e}", flush=True)
+            self._push_core440_lead(nombre, asesora_slug, canal_crm)
             return score
 
         if 'URGENTE' in score:
@@ -2451,6 +2467,7 @@ class BrainCX:
             )
         except Exception as e:
             print(f"[CX] upsert lead_comercial error: {e}", flush=True)
+        self._push_core440_lead(nombre, _assigned_slug, canal_crm)
         return score
 
     def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
