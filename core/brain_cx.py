@@ -1481,6 +1481,16 @@ class BrainCX:
             'remitente': remitente,
             'leido': direccion == 'saliente',
         }
+        # Adjuntar media SOLO a la primera fila entrante de este process() (one-shot).
+        if direccion == 'entrante' and getattr(self, '_in_media_url', None):
+            body['media_url'] = self._in_media_url
+            body['media_tipo'] = self._in_media_tipo or 'image'
+            if getattr(self, '_in_media_caption', None):
+                body['mensaje'] = self._in_media_caption
+            elif mensaje in ('[IMAGEN]', '[MEDIA]', '[STICKER]'):
+                body['mensaje'] = '[Imagen]'
+            self._in_media_url = None  # consumido
+            self._in_media_caption = None
         headers = self._sb_headers()
         headers['Prefer'] = 'return=minimal'
         try:
@@ -2514,15 +2524,24 @@ class BrainCX:
     # ------------------------------------------------------------------
     # Flujo principal
     # ------------------------------------------------------------------
-    def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None, send=True):
+    def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None, send=True,
+                media_url=None, media_tipo=None, media_caption=None):
         """Procesa el mensaje entrante.
 
         Args:
             send: Si True (default), envía la respuesta via Instagram/WhatsApp directamente.
                   Si False, NO envía — devuelve el texto de respuesta para que el caller lo envíe.
+            media_url/media_tipo: si el entrante es una imagen ya re-hospedada en
+                  Storage, se adjuntan a la PRIMERA fila entrante guardada (sin
+                  duplicar). media_caption reemplaza el texto persistido (el
+                  `text` sigue siendo '[IMAGEN]' para preservar la lógica del bot).
         Returns:
             str — texto visible al paciente (sin bloque NOTIFY). Vacío si no hay reply.
         """
+        # Media entrante pendiente de adjuntar a la fila 'entrante' (one-shot).
+        self._in_media_url = media_url
+        self._in_media_tipo = media_tipo
+        self._in_media_caption = media_caption
         print(f"[CX] canal={canal!r} send={send} cuenta={cuenta_receptora!r} {sender_id}: {text[:60]!r}", flush=True)
 
         # ── Seleccionar token/account de Instagram según cuenta_receptora ──

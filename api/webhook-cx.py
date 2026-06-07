@@ -8,6 +8,7 @@ import json, os, sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.brain_cx import BrainCX
+from core.media import store_whapi_media
 
 
 class handler(BaseHTTPRequestHandler):
@@ -26,18 +27,28 @@ class handler(BaseHTTPRequestHandler):
                 self._ok({'status': 'echo'}); return
             sender_id = msg.get('from', '').replace('@s.whatsapp.net', '')
             _tipo = msg.get('type', 'text')
+            _media_url = None
+            _media_caption = None
             if _tipo == 'text':
                 text = msg.get('text', {}).get('body', '')
             elif _tipo == 'image':
                 text = '[IMAGEN]'
+                _img = msg.get('image', {}) or {}
+                _media_caption = _img.get('caption') or None
+                _link = _img.get('link') or ''
+                _tok = os.environ.get('WHAPI_TOKEN_CX') or os.environ.get('WHAPI_TOKEN', '')
+                _media_url = store_whapi_media(_link, _tok, _img.get('mime_type'), prefix='cx') if _link else None
             elif _tipo in ('sticker', 'reaction'):
                 text = '[STICKER]'
             else:
                 text = '[MEDIA]'
             name = msg.get('from_name', '')
-            print(f"[WEBHOOK-CX] sender={sender_id} name={name!r} text={text[:60]!r}", flush=True)
+            print(f"[WEBHOOK-CX] sender={sender_id} name={name!r} text={text[:60]!r} media={'yes' if _media_url else 'no'}", flush=True)
             if text and sender_id:
-                BrainCX().process(sender_id, name, text, 'cirugia')
+                BrainCX().process(sender_id, name, text, 'cirugia',
+                                  media_url=_media_url,
+                                  media_tipo='image' if _media_url else None,
+                                  media_caption=_media_caption if _media_url else None)
             print(f"[WEBHOOK-CX] Procesado OK", flush=True)
             self._ok({'status': 'ok'})
         except Exception as e:

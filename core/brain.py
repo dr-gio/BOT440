@@ -1460,6 +1460,16 @@ class Brain:
         }
         if cuenta_receptora:
             body['cuenta_receptora'] = cuenta_receptora
+        # Adjuntar media SOLO a la primera fila entrante de este process() (one-shot).
+        if direccion == 'entrante' and getattr(self, '_in_media_url', None):
+            body['media_url'] = self._in_media_url
+            body['media_tipo'] = self._in_media_tipo or 'image'
+            if getattr(self, '_in_media_caption', None):
+                body['mensaje'] = self._in_media_caption
+            elif mensaje in ('[IMAGEN]', '[MEDIA]', '[STICKER]'):
+                body['mensaje'] = '[Imagen]'
+            self._in_media_url = None  # consumido
+            self._in_media_caption = None
         url = f'{self.sb_url}/rest/v1/conversaciones_440'
         headers = self._sb_headers()
         headers['Prefer'] = 'return=minimal'
@@ -2005,9 +2015,15 @@ class Brain:
     # ------------------------------------------------------------------
     # Main flow
     # ------------------------------------------------------------------
-    def process(self, sender_id, sender_name, text, canal='whatsapp', cuenta_receptora=None):
+    def process(self, sender_id, sender_name, text, canal='whatsapp', cuenta_receptora=None,
+                media_url=None, media_tipo=None, media_caption=None):
         """cuenta_receptora — slug del IG account ('440clinic'/'drgiovannifuentes')
-        cuando canal=='instagram'. Para WhatsApp queda None."""
+        cuando canal=='instagram'. Para WhatsApp queda None.
+        media_url/media_tipo/media_caption — imagen entrante re-hospedada en
+        Storage; se adjunta a la primera fila 'entrante' (one-shot, sin duplicar)."""
+        self._in_media_url = media_url
+        self._in_media_tipo = media_tipo
+        self._in_media_caption = media_caption
         print(f"[BRAIN] {sender_id}: {text[:50]} canal={canal} cuenta={cuenta_receptora!r}", flush=True)
 
         # ── BOT PAUSADO: guardar entrante y salir sin responder ─────────
