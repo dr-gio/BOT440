@@ -2246,14 +2246,22 @@ class BrainCX:
 
         return user_facing
 
-    def _push_core440_lead(self, nombre, asesora_slug, canal_crm):
-        """Notificación push a admin/dr_gio en CORE440 (best-effort)."""
+    def _push_core440_lead(self, nombre, asesora_slug, canal_crm, *,
+                           temperatura='', procedimiento='', ciudad='',
+                           fecha_disponible='', tipo_atencion='', telefono=''):
+        """Notificación push a CORE440 con toda la info del lead (best-effort)."""
         try:
             import urllib.request as _u, json as _j
             label = ASESORA_LABEL.get(asesora_slug, (asesora_slug or '').capitalize()) if asesora_slug else '—'
             payload = _j.dumps({
                 'tipo': 'nuevo_lead', 'paciente_nombre': nombre, 'asesora': label,
                 'canal': 'Instagram' if canal_crm == 'instagram' else 'WhatsApp', 'linea': 'quirurgico',
+                'temperatura': (temperatura or '').lower(),
+                'procedimiento': procedimiento or '',
+                'ciudad': ciudad or '',
+                'fecha_disponible': fecha_disponible or '',
+                'tipo_atencion': tipo_atencion or '',
+                'telefono': telefono or '',
             }).encode()
             req = _u.Request('https://core440-440clinic.vercel.app/api/push/notify',
                              data=payload, headers={'Content-Type': 'application/json'}, method='POST')
@@ -2345,7 +2353,9 @@ class BrainCX:
                     asesora_asignada=asesora_slug)
             except Exception as e:
                 print(f"[CX] upsert lead_comercial (predia) error: {e}", flush=True)
-            self._push_core440_lead(nombre, asesora_slug, canal_crm)
+            self._push_core440_lead(nombre, asesora_slug, canal_crm,
+                temperatura=score, procedimiento=proc, ciudad=ciudad,
+                fecha_disponible=fecha, tipo_atencion='prediagnostico', telefono=tel)
             return score
 
         if 'URGENTE' in score:
@@ -2467,7 +2477,9 @@ class BrainCX:
             )
         except Exception as e:
             print(f"[CX] upsert lead_comercial error: {e}", flush=True)
-        self._push_core440_lead(nombre, _assigned_slug, canal_crm)
+        self._push_core440_lead(nombre, _assigned_slug, canal_crm,
+            temperatura=score, procedimiento=proc, ciudad=ciudad,
+            fecha_disponible=fecha, tipo_atencion=(tipo or 'valoracion'), telefono=tel)
         return score
 
     def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
