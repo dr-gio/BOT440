@@ -1829,11 +1829,18 @@ class Brain:
     # Claude tool-use loop
     # ------------------------------------------------------------------
     def _call_claude_raw(self, messages, system_extra=''):
-        full_system = SYSTEM + ('\n\n' + system_extra if system_extra else '')
+        # Prompt caching: SYSTEM (largo y estable) se marca con cache_control
+        # para reutilizar la caché entre llamadas (reduce costo ~60-80%). El
+        # contexto extra (variable) va en un bloque aparte SIN cache.
+        system_blocks = [
+            {"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}
+        ]
+        if system_extra:
+            system_blocks.append({"type": "text", "text": system_extra})
         payload = json.dumps({
             "model": "claude-haiku-4-5-20251001",
             "max_tokens": 800,
-            "system": full_system,
+            "system": system_blocks,
             "tools": TOOLS,
             "messages": messages,
         }).encode()
@@ -1843,6 +1850,7 @@ class Brain:
             headers={
                 "x-api-key": self.api_key,
                 "anthropic-version": "2023-06-01",
+                "anthropic-beta": "prompt-caching-2024-07-31",
                 "content-type": "application/json",
                 "user-agent": _BROWSER_UA,
             },

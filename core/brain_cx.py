@@ -1680,10 +1680,19 @@ class BrainCX:
         last_meet_link = ''  # capturado de create_event_cx para validar el texto final
 
         for iteration in range(max_iterations):
+            # Prompt caching: el system prompt largo y estable (CX_SYSTEM) se
+            # marca con cache_control para reutilizar la caché entre llamadas
+            # (reduce costo ~60-80%). El contexto del paciente (variable) va en
+            # un bloque aparte SIN cache para no invalidar el prefijo cacheado.
+            system_blocks = [
+                {"type": "text", "text": CX_SYSTEM, "cache_control": {"type": "ephemeral"}}
+            ]
+            if paciente_ctx:
+                system_blocks.append({"type": "text", "text": paciente_ctx})
             payload = json.dumps({
                 "model": "claude-haiku-4-5-20251001",
                 "max_tokens": 600,
-                "system": CX_SYSTEM + (paciente_ctx or ''),
+                "system": system_blocks,
                 "tools": TOOLS_CX,
                 "messages": msgs,
             }).encode()
@@ -1693,6 +1702,7 @@ class BrainCX:
                 headers={
                     "x-api-key": self.api_key,
                     "anthropic-version": "2023-06-01",
+                    "anthropic-beta": "prompt-caching-2024-07-31",
                     "content-type": "application/json",
                     "user-agent": _BROWSER_UA,
                 },
