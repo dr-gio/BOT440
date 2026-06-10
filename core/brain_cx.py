@@ -2316,7 +2316,10 @@ class BrainCX:
         tel = _tel_raw if len(_tel_raw) >= 7 and _tel_raw.replace('+','').replace('-','').isdigit() else sender_id
         print(f"[CX] tel_raw={_tel_raw!r} → tel={tel!r} (sender_id={sender_id!r})", flush=True)
 
-        turno_canal = self._turno_canal(opcion)
+        # Rotación por temperatura: URGENTE y CALIENTE comparten el turno
+        # 'cirugia_caliente'; TIBIO usa su propio turno 'cirugia_tibio'.
+        # (El prediagnóstico usa 'cirugia_prediag' en su rama; FRÍO no rota.)
+        turno_canal = 'cirugia_tibio' if 'TIBIO' in score else 'cirugia_caliente'
         print(f"[CX] _notify_lead tipo={tipo!r} opcion={opcion!r} turno_canal={turno_canal!r} score={score}", flush=True)
 
         sharon = os.environ.get('DRA_SHARON', '').strip()
