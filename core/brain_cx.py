@@ -513,16 +513,21 @@ URGENTE 🔥🔥:
 → Ya consultó otro cirujano
 → Decide sola
 → Preguntó el precio
+→ Quiere agendar consulta de pago
 
 CALIENTE 🔥:
+→ Agenda consulta PRESENCIAL o
+  VIRTUAL (de pago)
+→ Tiene presupuesto propio
 → Fecha en menos de 6 meses
 → Motivación emocional clara
-→ Primera vez consultando
 
 TIBIO 🌡️:
+→ Agenda PREDIAGNÓSTICO GRATUITO
+  (sin importar el presupuesto)
 → "Lo estoy pensando"
 → Sin fecha definida
-→ Solo curiosidad informativa
+→ Necesita financiamiento
 
 FRÍO ❄️:
 → "Es para más adelante"
@@ -741,9 +746,9 @@ ciudad: [ciudad REAL — NUNCA 'no especificado']
 procedimiento: [procedimiento REAL mencionado]
 motivacion: [qué le molesta o quiere mejorar]
 presupuesto: ok
-score: CALIENTE
+score: TIBIO
 tipo: prediagnostico
-prioridad: CALIENTE
+prioridad: TIBIO
 <<<END>>>
 
 → Si el paciente dice NO (no, es mucho, no me
