@@ -2420,6 +2420,16 @@ class BrainCX:
                          'tipo:valoracion' in txt.lower())):
                     return None  # ya notificado en este flujo
 
+        # FIX 1 — Dedup unificado: cualquier NOTIFY (cualquier tipo) en <24h.
+        if self._already_notified_cx(sender_id, canal):
+            print("[CX] bypass valoracion — ya notificado <24h, no re-notificar", flush=True)
+            return None
+        # FIX 2 (regla C) — si el lead ya tiene asesora asignada, no re-notificar.
+        _lead_byp = self._check_lead_crm(sender_id)
+        if _lead_byp and (_lead_byp.get('asesora_asignada') or '').strip():
+            print("[CX] bypass valoracion — lead ya tiene asesora, no re-notificar", flush=True)
+            return None
+
         # Detectar opción específica del último mensaje del paciente
         u = (text or '').strip().lower()
         if 'presencial' in u or '260' in u:
@@ -3452,6 +3462,9 @@ class BrainCX:
         # TODO(fase 2): cambiar la señal de dedup a leads_comerciales.notificado_at
         # (opción C) para desacoplar persistencia de aviso.
         already_notified = self._already_notified_cx(sender_id, canal) if notify else False
+        # FIX 2 (regla C) — si el lead ya tiene asesora asignada, NO re-notificar.
+        _lead_asg = self._check_lead_crm(sender_id) if notify else None
+        tiene_asesora = bool(_lead_asg and (_lead_asg.get('asesora_asignada') or '').strip())
 
         if user_facing:
             if send:
@@ -3472,6 +3485,8 @@ class BrainCX:
             print(f"[CX] NOTIFY fields={fields}", flush=True)
             if already_notified:
                 print(f"[CX] NOTIFY duplicado para {sender_id} — skip (ya notificado <24h)", flush=True)
+            elif tiene_asesora:
+                print(f"[CX] NOTIFY omitido para {sender_id} — lead ya tiene asesora asignada (regla C)", flush=True)
             else:
                 self._notify_lead(fields, sender_id, canal=canal)
 
