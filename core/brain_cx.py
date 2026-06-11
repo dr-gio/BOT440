@@ -494,6 +494,23 @@ en tu valoración personalizada.
 FLUJO DE CONVERSACIÓN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+⭐ REGLA DE ENTRADA — PROCEDIMIENTO YA MENCIONADO:
+SI EN EL PRIMER MENSAJE el paciente ya mencionó un
+procedimiento específico (blefaroplastia, rinoplastia,
+lipo/lipoescultura, ginecomastia, otoplastia, papada,
+mamoplastia, abdominoplastia, mommy makeover, etc.):
+→ Salúdalo y preséntate BREVEMENTE (1-2 líneas).
+→ INMEDIATAMENTE habla del procedimiento que mencionó
+  (qué es, beneficios, candidato ideal) usando el
+  bloque de PROCEDIMIENTOS DE CAMPAÑA / la info del
+  procedimiento.
+→ LUEGO pregunta su nombre.
+→ Continúa el flujo normal (ciudad, BANT, etc.).
+⛔ NO sigas el guion rígido nombre → ciudad →
+procedimiento cuando el procedimiento YA fue mencionado.
+Si NO mencionó procedimiento → sigue el flujo normal
+desde PASO 1.
+
 PASO 1 — BIENVENIDA (primer mensaje):
 "¡Bienvenid@ al mundo de
 La Belleza 440! 💙
@@ -2997,6 +3014,23 @@ class BrainCX:
             _is_first_time = False
             print("[CX] paciente regresa (>4h, history no vacío) — saludo corto", flush=True)
 
+        # Regreso (>4h) de un lead NO registrado: retomar el tema del historial.
+        elif es_regreso and not paciente:
+            paciente_ctx = (
+                "\n\n[SISTEMA — PACIENTE QUE REGRESA (>4h)]\n"
+                "Lee el HISTORIAL y detecta el último procedimiento o tema de\n"
+                "interés del paciente. Saluda y RETOMA ese tema:\n"
+                "  '¡Hola [nombre]! 💙 Qué bueno que volviste 😊\n"
+                "   La última vez hablamos sobre [procedimiento/tema].\n"
+                "   ¿Sigues interesad@ en eso o tienes alguna nueva consulta? 💙'\n"
+                "Si NO puedes detectar el tema en el historial, usa:\n"
+                "  '¡Hola [nombre]! 💙 Qué bueno que volviste 😊\n"
+                "   ¿En qué puedo ayudarte hoy?'\n"
+                "→ NO repitas la bienvenida completa. Usa el nombre si lo conoces."
+            )
+            _is_first_time = False
+            print("[CX] lead no registrado regresa (>4h) — retomar tema del historial", flush=True)
+
         # ── PACIENTE RECURRENTE CON ASESORA ASIGNADA (>4h) ──────────────
         if es_regreso:
             _lead_crm = self._check_lead_crm(sender_id)
@@ -3007,17 +3041,8 @@ class BrainCX:
                     _nombre_l = ''
                 _proc_l   = _lead_crm.get('procedimiento_interes') or '—'
                 _etapa_l  = _lead_crm.get('etapa') or 'lead'
-                reply = (f"¡Hola {_nombre_l}! 💙\nQué bueno saber de ti 😊\n"
-                         "En breve tu asesora te contactará para ayudarte."
-                         if _nombre_l else
-                         "¡Hola! 💙\nQué bueno saber de ti 😊\n"
-                         "En breve tu asesora te contactará para ayudarte.")
-                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-                if send:
-                    client = self.instagram if canal.startswith('instagram') else self.whapi
-                    try: client.send_text(sender_id, reply)
-                    except Exception as e: print(f"[CX] recurrente reply err: {e}", flush=True)
-                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                _asesora_label = ASESORA_LABEL.get(_asesora_lead, _asesora_lead.capitalize())
+                # Notificar al staff UNA vez (la asesora queda enterada del regreso).
                 if not self._already_notified_cx(sender_id, canal):
                     notify_msg = (
                         "🔄 PACIENTE RECURRENTE\n"
@@ -3026,7 +3051,7 @@ class BrainCX:
                         f"📱 Tel: {sender_id}\n"
                         f"💉 Servicio: {_proc_l}\n"
                         f"📊 Etapa: {_etapa_l}\n"
-                        f"👩 Asesora: {ASESORA_LABEL.get(_asesora_lead, _asesora_lead.capitalize())}\n"
+                        f"👩 Asesora: {_asesora_label}\n"
                         "━━━━━━━━━━━━━━━━━━━━\n"
                         "Paciente regresa — tiene asesora asignada 💙"
                     )
@@ -3045,7 +3070,16 @@ class BrainCX:
                     print(f"[CX] PACIENTE RECURRENTE NOTIFY enviado", flush=True)
                 else:
                     print(f"[CX] PACIENTE RECURRENTE — ya notificado <24h, skip", flush=True)
-                return reply
+                # NO cortar: el bot retoma la conversación normalmente mientras
+                # la asesora responde (ya fue notificada arriba).
+                paciente_ctx += (
+                    "\n\n[SISTEMA — LEAD CON ASESORA ASIGNADA]\n"
+                    f"Su asesora ({_asesora_label}) YA fue notificada de su regreso.\n"
+                    "Retoma la conversación normalmente y sigue ayudando al\n"
+                    "paciente (resuelve dudas, retoma su tema de interés). Puedes\n"
+                    "mencionar que su asesora ya está al tanto y le escribirá pronto,\n"
+                    "pero NO cierres la conversación ni te limites a 'te contactará'."
+                )
 
         # ── BUG 1: saludo genérico con historial existente <4h ──────────
         _low_in = (_s_in or '').lower().rstrip('.!?¿,. ')
