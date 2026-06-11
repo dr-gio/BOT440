@@ -200,6 +200,7 @@ SOLO como rango — nunca cifra exacta):
 • Blefaroplastia superior: $4M
 • Blefaroplastia sup+inf: $7M - $8M
 • Ginecomastia: $3.5M - $6M
+• Otoplastia: DESDE $7M
 • Lifting facial: $25M - $35M
 • Lipoescultura 360: $17M
 • Abdominoplastia: $22M
@@ -316,6 +317,104 @@ resultados hablan por sí solos."
 NO REALIZA: Rinoplastia ni Bichectomía
 Si preguntan → "Te recomendamos
 consultar con un colega especialista"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROCEDIMIENTOS DE CAMPAÑA (detalle)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. GINECOMASTIA
+¿Qué es? Cirugía para reducir el tejido
+mamario en hombres. Puede ser por aspiración
+(grasa) o extirpando la glándula (tejido glandular).
+Es PROCEDIMIENTO MENOR:
+⏱️ Duración: máximo 1 hora
+🏠 Ambulatorio: el mismo día va a casa
+💉 Anestesia local (en algunos casos sedación
+   según criterio médico)
+⚡ Recuperación RÁPIDA: ~1 semana
+🏥 Sala certificada con todos los requerimientos
+   de la Secretaría de Salud
+Candidato ideal: Hombre con aumento de tejido
+mamario por herencia, hormonas, sobrepeso o
+medicamentos. Le genera inseguridad o molestia física.
+Beneficios:
+✓ Pecho plano y masculino
+✓ Mayor confianza y seguridad
+✓ Ropa que antes no podía usar
+✓ Sin recuperaciones largas
+✓ Resultado permanente
+Rango: DESDE $3.5M (aspiración) o DESDE $6M
+(extirpando glándula)
+
+2. BLEFAROPLASTIA
+¿Qué es? Cirugía de párpados para eliminar exceso
+de piel y grasa que hace ver la mirada cansada o
+mayor. Puede ser solo superiores o superiores e
+inferiores.
+Es PROCEDIMIENTO MENOR:
+⏱️ Duración: máximo 1 hora
+🏠 Ambulatorio: el mismo día va a casa
+💉 Anestesia local
+⚡ Recuperación RÁPIDA: ~1 semana
+🏥 Sala certificada con todos los requerimientos
+   de la Secretaría de Salud
+Candidato ideal: Persona con párpados caídos que
+la hacen ver cansada o mayor. Hombres y mujeres
+desde los 35 años.
+Beneficios:
+✓ Mirada más abierta y juvenil
+✓ Apariencia descansada y fresca
+✓ Mejora la visión en casos severos
+✓ Sin recuperaciones largas
+✓ Resultado natural y duradero
+Rango: Solo superiores DESDE $4M ·
+Superiores e inferiores DESDE $7M
+
+3. OTOPLASTIA
+¿Qué es? Cirugía para corregir la forma, posición
+o tamaño de las orejas. Especialmente para orejas
+prominentes o "en abanico".
+Es PROCEDIMIENTO MENOR:
+⏱️ Duración: máximo 1 hora
+🏠 Ambulatorio: el mismo día va a casa
+💉 Anestesia local
+⚡ Recuperación RÁPIDA: ~1 semana
+🏥 Sala certificada con todos los requerimientos
+   de la Secretaría de Salud
+Candidato ideal: Niños desde los 5 años y adultos
+con inseguridad por la posición o tamaño de sus orejas.
+Beneficios:
+✓ Orejas más proporcionadas
+✓ Mayor confianza y seguridad
+✓ Incluye balaca de obsequio
+✓ Sin recuperaciones largas
+✓ Resultado permanente
+Rango: DESDE $7M (incluye balaca de obsequio)
+
+4. LIPO DE PAPADA
+¿Qué es? Liposucción debajo del mentón para eliminar
+grasa localizada y definir el contorno del cuello y
+mandíbula. Puede incluir tecnología Retraction para
+reafirmar la piel.
+Es PROCEDIMIENTO MENOR:
+⏱️ Duración: máximo 1 hora
+🏠 Ambulatorio: el mismo día va a casa
+💉 Anestesia local
+⚡ Recuperación RÁPIDA: ~1 semana
+🏥 Sala certificada con todos los requerimientos
+   de la Secretaría de Salud
+Candidato ideal: Persona con grasa localizada en la
+papada que no desaparece con dieta ni ejercicio.
+No requiere estar en su peso ideal.
+Beneficios:
+✓ Cuello y mandíbula definidos
+✓ Perfil más estilizado
+✓ Incluye mentonera de obsequio
+✓ Con Retraction: piel más firme
+✓ Sin recuperaciones largas
+✓ Resultado natural y duradero
+Rango: DESDE $2.5M sin Retraction o DESDE $3.5M
+con Retraction
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PREDIAGNÓSTICO Y VALORACIONES
@@ -2282,7 +2381,8 @@ class BrainCX:
             txt = (m.get('content') or '').lower()
             for proc in ('lipoescultura 360', 'lipoescultura', 'lipo',
                          'mamoplastia', 'abdominoplastia', 'blefaroplastia',
-                         'rinoplastia', 'lifting', 'papada'):
+                         'rinoplastia', 'lifting', 'papada',
+                         'ginecomastia', 'otoplastia'):
                 if proc in txt:
                     procedimiento = proc.title()
                     break
