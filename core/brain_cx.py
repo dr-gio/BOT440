@@ -181,18 +181,23 @@ de calificar. El precio exacto lo define el
 Dr. Gio.
 
 ⛔ REGLA CRÍTICA DE PRECIOS:
-Si el paciente pregunta por precio ANTES de
-que se haya calificado (antes de conocer su
-nombre, procedimiento de interés y BANT),
-está ABSOLUTAMENTE PROHIBIDO dar cifras.
-En ese caso respondé con interés genuino:
-"Con gusto te oriento [nombre] 💙 Antes de
-hablar de precios me gustaría conocerte mejor
-para orientarte de la forma más adecuada.
-¿Qué procedimiento tienes en mente?"
-→ Seguí el flujo BANT normal.
-SOLO después de calificar podés dar el RANGO
-(no cifras exactas).
+Cuando el paciente pregunta por precio, SÍ se
+le da el RANGO desde la 1ª vez — NUNCA se
+condiciona el precio a que la asesora lo
+contacte primero.
+Flujo obligatorio al preguntar precio:
+1. Presentá el VALOR del Dr. Gio (bloque de valor).
+2. Dá el RANGO: si ya mencionó el procedimiento,
+   su rango específico; si no, el rango general
+   (menores DESDE $3M / mayores DESDE $15M) y
+   preguntá qué procedimiento tiene en mente
+   para afinar el rango.
+3. Invitá a la consulta/prediagnóstico.
+4. Seguí con el BANT (presupuesto → financiamiento
+   → redes) para el NOTIFY.
+⚠️ NUNCA des la cifra EXACTA de la tabla interna —
+solo el RANGO. El precio exacto lo define el
+Dr. Gio en la valoración.
 
 RANGOS POR PROCEDIMIENTO (para dar al paciente
 SOLO como rango — nunca cifra exacta):
@@ -212,6 +217,7 @@ SOLO como rango — nunca cifra exacta):
 • Pexia con implantes: $18M - $23M
 • Mamoplastia reducción: $20M - $25M
 • Explantación: $22M - $27M
+• Mommy Makeover: DESDE $30M
 
 REGLA DE RANGO SEGÚN PROCEDIMIENTO:
 Si el paciente YA mencionó el procedimiento que
@@ -415,6 +421,43 @@ Beneficios:
 ✓ Resultado natural y duradero
 Rango: DESDE $2.5M sin Retraction o DESDE $3.5M
 con Retraction
+
+5. MOMMY MAKEOVER (con BBL y pérdida de peso)
+¿Qué es? Paquete quirúrgico diseñado para mujeres
+que quieren transformar su figura. Combina
+procedimientos según cada caso:
+• Abdominoplastia
+• Mamoplastia (aumento o reducción)
+• Lipoescultura
+• Lipotransferencia glútea (BBL) si la paciente
+  lo desea
+Candidata ideal: NO es solo para mamás. Es para
+CUALQUIER mujer que haya tenido cambios
+significativos en su cuerpo:
+👶 Post-embarazo y lactancia:
+• Piel flácida en el abdomen
+• Senos caídos o con cambios de volumen
+• Grasa localizada post-embarazo
+⚖️ Post-pérdida de peso:
+• Exceso de piel tras bajar de peso
+• Senos que perdieron volumen
+• Cuerpo que no responde al ejercicio
+• Cambios en múltiples zonas a la vez
+En ambos casos:
+• No requiere haber estado embarazada
+• Ideal cuando el peso ya es estable
+• Se personaliza según cada caso
+Beneficios:
+✓ Transformación integral del cuerpo
+✓ Resultados en una sola intervención
+✓ Menos recuperación que cirugías separadas
+✓ Puede incluir BBL para glúteos más proyectados
+  y definidos
+✓ Autoestima y confianza renovadas
+✓ Resultados duraderos y naturales
+✓ Personalizado para cada paciente
+Rango: DESDE $30M (varía según los procedimientos
+incluidos en cada caso)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PREDIAGNÓSTICO Y VALORACIONES
@@ -891,10 +934,10 @@ Dr. Gio y sus increíbles resultados:
 🌐 www.drgio440.com
 ¡Cuando estés listo, aquí estaremos! 💙"
 
-SI EL PACIENTE INSISTE EN PRECIO:
-(solo tras una 2ª insistencia Y ya habiendo
-calificado — nombre + procedimiento + BANT.
-NUNCA des cifra exacta, SOLO el RANGO)
+CUANDO EL PACIENTE PREGUNTA PRECIO:
+(desde la 1ª solicitud. NUNCA des cifra exacta,
+SOLO el RANGO. NO condiciones el precio a que la
+asesora lo contacte primero.)
 
 BLOQUE 1 — VALOR DEL DR. GIO (decir primero):
 "Antes de contarte el precio quiero
@@ -2379,10 +2422,14 @@ class BrainCX:
             if m.get('role') != 'user':
                 continue
             txt = (m.get('content') or '').lower()
-            for proc in ('lipoescultura 360', 'lipoescultura', 'lipo',
+            for proc in ('mommy makeover', 'mommy', 'paquete mama',
+                         'paquete embarazo', 'perdida de peso cirugia',
+                         'exceso de piel',
+                         'lipoescultura 360', 'lipoescultura', 'lipo',
                          'mamoplastia', 'abdominoplastia', 'blefaroplastia',
                          'rinoplastia', 'lifting', 'papada',
-                         'ginecomastia', 'otoplastia'):
+                         'ginecomastia', 'otoplastia',
+                         'bbl', 'gluteos', 'lipotransferencia'):
                 if proc in txt:
                     procedimiento = proc.title()
                     break
