@@ -1427,7 +1427,7 @@ TOOLS_CX = [
 ]
 
 # Rotación de asesoras. Orden fijo del ciclo.
-ASESORAS = ['bibiana', 'sara', 'lucero']
+ASESORAS = ['bibiana', 'sara']  # Lucero pausada (no recibe leads nuevos). Reactivar agregándola.
 ASESORA_ENV = {
     'bibiana': 'ASESORA_1',
     'sara':    'ASESORA_2',
