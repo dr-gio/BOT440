@@ -778,7 +778,7 @@ disponibles?" o cualquier cosa
 sobre horarios/agenda:
 NO muestres horarios ni llames
 check_slots. Responde:
-"[nombre] nuestra asesora Sara
+"[nombre] nuestro asesor Brian
 te contactará muy pronto para
 coordinar tu cita con la
 Dra. Sharon 💙
@@ -860,7 +860,7 @@ ARMONÍA CORPORAL 440):
 → NUNCA llamar create_event
 → SOLO emitir <<<NOTIFY>>>
 → Si preguntan por horarios:
-  "Sara te contactará para
+  "Brian te contactará para
   coordinar tu cita 💙"
 → Asesora llama y agenda
 
@@ -2443,7 +2443,7 @@ class Brain:
         telefono = fields.get('telefono', sender_id)
 
         # Mensaje según tipo: cita_estetica usa formato "CITA AGENDADA"
-        # con CTA explícito para Sara; resto usa formato genérico.
+        # con CTA explícito para Brian; resto usa formato genérico.
         if is_cita:
             esteticista = fields.get('esteticista', '—')
             fecha = fields.get('fecha', '—')
@@ -2458,7 +2458,7 @@ class Brain:
                 f"👩 Esteticista: {esteticista}\n"
                 f"{ciudad_line}\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "Sara: contacta para confirmar\n"
+                "Brian: contacta para confirmar\n"
                 "y hacer la gestión comercial 💙"
             )
         else:
@@ -2524,7 +2524,7 @@ class Brain:
 
     @staticmethod
     def _build_notify_message(nombre, servicio, telefono, ciudad=''):
-        """Formato unificado de notificación WhatsApp al staff (Sara,
+        """Formato unificado de notificación al staff (Brian,
         Sharon, Central, Dr. Gio). Misma forma para cualquier servicio
         estético — sin precios ni metadatos extra."""
         nombre = nombre or '—'
