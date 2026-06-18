@@ -1050,14 +1050,14 @@ zona: [zona si es depilacion, vacío si no]
 esteticista: [Katherine o Roxana]
 fecha: [día y hora del slot]
 tipo: cita_estetica
-contactar_sara: [si | no]
+contactar_asesora: [si | no]
 <<<END>>>
 
 NUNCA cierres el agendamiento sin
 emitir este NOTIFY junto a la
 confirmación.
 
-⚠️ Campo contactar_sara — pon "si"
+⚠️ Campo contactar_asesora — pon "si"
 SOLO si en cualquier mensaje de la
 conversación el paciente expresó
 querer ser contactado, p.ej.:
@@ -2169,16 +2169,7 @@ class Brain:
                         "━━━━━━━━━━━━━━━━━━━━\n"
                         "Paciente regresa — tiene asesora asignada 💙"
                     )
-                    # Para estética la asesora siempre es Sara → SARA_TEL.
-                    _asesora_phone = self.SARA_TEL if _asesora_lead == 'sara' else ''
-                    destinatarios = [_asesora_phone, self.DRA_SHARON_TEL,
-                                     self.CENTRAL_TEL, self.DR_GIO_TEL]
-                    for _tel in destinatarios:
-                        if not _tel: continue
-                        try:
-                            self.whapi.send_text(_tel, notify_msg)
-                        except Exception as e:
-                            print(f"[BRAIN] recurrente notify {_tel} err: {e}", flush=True)
+                    # WA al staff desactivado — notificaciones por CORE440 push
                     # Guardar marca de NOTIFY (dedup) en conversaciones_440.
                     self._save_message(sender_id, sender_name, canal,
                                        f"<<<NOTIFY>>>tipo: recurrente<<<END>>>",
@@ -2332,11 +2323,11 @@ class Brain:
             print(f"[BRAIN] notify_admin trigger", flush=True)
             self._notify_admin(notify, sender_id, canal=canal, history=history)
 
-    # Destinatarios fijos de las notificaciones de leads
-    SARA_TEL = '573105762900'
-    DRA_SHARON_TEL = '573015135214'
-    CENTRAL_TEL = '573181800130'
-    DR_GIO_TEL = '573181800131'
+    # Destinatarios fijos — WA al staff desactivado, notificaciones por CORE440 push
+    BRIAN_TEL = ''  # Brian Molina — asesora estética (WA desactivado)
+    DRA_SHARON_TEL = ''
+    CENTRAL_TEL = ''
+    DR_GIO_TEL = ''
 
     def _try_bypass_close(self, history, text, sender_id, sender_name,
                           canal, cuenta_receptora):
@@ -2474,21 +2465,8 @@ class Brain:
             msg = self._build_notify_message(nombre, servicio_display,
                                               telefono, ciudad)
 
-        # Routing — Sara SIEMPRE recibe el NOTIFY (incluyendo cita_estetica)
-        # para que pueda hacer la gestión comercial post-agendamiento.
-        # contactar_sara queda obsoleto pero se respeta si por alguna razón
-        # se quisiera escalar (Sara igual ya está).
-        _fijos = [self.SARA_TEL, self.DRA_SHARON_TEL, self.CENTRAL_TEL, self.DR_GIO_TEL]
-        destinatarios = list(_fijos)
-
-        for tel in destinatarios:
-            if not tel:
-                continue
-            try:
-                r = self.whapi.send_text(tel, msg)
-                print(f"[BRAIN] notify → {tel} result={r}", flush=True)
-            except Exception as e:
-                print(f"[BRAIN] notify → {tel} error: {e}", flush=True)
+        # WA al staff desactivado — notificaciones solo por CORE440 push
+        print(f"[BRAIN] _notify_admin → push CORE440 (WA desactivado)", flush=True)
 
         # CRM: upsert en leads_comerciales (no rompe si falla)
         try:
@@ -2522,7 +2500,7 @@ class Brain:
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Estética',
             'categoria': 'estetica',
-            'asesora_asignada': 'sara',
+            'asesora_asignada': 'brian',
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),

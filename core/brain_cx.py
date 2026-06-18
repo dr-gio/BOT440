@@ -1053,28 +1053,23 @@ ROTACIÓN DE ASESORAS Y NOTIFICACIONES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 URGENTE 🚨 → notifica TODOS sin rotar:
-→ Bibiana: 573007897529
-→ Sara: 573105762900
-→ Lucero: 573136755634
-→ Dra. Sharon: 573015135214
-→ Central: 573181800130
+→ Bibiana (asesora rotación)
+→ Brian (asesora rotación)
+→ Notificación push a CORE440 ✓
 → El turno NO avanza
 
 CALIENTE 🔥 → asesora en turno + rotar:
 → Asesora que le toca (rotación)
-→ Dra. Sharon: 573015135214
-→ Central: 573181800130
+→ Notificación push a CORE440 ✓
 → El turno SÍ avanza
 
 TIBIO 🌡️ → asesora en turno + rotar:
 → Asesora que le toca (rotación)
-→ Dra. Sharon: 573015135214
-→ Central: 573181800130
+→ Notificación push a CORE440 ✓
 → El turno SÍ avanza
 
-FRÍO ❄️ → solo Central y Sharon:
-→ Dra. Sharon: 573015135214
-→ Central: 573181800130
+FRÍO ❄️ → sin asesora:
+→ Notificación push a CORE440 ✓
 → El turno NO avanza
 → No gastar turno de asesora
 
@@ -1390,7 +1385,7 @@ TOOLS_CX = [
             "properties": {
                 "asesora": {
                     "type": "string",
-                    "description": "Slug de la asesora: bibiana, sara, o lucero"
+                    "description": "Slug de la asesora: bibiana, brian, o lucero"
                 },
                 "slot_id": {
                     "type": "string",
@@ -1427,15 +1422,15 @@ TOOLS_CX = [
 ]
 
 # Rotación de asesoras. Orden fijo del ciclo.
-ASESORAS = ['bibiana', 'sara']  # Lucero pausada (no recibe leads nuevos). Reactivar agregándola.
+ASESORAS = ['bibiana', 'brian']  # Lucero pausada (no recibe leads nuevos). Reactivar agregándola.
 ASESORA_ENV = {
     'bibiana': 'ASESORA_1',
-    'sara':    'ASESORA_2',
+    'brian':   'ASESORA_2',
     'lucero':  'ASESORA_3',
 }
 ASESORA_LABEL = {
     'bibiana': 'Bibiana',
-    'sara':    'Sara',
+    'brian':   'Brian',
     'lucero':  'Lucero',
 }
 
@@ -2615,20 +2610,9 @@ class BrainCX:
                 "━━━━━━━━━━━━━━━━━━━\n"
                 "La asesora decide si agenda."
             )
-            if asesora_phone:
-                results['asesora'] = self.whapi.send_text(asesora_phone, msg)
-                self._set_ultima_asesora(asesora_slug, 'cirugia_prediag')
-                print(f"[CX] PREDIAG LEAD → asesora={asesora_slug} presupuesto={presu_label} turno avanzado", flush=True)
-            else:
-                print(f"[CX] ⚠ asesora {asesora_slug} sin teléfono", flush=True)
-            if sharon:
-                results['sharon'] = self.whapi.send_text(sharon, msg)
-            if admin:
-                results['central'] = self.whapi.send_text(admin, msg)
-            if drgio:
-                results['drgio'] = self.whapi.send_text(drgio, msg)
-            sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
-            print(f"[CX] PREDIAG LEAD notify results={sent}", flush=True)
+            # WA al staff desactivado — notificaciones solo por CORE440 push
+            self._set_ultima_asesora(asesora_slug, 'cirugia_prediag')
+            print(f"[CX] PREDIAG LEAD → asesora={asesora_slug} presupuesto={presu_label} turno avanzado (push CORE440)", flush=True)
             try:
                 canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
                 self._upsert_lead_comercial(nombre=nombre, telefono=tel,
@@ -2657,17 +2641,8 @@ class BrainCX:
                 "━━━━━━━━━━━━━━━━━━━━━\n"
                 "🔥 LLAMAR AHORA — no esperar"
             )
-            for slug in ASESORAS:
-                phone = os.environ.get(ASESORA_ENV[slug], '').strip()
-                if phone:
-                    results[slug] = self.whapi.send_text(phone, msg)
-            if sharon:
-                results['sharon'] = self.whapi.send_text(sharon, msg)
-            if admin:
-                results['central'] = self.whapi.send_text(admin, msg)
-            if drgio:
-                results['drgio'] = self.whapi.send_text(drgio, msg)
-            print(f"[CX] URGENTE → notificadas todas las asesoras, turno NO avanza", flush=True)
+            # WA al staff desactivado — notificaciones solo por CORE440 push
+            print(f"[CX] URGENTE → push CORE440, turno NO avanza", flush=True)
 
         elif 'CALIENTE' in score or 'TIBIO' in score:
             # Asesora de turno + Sharon + Central. SÍ avanza turno.
@@ -2711,38 +2686,14 @@ class BrainCX:
                 f"👩 Asignado a: {label}\n"
                 "━━━━━━━━━━━━━━━━━━━"
             )
-            if asesora_phone:
-                results['asesora'] = self.whapi.send_text(asesora_phone, msg_asesora)
-                self._set_ultima_asesora(slug, turno_canal)
-                _assigned_slug = slug
-                print(f"[CX] {tag} → asesora={slug} turno avanzado", flush=True)
-            else:
-                print(f"[CX] ⚠ asesora {slug} sin teléfono — no se notifica", flush=True)
-            if sharon:
-                results['sharon'] = self.whapi.send_text(sharon, msg_copia)
-            if admin:
-                results['central'] = self.whapi.send_text(admin, msg_copia)
-            if drgio:
-                results['drgio'] = self.whapi.send_text(drgio, msg_copia)
+            # WA al staff desactivado — notificaciones solo por CORE440 push
+            self._set_ultima_asesora(slug, turno_canal)
+            _assigned_slug = slug
+            print(f"[CX] {tag} → asesora={slug} turno avanzado (push CORE440)", flush=True)
 
         else:  # FRÍO
-            # Solo Sharon + Central. NO avanza turno.
-            msg = (
-                "❄️ LEAD FRÍO CIRUGÍA\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 {nombre} ({ciudad})\n"
-                f"💉 {proc}\n"
-                f"📱 Tel: {tel}\n"
-                "━━━━━━━━━━━━━━━━━━━━━\n"
-                "Nurturing — no urgente"
-            )
-            if sharon:
-                results['sharon'] = self.whapi.send_text(sharon, msg)
-            if admin:
-                results['central'] = self.whapi.send_text(admin, msg)
-            if drgio:
-                results['drgio'] = self.whapi.send_text(drgio, msg)
-            print(f"[CX] FRÍO → solo Sharon+Central+DrGio, turno NO avanza", flush=True)
+            # WA al staff desactivado — notificaciones solo por CORE440 push
+            print(f"[CX] FRÍO → push CORE440, turno NO avanza", flush=True)
 
         sent = {k: (v.get('sent') if isinstance(v, dict) else v) for k, v in results.items()}
         print(f"[CX] notify_lead score={score} results={sent}", flush=True)
@@ -2785,7 +2736,7 @@ class BrainCX:
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Cirugías',
             'categoria': 'quirurgico',
-            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','sara','lucero') else None,
+            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','brian','lucero') else None,
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),
