@@ -2718,12 +2718,19 @@ class BrainCX:
             fecha_disponible=fecha, tipo_atencion=(tipo or 'valoracion'), telefono=tel)
         return score
 
+    @staticmethod
+    def _normalizar_tel(tel):
+        """Quita todo excepto dígitos: +1 954 740 1442 → 19547401442."""
+        import re as _re
+        return _re.sub(r'[^\d]', '', str(tel or ''))
+
     def _upsert_lead_comercial(self, nombre, telefono, procedimiento,
                                 canal='whatsapp', prioridad='CALIENTE',
                                 ciudad='', observaciones='', asesora_asignada=''):
         """INSERT en leads_comerciales del CRM (proyecto historia-clinica)."""
         import urllib.request, urllib.parse, json as _json
         from datetime import datetime as _dtt, timezone as _tzz
+        telefono = self._normalizar_tel(telefono)
         crm_url = os.environ.get('SUPABASE_URL_CRM', '').rstrip('/')
         crm_key = os.environ.get('SUPABASE_KEY_CRM', '')
         if not crm_url or not crm_key or not telefono:
@@ -2732,7 +2739,7 @@ class BrainCX:
         body = {
             'nombre': nombre or '—',
             'apellido': '',
-            'telefono': str(telefono),
+            'telefono': telefono,
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Cirugías',
             'categoria': 'quirurgico',
@@ -2983,9 +2990,10 @@ class BrainCX:
                     except Exception as _e: print(f"[CX] referido notify {_rt} err: {_e}", flush=True)
                 # CRM upsert con la asesora asignada directamente
                 _ref_canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
+                _ref_tel_norm = self._normalizar_tel(sender_id)
                 try:
                     self._upsert_lead_comercial(
-                        nombre='—', telefono=sender_id,
+                        nombre='—', telefono=_ref_tel_norm,
                         procedimiento='—', canal=_ref_canal_crm,
                         prioridad='CALIENTE',
                         observaciones=f"Referido por {_ref_label} — primer mensaje: {text[:80]}",
