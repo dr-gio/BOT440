@@ -1422,16 +1422,16 @@ TOOLS_CX = [
 ]
 
 # Rotación de asesoras. Orden fijo del ciclo.
-ASESORAS = ['bibiana', 'brian']  # Lucero pausada (no recibe leads nuevos). Reactivar agregándola.
+ASESORAS = ['bibiana', 'angelica']  # Lucero pausada (no recibe leads nuevos). Reactivar agregándola.
 ASESORA_ENV = {
-    'bibiana': 'ASESORA_1',
-    'brian':   'ASESORA_2',
-    'lucero':  'ASESORA_3',
+    'bibiana':  'ASESORA_1',
+    'lucero':   'ASESORA_3',
+    'angelica': 'ASESORA_4',
 }
 ASESORA_LABEL = {
-    'bibiana': 'Bibiana',
-    'brian':   'Brian',
-    'lucero':  'Lucero',
+    'bibiana':  'Bibiana',
+    'lucero':   'Lucero',
+    'angelica': 'Angélica',
 }
 
 
@@ -2736,7 +2736,7 @@ class BrainCX:
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Cirugías',
             'categoria': 'quirurgico',
-            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','brian','lucero') else None,
+            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','angelica','lucero') else None,
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),
@@ -2935,6 +2935,70 @@ class BrainCX:
                 return reply
         history = self._load_history(sender_id, canal=canal)
         _is_first_time = len(history) == 0
+
+        # ── DETECCIÓN DE REFERIDO ──────────────────────────────────────────
+        # Si el PRIMER mensaje menciona el nombre de una asesora, la asignamos
+        # directamente (sin pasar por la rotación).
+        if _is_first_time:
+            _txt_ref = (text or '').lower()
+            for _old_c, _new_c in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),('ü','u'),('ñ','n')]:
+                _txt_ref = _txt_ref.replace(_old_c, _new_c)
+            _referido_slug = ''
+            for _slug in ('angelica', 'bibiana', 'lucero'):
+                if _slug in _txt_ref:
+                    _referido_slug = _slug
+                    break
+            if _referido_slug:
+                _ref_label = ASESORA_LABEL.get(_referido_slug, _referido_slug.capitalize())
+                print(f"[CX] REFERIDO detectado → asesora={_referido_slug} texto={text[:60]!r}", flush=True)
+                reply = (
+                    f"¡Hola! Gracias por contactarnos 🎉\n"
+                    f"Te vamos a conectar con {_ref_label}\n"
+                    "quien te atenderá muy pronto ✨\n"
+                    "La Belleza 440 ✨"
+                )
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                if send:
+                    _client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: _client.send_text(sender_id, reply)
+                    except Exception as _e: print(f"[CX] referido reply err: {_e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                # Notificar a la asesora del referido (+ Sharon + Admin + Dr. Gio)
+                _ref_phone = os.environ.get(ASESORA_ENV.get(_referido_slug, ''), '').strip()
+                _ref_sharon = os.environ.get('DRA_SHARON', '').strip()
+                _ref_admin  = os.environ.get('ADMIN_CX', '').strip()
+                _ref_drgio  = os.environ.get('DRGIO_TEL', '573181800131').strip()
+                _ref_msg = (
+                    f"🎁 REFERIDO DIRECTO — {_ref_label.upper()}\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    f"📱 Tel: {sender_id}\n"
+                    f"💬 Mensaje: {text[:120]}\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Este lead te mencionó a ti 💙\n"
+                    "Asignado directamente sin rotación."
+                )
+                for _rt in (_ref_phone, _ref_sharon, _ref_admin, _ref_drgio):
+                    if not _rt: continue
+                    try: self.whapi.send_text(_rt, _ref_msg)
+                    except Exception as _e: print(f"[CX] referido notify {_rt} err: {_e}", flush=True)
+                # CRM upsert con la asesora asignada directamente
+                _ref_canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
+                try:
+                    self._upsert_lead_comercial(
+                        nombre='—', telefono=sender_id,
+                        procedimiento='—', canal=_ref_canal_crm,
+                        prioridad='CALIENTE',
+                        observaciones=f"Referido por {_ref_label} — primer mensaje: {text[:80]}",
+                        asesora_asignada=_referido_slug,
+                    )
+                except Exception as _e:
+                    print(f"[CX] referido upsert err: {_e}", flush=True)
+                # Push CORE440
+                self._push_core440_lead(
+                    '—', _referido_slug, _ref_canal_crm,
+                    temperatura='caliente', tipo_atencion='referido', telefono=sender_id,
+                )
+                return reply
 
         # Detectar si el paciente regresa después de 4+ horas mirando el
         # created_at del último mensaje en conversaciones_440.
