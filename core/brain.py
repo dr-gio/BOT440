@@ -582,7 +582,7 @@ mensaje:
 "En 440 Clinic tenemos ARMONÍA
 FACIAL 440 — un programa de
 rejuvenecimiento facial no
-quirúrgico con nuestra especialista
+estético con nuestra especialista
 Dra. Sharon Santiago — médica estética
 de 440 Clinic by Dr. Giovanni Fuentes 💙
 
