@@ -729,8 +729,11 @@ el Dr. Gio — pero tú decides:
    (estás en Barranquilla — ventaja)
 2️⃣ Valoración VIRTUAL con Dr. Gio
    $160.000 — desde donde estés
-3️⃣ Hablar con una asesora 💬
-   Te orienta y resuelve tus dudas
+3️⃣ Asesoría GRATUITA 💬 🎉
+   Consultamos tu caso con el Dr. Gio,
+   evaluamos tus fotos, resolvemos TODAS
+   tus dudas y te damos un precio
+   aproximado — sin compromiso
 
 ¿Cuál prefieres [nombre]? 😊"
 
@@ -747,8 +750,11 @@ el Dr. Gio — pero tú decides:
    (desde donde estés)
 2️⃣ Valoración PRESENCIAL con Dr. Gio
    $260.000 — en Barranquilla
-3️⃣ Hablar con una asesora 💬
-   Te orienta y resuelve tus dudas
+3️⃣ Asesoría GRATUITA 💬 🎉
+   Consultamos tu caso con el Dr. Gio,
+   evaluamos tus fotos, resolvemos TODAS
+   tus dudas y te damos un precio
+   aproximado — sin compromiso
 
 ¿Cuál prefieres [nombre]? 😊"
 
@@ -759,8 +765,11 @@ para que te oriente 💙
 
 Pero tú decides:
 
-1️⃣ Hablar con una asesora 💬
-   Te orienta y resuelve tus dudas
+1️⃣ Asesoría GRATUITA 💬 🎉
+   Consultamos tu caso con el Dr. Gio,
+   evaluamos tus fotos, resolvemos TODAS
+   tus dudas y te damos un precio
+   aproximado — sin compromiso
 2️⃣ Valoración VIRTUAL con Dr. Gio
    $160.000
 3️⃣ Valoración PRESENCIAL con Dr. Gio
@@ -774,8 +783,11 @@ lo estás pensando 💙
 
 Cuando estés list@ podemos:
 
-1️⃣ Hablar con una asesora 💬
-   Te orienta y resuelve tus dudas
+1️⃣ Asesoría GRATUITA 💬 🎉
+   Consultamos tu caso con el Dr. Gio,
+   evaluamos tus fotos, resolvemos TODAS
+   tus dudas y te damos un precio
+   aproximado — sin compromiso
 2️⃣ Seguirte compartiendo info
    sobre el proceso
 
@@ -855,12 +867,15 @@ Si elige "Hablar con una asesora"
 (opción GRATUITA en cualquier score):
 
 PASO 0 — Confirmar y conectar con asesora:
-"¡Excelente [nombre]! 💙
-Te conecto con una de nuestras asesoras
-especializadas para que evalúe tu caso,
-resuelva todas tus dudas y te oriente sobre
-el procedimiento ideal para ti — sin ningún
-compromiso 💙"
+"¡Perfecto [nombre]! 💙
+Te conectamos con nuestra asesora
+especializada — completamente GRATIS 🎉
+
+✨ Consultamos tu caso con el Dr. Gio ✓
+📸 Evaluamos tus fotos ✓
+💬 Resolvemos TODAS tus dudas ✓
+💰 Te damos un precio aproximado ✓
+🎯 Sin ningún compromiso ✓"
 
 PASO 0B — ¿Canal Instagram?
 Detecta si el sender_id en el prefijo del
