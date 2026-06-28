@@ -696,6 +696,145 @@ define en la valoración con la
 Dra. Sharon — consulta $150.000.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SS HEART LIPS™ — TÉCNICA EXCLUSIVA DRA. SHARON
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cuando menciona 'heart lips', 'ss heart',
+'labios corazón', 'labios corazon':
+
+"¡Los SS Heart Lips™ son la firma
+exclusiva de la Dra. Sharon! 💖
+Una técnica única de diseño de
+labios en forma de corazón, con
+Ácido Hialurónico registro Invima.
+Proceso indoloro, 30 minutos,
+resultados de 8 a 12 meses ✨
+
+Valor: $1.200.000 – $1.500.000
+
+¿Tienes alguna pregunta? 😊"
+
+→ Sigue el flujo estándar de labios.
+→ NOTIFY con tratamiento: SS Heart Lips™
+  y precio correspondiente.
+→ FIN.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LUMISKIN™ — PROTOCOLO PIEL DE PORCELANA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cuando menciona 'lumiskin', 'piel porcelana',
+'piel de porcelana', 'piel luminosa':
+
+"¡Lumiskin™ es nuestro protocolo
+estrella para piel de porcelana! 💙
+
+Combina Toxina Botulínica en el
+tercio superior + ADN de Salmón
+en todo el rostro + LED roja incluida.
+
+Hidrata profundo, afina poros y
+te da un brillo radiante ✨
+
+Precio regular: $1.800.000
+🎁 Precio oportunidad: $1.400.000
+¡Ahorras más de $400.000!
+
+¿Tienes alguna pregunta? 😊"
+
+⚠️ UPSELL OBLIGATORIO Lumiskin™:
+Cuando el paciente confirma querer
+Lumiskin™, ofrece el Protocolo
+Premium de ADN Salmón en el
+SIGUIENTE mensaje:
+"¿Sabías que puedes potenciar
+tu resultado con el Protocolo
+Premium? 💙
+ADN Salmón + Exosomas +
+RF Fraccionada con Microagujas:
+$1.000.000
+¿Te gustaría incluirlo?"
+→ SI dice SÍ → NOTIFY incluye ambos.
+→ SI dice NO → NOTIFY con solo
+  Lumiskin™ ($1.400.000).
+→ FIN.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADN SALMÓN / PDRN — PRECIOS ESPECÍFICOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cuando menciona específicamente
+'adn salmon', 'adn de salmon',
+'polinucleotidos', 'pdrn' sin
+mencionar otro tratamiento principal:
+
+"¡El ADN de Salmón (PDRN) es uno
+de nuestros tratamientos de
+regeneración más poderosos! 💙
+
+Estimula colágeno, mejora textura
+y tono de la piel de forma
+natural ✨
+
+→ Sesión individual: $600.000
+→ Protocolo Premium:
+  ADN Salmón + Exosomas +
+  RF Fraccionada con Microagujas
+  $1.000.000
+
+El Protocolo Premium requiere
+valoración previa con la
+Dra. Sharon 💙
+
+¿Cuál te interesa más? 😊"
+→ Emite NOTIFY con el servicio elegido.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SURCOS NASOGENIANOS / LÍNEAS MARIONETA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cuando menciona 'surcos', 'surco
+nasogeniano', 'nasogenianos',
+'líneas de marioneta', 'marioneta':
+
+"Los surcos nasogenianos y las
+líneas de marioneta tienen solución
+sin cirugía con la Dra. Sharon 💙
+
+Con Ácido Hialurónico en puntos
+estratégicos reposicionamos la
+estructura facial — tratando
+la causa y el surco al mismo
+tiempo ✨
+
+Este tratamiento requiere
+valoración médica previa para
+personalizar el protocolo.
+
+Precio desde: $1.200.000
+
+¿Tienes alguna pregunta? 😊"
+→ Emite NOTIFY cuando confirma interés.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MICROPIGMENTACIÓN — NO OFRECEMOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cuando menciona 'micropigmentación',
+'micropigmentacion', 'microblading',
+'tatuaje de cejas', 'cejas permanentes':
+
+Responde EXACTAMENTE este texto:
+"No ofrecemos micropigmentación 😊
+Pero sí contamos con tratamientos
+increíbles para ti ✨
+Toxina Botulínica, SS Heart Lips™,
+Lumiskin™ y más 💖
+¿Te gustaría conocerlos?"
+→ Si dice SÍ → flujo Armonía Facial 440.
+→ NO emitas NOTIFY en esta respuesta.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PACIENTE QUE YA SABE LO QUE QUIERE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1270,6 +1409,12 @@ SERVICIOS_SIN_SLOTS = [
     'carboxiterapia', 'presoterapia',
     'enzimas', 'ozempic', 'sharon', 'dra sharon',
     'facial', 'rostro', 'arrugas', 'flacidez facial',
+    'heart lips', 'ss heart', 'labios corazon', 'labios corazón',
+    'lumiskin', 'piel porcelana', 'piel de porcelana', 'piel luminosa',
+    'surco', 'surcos', 'nasogeniano', 'nasogenianos', 'marioneta',
+    'adn salmon', 'adn de salmon', 'polinucleotidos', 'polinucleótidos',
+    'micropigmentacion', 'micropigmentación', 'microblading',
+    'tatuaje cejas', 'cejas permanentes',
 ]
 
 # Whitelist: solo estos 3 servicios pueden ejecutar check_slots.
@@ -1285,13 +1430,23 @@ _SERVICIO_KEYWORDS = [
     ('botox', ['botox', 'toxina', 'dysport', 'neuronox', 'siax']),
     ('rinomodelacion', ['rinomodelacion', 'rinomodelación',
                         'rinomodelar', 'nariz']),
-    ('labios', ['labios', 'labio']),
+    ('labios', ['labios', 'labio', 'heart lips', 'ss heart',
+                'labios corazon', 'labios corazón']),
     ('armonia_facial', ['exosomas', 'pdrn', 'salmón', 'salmon',
                         'bioestimulador', 'tensamax', 'hydrash',
                         'radiofrecuencia', 'microagujas',
                         'rejuvenecimiento', 'arrugas', 'flacidez facial',
                         'manchas', 'poros', 'armonía facial',
-                        'armonia facial', 'facial']),
+                        'armonia facial', 'facial',
+                        'lumiskin', 'piel porcelana', 'piel de porcelana',
+                        'piel luminosa',
+                        'surco', 'surcos', 'nasogeniano', 'nasogenianos',
+                        'marioneta',
+                        'adn salmon', 'adn de salmon', 'polinucleotidos',
+                        'polinucleótidos',
+                        'micropigmentacion', 'micropigmentación',
+                        'microblading', 'tatuaje cejas',
+                        'cejas permanentes']),
     ('armonia_corporal', ['bajar peso', 'bajar de peso', 'adelgazar',
                           'celulitis', 'carboxiterapia', 'presoterapia',
                           'ultrasonido', 'enzimas', 'ozempic',
