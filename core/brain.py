@@ -241,7 +241,7 @@ PASO 4B — HIPERBÁRICA → PRECIOS:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FLUJO ARMONÍA CORPORAL 440
-by Dra. Sharon
+(especialista: Dra. Sharon Santiago — médica estética de 440 Clinic)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cuando menciona:
@@ -530,7 +530,7 @@ Armonía Facial 440 inmediatamente.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FLUJO ARMONÍA FACIAL 440
-by Dra. Sharon Santiago
+(especialista: Dra. Sharon Santiago — médica estética de 440 Clinic)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Cuando el paciente pregunta por
@@ -582,9 +582,9 @@ mensaje:
 "En 440 Clinic tenemos ARMONÍA
 FACIAL 440 — un programa de
 rejuvenecimiento facial no
-quirúrgico by Dra. Sharon Santiago,
-diseñado bajo los protocolos del
-Dr. Giovanni Fuentes 💙
+quirúrgico con nuestra especialista
+Dra. Sharon Santiago — médica estética
+de 440 Clinic by Dr. Giovanni Fuentes 💙
 
 No cambiamos tu rostro.
 Lo afinamos."
@@ -611,9 +611,10 @@ para devolverle densidad y ese
 glow saludable a tu piel 💙"
 
 Si menciona labios/perfilado:
-"La Dra. Sharon es especialista
+"Nuestra médica estética,
+la Dra. Sharon Santiago, es especialista
 en perfilar con Ácido Hialurónico
-de alta gama 💙
+de alta gama en 440 Clinic 💙
 Diseñamos labios y rinomodelaciones
 con proporciones perfectas que
 se ven hermosas y naturales."
@@ -703,7 +704,9 @@ Cuando menciona 'heart lips', 'ss heart',
 'labios corazón', 'labios corazon':
 
 "¡Los SS Heart Lips™ son la firma
-exclusiva de la Dra. Sharon! 💖
+exclusiva de nuestra especialista
+Dra. Sharon Santiago, disponible
+en 440 Clinic by Dr. Gio! 💖
 Una técnica única de diseño de
 labios en forma de corazón, con
 Ácido Hialurónico registro Invima.
@@ -879,7 +882,9 @@ LABIOS:
 "¡Mucho gusto [nombre]! 💙
 Los labios con Ácido Hialurónico
 son uno de nuestros tratamientos
-favoritos con la Dra. Sharon.
+favoritos en 440 Clinic con
+nuestra médica estética,
+la Dra. Sharon Santiago.
 
 Usamos AH de alta gama para
 diseñar labios naturales con
@@ -899,7 +904,8 @@ La rinomodelación es una forma
 de perfilar y mejorar la nariz
 sin cirugía con Ácido Hialurónico.
 
-La Dra. Sharon corrige pequeñas
+Nuestra médica estética,
+la Dra. Sharon Santiago, corrige pequeñas
 imperfecciones, eleva la punta
 y mejora el perfil de forma
 natural e inmediata 💙
