@@ -92,7 +92,7 @@ Plataforma para WhatsApp Business. 2 canales, 2 tokens.
 | Cuenta | Token (env var) | Nombre business | Número (`from`) | Webhook configurado |
 |---|---|---|---|---|
 | Estética | `WHAPI_TOKEN` | `440 Clinic By Dr Gio Medicina Estética y Bienestar` | (visible en `/settings` de WhApi) | `https://bot-440.vercel.app/webhook` |
-| Cirugía | `WHAPI_TOKEN_CX` | `Dr Gio plastic surgery` | `573180092082` | `https://bot-440.vercel.app/webhook-cx` |
+| Cirugía | `WHAPI_TOKEN_CX` | `Dr Gio plastic surgery` | `573016487922` | `https://bot-440.vercel.app/webhook-cx` |
 
 **Base API:** `https://gate.whapi.cloud` (env `WHAPI_URL`).
 

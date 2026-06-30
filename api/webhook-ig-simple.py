@@ -10,7 +10,7 @@ IG_TOKEN = os.environ.get('IG_PAGE_ACCESS_TOKEN','')
 IG_ACCOUNT_ID = os.environ.get('IG_ACCOUNT_ID','17841457278507530')
 
 WA_ESTETICA = '573135449024'
-WA_CIRUGIA = '573180092082'
+WA_CIRUGIA = '573016487922'
 
 SYSTEM_440CLINIC = """
 Eres el asistente de @440clinic
@@ -44,7 +44,7 @@ operación, Dr. Gio)
 "¡Hola [nombre]! 💙
 Para cirugías con el Dr. Giovanni
 Fuentes escríbenos por WhatsApp:
-📱 wa.me/573180092082?text=Hola!+Me+interesa+[procedimiento]
+📱 wa.me/573016487922?text=Hola!+Me+interesa+[procedimiento]
 ¡Te esperamos! 💙
 La Belleza 440 ✨"
 

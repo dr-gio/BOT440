@@ -63,7 +63,7 @@ Para asesorarte sobre
 [procedimiento que mencionó]
 con el Dr. Gio, escríbenos
 por WhatsApp:
-📱 wa.me/573180092082?text=Hola!+Me+interesa+[procedimiento]
+📱 wa.me/573016487922?text=Hola!+Me+interesa+[procedimiento]
 ¡Te esperamos! 💙
 La Belleza 440 ✨"
 
@@ -206,7 +206,7 @@ def _wa_link(text):
         q = urllib.parse.quote_plus(f'Hola! Me interesa {proc}')
     else:
         q = urllib.parse.quote_plus('Hola! Quiero información')
-    return f'wa.me/573180092082?text={q}'
+    return f'wa.me/573016487922?text={q}'
 
 
 def _public_interes(text, nombre=''):
