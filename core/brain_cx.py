@@ -595,6 +595,15 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         if not re.search(r'te gustar[ií]a agendar', texto, re.I):
             texto += '\n\n¿Te gustaría agendar tu *asesoría virtual gratuita*? 😊'
         texto = re.sub(r'(te gustar[ií]a agendar[^?\n]*\?)\s*🤖', r'\1 😊', texto, flags=re.I)
+    # Pedido de datos: texto fijo aprobado (#LAbelleza440 + "nuestra asesora te contactará" + correo sin "opcional")
+    if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
+        valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
+        listo = 'listo' if re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I) else 'lista'
+        texto = (f"¡Listo! 💙 *¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
+                 "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
+                 + ("*valoración con el Dr. Gio*" if valoracion else "*asesoría virtual gratuita*") + ":\n"
+                 "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                 + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion else ""))
     if not hubo_bot:
         # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
