@@ -607,7 +607,24 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
         listo = 'listo' if re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I) else 'lista'
-        texto = (f"¡Listo! 💙 *¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
+        explica = ''
+        if not valoracion and not re.search(r'resuelve \*?todas tus dudas', previos, re.I):
+            explica = ("En tu *asesoría virtual gratuita* 💻, nuestra *asesora experta en cirugía plástica* te atiende por videollamada, "
+                       "desde donde estés y *sin ningún compromiso*:\n"
+                       "✅ Resuelve *todas tus dudas* con calma\n"
+                       "✅ Te orienta sobre el *procedimiento ideal* para ti\n"
+                       "✅ Te explica el *valor*, las *formas de pago* y la *financiación*\n"
+                       "✅ Te cuenta cómo sería *tu proceso paso a paso*\n"
+                       "✅ Te ayuda a *agendar tu valoración* con el Dr. Gio cuando estés lista\n\n")
+        elif valoracion and not re.search(r'eval[uú]a tu caso personalmente:', previos, re.I):
+            explica = ("En tu *valoración con el Dr. Gio* 👨‍⚕️, el Dr. *evalúa tu caso personalmente*:\n"
+                       "✅ Revisa tu cuerpo y tus expectativas\n"
+                       "✅ Te indica la *técnica ideal* para ti\n"
+                       "✅ Resuelve *todas tus dudas médicas*\n"
+                       "✅ Te entrega tu *plan quirúrgico y cotización* personalizada\n\n"
+                       "💰 *Presencial:* $260.000 · 💻 *Virtual:* $160.000\n"
+                       "📍 *Consulta presencial:* Barranquilla (Carrera 47 #79-191) · Bogotá (Clínica Intercirugías) · Medellín (Clínica AC Quirófanos)\n\n")
+        texto = (("¡Excelente decisión! 💙\n\n" + explica) if explica else "¡Listo! 💙 ") + (f"*¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
                  "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
                  + ("*valoración con el Dr. Gio*" if valoracion else "*asesoría virtual gratuita*") + ":\n"
                  "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
