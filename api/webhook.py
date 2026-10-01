@@ -22,22 +22,41 @@ class handler(BaseHTTPRequestHandler):
             _tipo = msg.get('type', 'text')
             _media_url = None
             _media_caption = None
+            _tok = os.environ.get('WHAPI_TOKEN') or os.environ.get('WHAPI_TOKEN_CX', '')
             if _tipo == 'text':
                 text = msg.get('text', {}).get('body', '')
             elif _tipo == 'image':
                 text = '[IMAGEN]'
                 _img = msg.get('image', {}) or {}
                 _media_caption = _img.get('caption') or None
-                _tok = os.environ.get('WHAPI_TOKEN') or os.environ.get('WHAPI_TOKEN_CX', '')
                 _media_url = store_whapi_media(_img, _tok, prefix='est')
+            elif _tipo == 'video':
+                text = '[VIDEO]'
+                _vid = msg.get('video', {}) or {}
+                _media_caption = _vid.get('caption') or None
+                _media_url = store_whapi_media(_vid, _tok, prefix='est')
+            elif _tipo == 'sticker':
+                text = '[STICKER]'
+                _stk = msg.get('sticker', {}) or {}
+                _media_url = store_whapi_media(_stk, _tok, prefix='est')
+            elif _tipo == 'document':
+                text = '[DOCUMENTO]'
+                _doc = msg.get('document', {}) or {}
+                _media_caption = _doc.get('filename') or _doc.get('caption') or None
+                _media_url = store_whapi_media(_doc, _tok, prefix='est')
+            elif _tipo in ('audio', 'voice', 'ptt'):
+                text = '[AUDIO]'
+                _aud = msg.get(_tipo, {}) or msg.get('audio', {}) or {}
+                _media_url = store_whapi_media(_aud, _tok, prefix='est')
             else:
                 text = '[MEDIA]'
             name = msg.get('from_name','')
             print(f"[WEBHOOK] sender={sender_id} name={name!r} text={text[:60]!r} media={'yes' if _media_url else 'no'}", flush=True)
             if text and sender_id:
+                _media_tipo_map = {'image':'image','video':'video','sticker':'image','document':'document','audio':'audio','voice':'audio','ptt':'audio'}
                 Brain().process(sender_id, name, text, 'whatsapp',
                                 media_url=_media_url,
-                                media_tipo='image' if _media_url else None,
+                                media_tipo=_media_tipo_map.get(_tipo, 'image') if _media_url else None,
                                 media_caption=_media_caption if _media_url else None)
             print(f"[WEBHOOK] Procesado OK", flush=True)
             self._ok({'status': 'ok'})

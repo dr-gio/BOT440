@@ -197,6 +197,18 @@ el genérico "menores/mayores"). Si no dijo el
 procedimiento, preguntarle cuál tiene en mente.
 El precio exacto lo define el Dr. Gio.
 
+⛔ REGLA: MAMOPLASTIA TODO INCLUIDO
+Si el paciente menciona "todo incluido",
+"mamoplastia incluido", "senos incluido",
+"promo mamoplastia", "18 millones mamoplastia",
+o el mensaje prellenado de la pauta
+("hola estoy interesado en todo incluido
+de mamoplastia"):
+→ Ir DIRECTO a la sección
+  MAMOPLASTIA DE AUMENTO TODO INCLUIDO
+→ NO usar el flujo general de mamoplastia
+→ Dar precio $18.000.000 + lo que incluye
+
 ⛔ REGLA CRÍTICA DE PRECIOS:
 Cuando el paciente pregunta por precio, SÍ se
 le da el RANGO desde la 1ª vez — NUNCA se
@@ -231,7 +243,7 @@ SOLO como rango — nunca cifra exacta):
 • Lifting brazos/piernas: $14M - $20M
 • Gluteoplastia implante: $22M
 • Lipotransferencia glútea: $17M - $20M
-• Mamoplastia aumento: $16M - $17M
+• Mamoplastia aumento: $18M (todo incluido)
 • Pexia con implantes: $18M - $23M
 • Mamoplastia reducción: $20M - $25M
 • Explantación: $22M - $27M
@@ -288,12 +300,108 @@ CORPORALES:
   $6.000.000
 
 MAMARIOS:
-→ Mamoplastia de aumento: $17.000.000
+→ Mamoplastia de aumento: $18.000.000 (todo incluido)
 → Pexia mamaria con implantes:
   desde $18.000.000
 → Mamoplastia de reducción:
   desde $20.000.000
 → Explantación mamaria: desde $22.000.000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MAMOPLASTIA DE AUMENTO TODO INCLUIDO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ REGLA ABSOLUTA: si el primer mensaje
+del paciente contiene "todo incluido",
+"mamoplastia" + "incluido", "senos"
++ "incluido", "promo senos", "18 millones",
+o el mensaje prellenado "hola estoy
+interesado en todo incluido de mamoplastia"
+→ USA ESTE FLUJO, NO el flujo general
+de mamoplastia. NUNCA respondas con
+info genérica de mamoplastia cuando
+mencionan "todo incluido".
+
+Cuando el paciente llega preguntando
+por la pauta de mamoplastia todo
+incluido:
+
+"¡Hola [nombre]! 💙 Sí, nuestra
+Mamoplastia de Aumento Todo Incluido
+tiene un valor de $18.000.000
+
+Incluye:
+→ Cirugía con el Dr. Giovanni Fuentes
+→ Clínica certificada en Barranquilla
+→ Anestesiólogo
+→ Póliza de seguro
+→ Implantes Silimed Eurosilicone
+→ Brasier postquirúrgico
+→ 5 sesiones de terapia postoperatoria
+  (masajes de drenaje linfático)
+
+Operamos en clínicas certificadas
+de Barranquilla: Doral Medical,
+Mediclínica o Beleza Luxury 💙
+
+¿Cuál es tu nombre? 😊"
+
+⚠️ IMPORTANTE: este todo incluido es
+SOLO para mamoplastia de AUMENTO
+(colocación de implantes). NO incluye
+pexia (levantamiento), reducción ni
+ningún otro procedimiento mamario.
+Si la paciente pregunta por levantamiento
+o pexia:
+"El todo incluido de $18.000.000 es
+para mamoplastia de aumento (implantes) 💙
+Si necesitas levantamiento o pexia,
+eso se evalúa en tu valoración con
+el Dr. Gio."
+
+⚠️ Este paquete es EXCLUSIVO para
+cirugía en Barranquilla. Si la paciente
+es de otra ciudad:
+"Este paquete todo incluido es
+exclusivo para cirugía en Barranquilla 💙
+Si necesitas información sobre
+hospedaje o traslado, nuestra
+asesora te puede orientar."
+
+Si pregunta qué NO incluye:
+"El todo incluido no incluye:
+→ Laboratorios prequirúrgicos
+→ Consulta de valoración preanestésica
+→ Consulta de valoración con el Dr. Gio
+
+Estos se realizan antes de la cirugía
+para garantizar tu seguridad 💙"
+
+Si pregunta por los implantes:
+"Usamos implantes Silimed
+Eurosilicone — una de las marcas
+más reconocidas a nivel mundial 💙
+
+El Dr. Gio elige el perfil y
+tamaño ideal para tu anatomía
+en la valoración."
+
+Si pregunta por financiamiento
+o facilidades de pago:
+"Sí, tenemos planes de financiamiento
+para que puedas realizar tu cirugía 💙
+
+Nuestra asesora te explicará
+las opciones disponibles
+según tu caso."
+
+⚠️ REGLA: si viene de la pauta
+de mamoplastia todo incluido,
+NO ofrecer otros procedimientos
+inicialmente. Enfocarse en resolver
+sus dudas sobre mamoplastia y
+llevarla a agendar valoración
+con el Dr. Gio.
 
 TECNOLOGÍAS ADICIONALES:
 → Argón Plasma + VASER: $9.000.000
@@ -695,8 +803,8 @@ CALIENTE 🔥:
 → Motivación emocional clara
 
 TIBIO 🌡️:
-→ Elige "Hablar con una asesora"
-  (la opción gratuita, sin importar el presupuesto)
+→ Elige "Contactar con una asesora"
+  (sin importar el presupuesto)
 → "Lo estoy pensando"
 → Sin fecha definida
 → Necesita financiamiento
@@ -729,11 +837,10 @@ el Dr. Gio — pero tú decides:
    (estás en Barranquilla — ventaja)
 2️⃣ Valoración VIRTUAL con Dr. Gio
    $160.000 — desde donde estés
-3️⃣ Asesoría GRATUITA 💬 🎉
-   Consultamos tu caso con el Dr. Gio,
-   evaluamos tus fotos, resolvemos TODAS
-   tus dudas y te damos un precio
-   aproximado — sin compromiso
+3️⃣ Contactar con una asesora 💬
+   Para que te oriente y te brinde
+   toda la información sobre tu caso
+   — sin compromiso
 
 ¿Cuál prefieres [nombre]? 😊"
 
@@ -750,11 +857,10 @@ el Dr. Gio — pero tú decides:
    (desde donde estés)
 2️⃣ Valoración PRESENCIAL con Dr. Gio
    $260.000 — en Barranquilla
-3️⃣ Asesoría GRATUITA 💬 🎉
-   Consultamos tu caso con el Dr. Gio,
-   evaluamos tus fotos, resolvemos TODAS
-   tus dudas y te damos un precio
-   aproximado — sin compromiso
+3️⃣ Contactar con una asesora 💬
+   Para que te oriente y te brinde
+   toda la información sobre tu caso
+   — sin compromiso
 
 ¿Cuál prefieres [nombre]? 😊"
 
@@ -765,11 +871,10 @@ para que te oriente 💙
 
 Pero tú decides:
 
-1️⃣ Asesoría GRATUITA 💬 🎉
-   Consultamos tu caso con el Dr. Gio,
-   evaluamos tus fotos, resolvemos TODAS
-   tus dudas y te damos un precio
-   aproximado — sin compromiso
+1️⃣ Contactar con una asesora 💬
+   Para que te oriente y te brinde
+   toda la información sobre tu caso
+   — sin compromiso
 2️⃣ Valoración VIRTUAL con Dr. Gio
    $160.000
 3️⃣ Valoración PRESENCIAL con Dr. Gio
@@ -783,11 +888,10 @@ lo estás pensando 💙
 
 Cuando estés list@ podemos:
 
-1️⃣ Asesoría GRATUITA 💬 🎉
-   Consultamos tu caso con el Dr. Gio,
-   evaluamos tus fotos, resolvemos TODAS
-   tus dudas y te damos un precio
-   aproximado — sin compromiso
+1️⃣ Contactar con una asesora 💬
+   Para que te oriente y te brinde
+   toda la información sobre tu caso
+   — sin compromiso
 2️⃣ Seguirte compartiendo info
    sobre el proceso
 
@@ -813,9 +917,9 @@ VALORACIÓN CON DR. GIO
 → SOLO confirmar + <<<NOTIFY>>>
    (tipo: valoracion) + FIN.
 
-HABLAR CON UNA ASESORA
-(opción "Hablar con una asesora" — la
- gratuita en cualquier score):
+CONTACTAR CON UNA ASESORA
+(opción "Contactar con una asesora"
+ en cualquier score):
 → NO pidas correo, NO llames check_slots_cx,
    NO muestres días ni horarios.
 → La asesora contacta al paciente y agenda.
@@ -863,13 +967,14 @@ accion: Contactar HOY para coordinar valoración con Dr. Gio
 prioridad: CALIENTE
 <<<END>>>
 
-Si elige "Hablar con una asesora"
-(opción GRATUITA en cualquier score):
+Si elige "Contactar con una asesora"
+(en cualquier score):
 
 PASO 0 — Confirmar y conectar con asesora:
 "¡Perfecto [nombre]! 💙
 Te conectamos con nuestra asesora
-especializada — completamente GRATIS 🎉
+especializada para que te oriente
+y te brinde toda la información 💙
 
 ✨ Consultamos tu caso con el Dr. Gio ✓
 📸 Evaluamos tus fotos ✓
@@ -1453,16 +1558,18 @@ TOOLS_CX = [
 ]
 
 # Rotación de asesoras. Orden fijo del ciclo.
-ASESORAS = ['bibiana', 'angelica']  # Lucero pausada (no recibe leads nuevos). Reactivar agregándola.
+ASESORAS = ['bibiana', 'vanessa', 'lucero']  # Angelica dada de baja.
 ASESORA_ENV = {
     'bibiana':  'ASESORA_1',
     'lucero':   'ASESORA_3',
     'angelica': 'ASESORA_4',
+    'vanessa':  'ASESORA_5',
 }
 ASESORA_LABEL = {
     'bibiana':  'Bibiana',
     'lucero':   'Lucero',
     'angelica': 'Angélica',
+    'vanessa':  'Vanessa',
 }
 
 
@@ -2774,11 +2881,13 @@ class BrainCX:
             'procedimiento_interes': procedimiento or '—',
             'como_llego': 'BOT440 — Cirugías',
             'categoria': 'quirurgico',
-            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','angelica','lucero') else None,
+            'asesora_asignada': asesora_asignada if asesora_asignada in ('bibiana','vanessa','lucero') else None,
+
             'ciudad': ciudad or '',
             'observaciones': f"Prioridad: {prioridad} | Ciudad: {ciudad or '—'}"
                               + (f" | {observaciones}" if observaciones else ''),
             'etapa': 'lead',
+            'score_bot': prioridad or None,
             'fecha_lead': _dtt.now(_tzz.utc).isoformat(),
         }
         url = f"{crm_url}/rest/v1/leads_comerciales?on_conflict=telefono"
@@ -2974,6 +3083,62 @@ class BrainCX:
         history = self._load_history(sender_id, canal=canal)
         _is_first_time = len(history) == 0
 
+        # ── DETECCIÓN MAMOPLASTIA TODO INCLUIDO ────────────────────────────
+        # Si el PRIMER mensaje menciona "todo incluido", "mamoplastia incluido",
+        # "senos incluido", "18 millones", responder con el paquete específico
+        # y NO dejar que Claude responda genérico.
+        if _is_first_time:
+            _txt_mamo = (text or '').lower()
+            for _old_c, _new_c in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),('ü','u'),('ñ','n')]:
+                _txt_mamo = _txt_mamo.replace(_old_c, _new_c)
+            _is_mamo_todo = any(kw in _txt_mamo for kw in (
+                'todo incluido', 'mamoplastia incluido', 'senos incluido',
+                'promo mamoplastia', 'promo senos', '18 millones',
+                'mamoplastia de aumento todo', 'paquete mamoplastia',
+            ))
+            if _is_mamo_todo:
+                print(f"[CX] MAMOPLASTIA TODO INCLUIDO detectado → {sender_id}: {text[:60]!r}", flush=True)
+                reply = (
+                    "¡Hola! 💙 Qué bueno que nos escribes.\n\n"
+                    "Nuestra *Mamoplastia de Aumento Todo Incluido* "
+                    "tiene un valor de *$18.000.000* 🔥\n\n"
+                    "✅ Cirugía con el Dr. Giovanni Fuentes — Cirujano Plástico certificado\n"
+                    "✅ Equipo completo: anestesiólogo + instrumentadora quirúrgica\n"
+                    "✅ Clínica certificada en Barranquilla\n"
+                    "✅ Implantes de alta gama\n"
+                    "✅ Póliza de seguro quirúrgico\n"
+                    "✅ Faja postquirúrgica\n"
+                    "✅ Masajes postoperatorios incluidos\n"
+                    "✅ Controles y seguimiento post sin costo adicional\n\n"
+                    "¿Deseas agendar tu cita con el Dr. Gio en "
+                    "Barranquilla o prefieres antes una llamada "
+                    "informativa con una de nuestras asesoras? 😊"
+                )
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                if send:
+                    _client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: _client.send_text(sender_id, reply)
+                    except Exception as _e: print(f"[CX] mamo todo reply err: {_e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                # Registrar lead como CALIENTE con procedimiento específico
+                _mamo_canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
+                _mamo_tel = self._normalizar_tel(sender_id)
+                try:
+                    self._upsert_lead_comercial(
+                        nombre=sender_name or '—', telefono=_mamo_tel,
+                        procedimiento='Mamoplastia de aumento todo incluido',
+                        canal=_mamo_canal_crm,
+                        prioridad='CALIENTE',
+                        observaciones='Lead de pauta Mamoplastia Todo Incluido $18M — respuesta automática enviada',
+                    )
+                except Exception as _e:
+                    print(f"[CX] mamo todo upsert err: {_e}", flush=True)
+                self._push_core440_lead(
+                    sender_name or '—', '', _mamo_canal_crm,
+                    temperatura='caliente', tipo_atencion='mamoplastia_todo_incluido', telefono=sender_id,
+                )
+                return reply
+
         # ── DETECCIÓN DE REFERIDO ──────────────────────────────────────────
         # Si el PRIMER mensaje menciona el nombre de una asesora, la asignamos
         # directamente (sin pasar por la rotación).
@@ -2982,7 +3147,7 @@ class BrainCX:
             for _old_c, _new_c in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),('ü','u'),('ñ','n')]:
                 _txt_ref = _txt_ref.replace(_old_c, _new_c)
             _referido_slug = ''
-            for _slug in ('angelica', 'bibiana', 'lucero'):
+            for _slug in ('bibiana', 'lucero', 'vanessa'):
                 if _slug in _txt_ref:
                     _referido_slug = _slug
                     break
