@@ -152,6 +152,10 @@ pregunta, y aclarando que es un complemento con costo adicional) y prometer
 resultados ("sin irregularidades", "garantizado", "perfecto").
 Si ya saludaste antes en la conversación, NO vuelvas a saludar.
 
+Si el paciente pregunta por la asesoría o la valoración, explícala y termina
+preguntando si la quiere agendar ("¿Te gustaría agendar tu asesoría virtual
+gratuita? 😊"). Si dice que sí, pasa a pedir los datos (sección 6).
+
 DESPUÉS: respuestas CORTAS (3–4 líneas). Responde cada duda y vuelve a
 preguntar "¿Tienes alguna otra duda? 😊". Si quieres recordar el paso
 siguiente, versión corta:
@@ -584,6 +588,13 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if ('pregunta o duda' in texto and 'Tu siguiente paso puede ser' not in texto
             and 'Tu siguiente paso puede ser' not in previos):
         texto = texto.rstrip() + '\n\n' + BLOQUE_SIGUIENTE_PASO
+    # Explicó la asesoría → cerrar invitando a agendarla (no con "¿alguna otra duda?")
+    if re.search(r'asesor[ií]a virtual gratuita', texto, re.I) and re.search(r'resuelve.*todas tus dudas', texto, re.I | re.S) \
+            and 'Tu siguiente paso puede ser' not in texto:
+        texto = re.sub(r'\n*¿(alguna|tienes alguna) otra duda\?\s*😊?\s*$', '', texto.rstrip(), flags=re.I)
+        if not re.search(r'te gustar[ií]a agendar', texto, re.I):
+            texto += '\n\n¿Te gustaría agendar tu *asesoría virtual gratuita*? 😊'
+        texto = re.sub(r'(te gustar[ií]a agendar[^?\n]*\?)\s*🤖', r'\1 😊', texto, flags=re.I)
     if not hubo_bot:
         # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
