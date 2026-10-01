@@ -545,8 +545,8 @@ BIENVENIDA_CABEZA = (
     "✈️ *Planes de turismo médico todo incluido*\n\n"
     "Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para orientarte antes de dar el siguiente paso."
 )
-CIERRE_DUDAS = ("¿Tienes alguna otra *duda o pregunta*, o seguimos con el siguiente paso: tu *asesoría virtual gratuita* 💻 "
-                "o tu *valoración con el Dr. Gio* 👨‍⚕️? 😊")
+CIERRE_DUDAS = ("¿Tienes alguna otra *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\n"
+                + BLOQUE_SIGUIENTE_PASO)
 BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
 # Separa la respuesta en dos mensajes de WhatsApp (bienvenida / información) para que no quede un bloque enorme
 PARTE = "\n\n<<<PARTE>>>\n\n"
