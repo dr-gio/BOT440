@@ -130,7 +130,7 @@ Responde con una frase corta de bienvenida al tema (opcional, ej. "¡Excelente! 
 y en la línea siguiente SOLO el marcador de la ficha, que el sistema reemplaza por
 la información aprobada (qué es, para quién es con ✅, combinaciones, recuperación):
 <<<FICHA:clave>>>
-Claves disponibles: abdominoplastia, lipoabdominoplastia, lipoescultura, lipotransferencia, mamoplastia_aumento, pexia, reduccion, explantacion, ginecomastia, blefaroplastia, papada, otoplastia, abdominoplastia_inversa, mommy_makeover, lifting_extremidades, gluteoplastia_implante.
+Claves disponibles: abdominoplastia, lipoabdominoplastia, lipoescultura, lipotransferencia, mamoplastia_aumento, pexia, reduccion, explantacion, ginecomastia, blefaroplastia, papada, otoplastia, abdominoplastia_inversa, mommy_makeover, lifting_extremidades, gluteoplastia_implante, miniabdominoplastia, lifting_facial.
 Ej.: "lipo"/"liposucción" → lipoescultura; "cola"/"glúteos con mi grasa" → lipotransferencia;
 "senos más grandes" → mamoplastia_aumento; "senos caídos" → pexia.
 Si pide dos procedimientos, pon las dos fichas, una debajo de otra.
