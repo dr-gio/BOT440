@@ -144,6 +144,12 @@ Con nuestra asesora experta, por videollamada y sin compromiso. *Ampliamos la in
 ✅ *Valoración con el Dr. Gio* 👨‍⚕️
 Presencial *$260.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente."
 
+PROHIBIDO en la información del procedimiento: mencionar tecnologías
+(VASER, Retraction, etc. — tienen costo adicional; solo si el paciente
+pregunta, y aclarando que es un complemento con costo adicional) y prometer
+resultados ("sin irregularidades", "garantizado", "perfecto").
+Si ya saludaste antes en la conversación, NO vuelvas a saludar.
+
 DESPUÉS: respuestas CORTAS (3–4 líneas). Responde cada duda y vuelve a
 preguntar "¿Tienes alguna otra duda? 😊". Si quieres recordar el paso
 siguiente, versión corta:
@@ -520,6 +526,48 @@ ASESORA_LABEL = {
     'angelica': 'Angélica',
     'vanessa':  'Vanessa',
 }
+
+
+# ── Ajustes fijos sobre la respuesta de la IA (el guion aprobado no depende de que la IA lo recuerde) ──
+BLOQUE_SIGUIENTE_PASO = (
+    "Tu siguiente paso puede ser:\n\n"
+    "✅ *Asesoría virtual gratuita* 💻\n"
+    "Con nuestra asesora experta, por videollamada y sin compromiso. *Ampliamos la información* y resolvemos todas tus dudas.\n\n"
+    "✅ *Valoración con el Dr. Gio* 👨‍⚕️\n"
+    "Presencial *$260.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente."
+)
+_RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\b', re.I)
+_RE_PROMESA = re.compile(r'[,;]?\s*(sin irregularidades|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
+
+
+def ajustar_respuesta_cx(texto, history, mensaje_paciente):
+    """Aplica las reglas del guion que no deben depender de la IA:
+    - no repetir la bienvenida si ya hubo conversación;
+    - no prometer resultados;
+    - no mencionar tecnologías (con costo adicional) si el paciente no preguntó por ellas;
+    - agregar el bloque aprobado del siguiente paso la primera vez que se invita a resolver dudas."""
+    if not texto:
+        return texto
+    hubo_bot = any(m.get('role') == 'assistant' for m in (history or []))
+    previos = '\n'.join(m.get('content', '') for m in (history or []) if m.get('role') == 'assistant')
+    lineas = texto.split('\n')
+    if hubo_bot:
+        # Quita saludos/bienvenidas repetidas al inicio
+        while lineas and re.search(r'(bienvenid|centro de atenci[oó]n|te atiende el asistente|te est[aá] atendiendo)', lineas[0], re.I):
+            lineas.pop(0)
+        while lineas and not lineas[0].strip():
+            lineas.pop(0)
+    texto = '\n'.join(lineas)
+    texto = _RE_PROMESA.sub('', texto)
+    if not _RE_TECNO.search(mensaje_paciente or ''):
+        # Elimina las frases que mencionan tecnologías si el paciente no preguntó por ellas
+        partes = re.split(r'(?<=[.!?])\s+', texto)
+        texto = ' '.join(p for p in partes if not _RE_TECNO.search(p)) if any(_RE_TECNO.search(p) for p in partes) else texto
+        texto = re.sub(r' (?=\n)', '', texto)
+    if ('pregunta o duda' in texto and 'Tu siguiente paso puede ser' not in texto
+            and 'Tu siguiente paso puede ser' not in previos):
+        texto = texto.rstrip() + '\n\n' + BLOQUE_SIGUIENTE_PASO
+    return re.sub(r'\n{3,}', '\n\n', texto).strip()
 
 
 class BrainCX:
@@ -2852,6 +2900,7 @@ class BrainCX:
         user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', full_response, flags=re.DOTALL)
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
+        user_facing = ajustar_respuesta_cx(user_facing, history, text)
 
         # FALLBACK: si se emitió un NOTIFY pero el texto visible quedó vacío/corto
         # (Haiku a veces manda solo el bloque NOTIFY), garantizar el cierre al lead.
