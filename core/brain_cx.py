@@ -24,6 +24,7 @@ import os, json, re, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
+from core.fichas_cx import FICHAS, expandir_fichas
 
 # Detección de mensajes "solo emojis" (👍😊🙏❤️✅, etc.).
 _EMOJI_ONLY_RE_CX = re.compile(
@@ -124,31 +125,23 @@ Si en vez de responder pregunta algo (precio, recuperación…), respóndelo dir
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 4. INFORMAR EL PROCEDIMIENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRIMERA VEZ que se habla de un procedimiento: información BREVE
-(máximo 3–4 líneas en total, va justo después de la bienvenida):
-→ Qué es.
-→ Para quién es (p. ej. después de embarazos, pérdida de peso, flacidez,
-  grasa que no sale con dieta y ejercicio…).
-→ Recuperación aproximada (el Dr. Gio da el plan exacto en la valoración).
-→ Quién lo realiza: el Dr. Gio, cirujano plástico certificado, en
-  clínicas certificadas.
-Y TERMINA con este cierre (formato aprobado):
+PRIMERA VEZ que se habla de un procedimiento: NO escribas tú la información.
+Responde con una frase corta de bienvenida al tema (opcional, ej. "¡Excelente! 💙")
+y en la línea siguiente SOLO el marcador de la ficha, que el sistema reemplaza por
+la información aprobada (qué es, para quién es con ✅, combinaciones, recuperación):
+<<<FICHA:clave>>>
+Claves disponibles: abdominoplastia, lipoabdominoplastia, lipoescultura, lipotransferencia, mamoplastia_aumento, pexia, reduccion, explantacion, ginecomastia, blefaroplastia, papada, otoplastia, abdominoplastia_inversa, mommy_makeover, lifting_extremidades, gluteoplastia_implante.
+Ej.: "lipo"/"liposucción" → lipoescultura; "cola"/"glúteos con mi grasa" → lipotransferencia;
+"senos más grandes" → mamoplastia_aumento; "senos caídos" → pexia.
+Si pide dos procedimientos, pon las dos fichas, una debajo de otra.
+Si ningún procedimiento coincide, escríbelo tú con el mismo formato: qué es,
+"Por lo general es ideal para ti si:" con 3–4 líneas ✅, recuperación y quién lo realiza.
+El sistema agrega después la pregunta de dudas y las opciones del siguiente paso.
 
-"¿Tienes alguna *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊
-
-Tu siguiente paso puede ser:
-
-✅ *Asesoría virtual gratuita* 💻
-Con nuestra asesora experta, por videollamada y sin compromiso. *Ampliamos la información* y resolvemos todas tus dudas.
-
-✅ *Valoración con el Dr. Gio* 👨‍⚕️
-Presencial *$260.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente."
-
-PROHIBIDO en la información del procedimiento: mencionar tecnologías
-(VASER, Retraction, etc. — tienen costo adicional; solo si el paciente
-pregunta, y aclarando que es un complemento con costo adicional) y prometer
-resultados ("sin irregularidades", "garantizado", "perfecto").
-Si ya saludaste antes en la conversación, NO vuelvas a saludar.
+PROHIBIDO: mencionar tecnologías (VASER, Retraction, etc. — tienen costo
+adicional; solo si el paciente pregunta, aclarando que son un complemento con
+costo adicional) y prometer resultados ("sin irregularidades", "garantizado",
+"perfecto"). Si ya saludaste antes en la conversación, NO vuelvas a saludar.
 
 Si el paciente pregunta por la asesoría o la valoración, explícala y termina
 preguntando si la quiere agendar ("¿Te gustaría agendar tu asesoría virtual
@@ -568,6 +561,19 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     - agregar el bloque aprobado del siguiente paso la primera vez que se invita a resolver dudas."""
     if not texto:
         return texto
+    # Fichas fijas de procedimientos (formato ✅ aprobado)
+    if '<<<FICHA:' in texto:
+        # Saludo corto de la IA (si lo hay) + fichas en orden + la pregunta aprobada; lo demás que escriba la IA se descarta
+        intro = texto.split('<<<FICHA:', 1)[0].strip()
+        intro = intro if len(intro) <= 120 and '\n' not in intro else ''
+        intro = re.sub(r'[:,]?\s*(te cuento|aqu[ií] (va|tienes)|esta es)[^.!\n]*[:.]?\s*$', '', intro, flags=re.I).strip()
+        fichas = [m.group(0) for m in re.finditer(r'<<<FICHA:[a-z_]+>>>', texto)]
+        cuerpo, hubo_ficha = expandir_fichas('\n\n'.join(fichas))
+        if hubo_ficha:
+            texto = ((intro + '\n\n') if intro else '') + cuerpo + \
+                '\n\n¿Tienes alguna *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊'
+        else:
+            texto = re.sub(r'<<<FICHA:[a-z_]+>>>', '', texto)
     hubo_bot = any(m.get('role') == 'assistant' for m in (history or []))
     previos = '\n'.join(m.get('content', '') for m in (history or []) if m.get('role') == 'assistant')
     lineas = texto.split('\n')
@@ -579,7 +585,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     texto = re.sub(r'^\s*[-—_*]{3,}\s*$', '', texto, flags=re.M)   # separadores tipo "---"
     texto = re.sub(r'\*\*([^*\n]+)\*\*', r'*\1*', texto)   # negrita de WhatsApp es *texto*, no **texto**
     texto = _RE_PROMESA.sub('', texto)
-    texto = re.sub(r'\bes (perfect[ao]|ideal|lo mejor) para ti\b', 'puede ser una excelente opción', texto, flags=re.I)
+    texto = re.sub(r'\bes (perfect[ao]|lo mejor) para ti\b', 'puede ser una excelente opción', texto, flags=re.I)
     if not _RE_TECNO.search(mensaje_paciente or ''):
         # Elimina las frases que mencionan tecnologías si el paciente no preguntó por ellas
         partes = re.split(r'(?<=[.!?])\s+', texto)
