@@ -577,6 +577,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         lineas.pop(0)
     texto = '\n'.join(lineas)
     texto = re.sub(r'^\s*[-—_*]{3,}\s*$', '', texto, flags=re.M)   # separadores tipo "---"
+    texto = re.sub(r'\*\*([^*\n]+)\*\*', r'*\1*', texto)   # negrita de WhatsApp es *texto*, no **texto**
     texto = _RE_PROMESA.sub('', texto)
     texto = re.sub(r'\bes (perfect[ao]|ideal|lo mejor) para ti\b', 'puede ser una excelente opción', texto, flags=re.I)
     if not _RE_TECNO.search(mensaje_paciente or ''):
