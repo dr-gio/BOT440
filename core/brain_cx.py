@@ -608,7 +608,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
         listo = 'listo' if re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I) else 'lista'
         explica = ''
-        if not valoracion and not re.search(r'resuelve \*?todas tus dudas', previos, re.I):
+        if not valoracion:
             explica = ("En tu *asesoría virtual gratuita* 💻, nuestra *asesora experta en cirugía plástica* te atiende por videollamada, "
                        "desde donde estés y *sin ningún compromiso*:\n"
                        "✅ Resuelve *todas tus dudas* con calma\n"
@@ -616,7 +616,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                        "✅ Te explica el *valor*, las *formas de pago* y la *financiación*\n"
                        "✅ Te cuenta cómo sería *tu proceso paso a paso*\n"
                        "✅ Te ayuda a *agendar tu valoración* con el Dr. Gio cuando estés lista\n\n")
-        elif valoracion and not re.search(r'eval[uú]a tu caso personalmente:', previos, re.I):
+        else:
             explica = ("En tu *valoración con el Dr. Gio* 👨‍⚕️, el Dr. *evalúa tu caso personalmente*:\n"
                        "✅ Revisa tu cuerpo y tus expectativas\n"
                        "✅ Te indica la *técnica ideal* para ti\n"
