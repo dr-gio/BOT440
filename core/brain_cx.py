@@ -545,6 +545,8 @@ BIENVENIDA_CABEZA = (
     "✈️ *Planes de turismo médico todo incluido*\n\n"
     "Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para orientarte antes de dar el siguiente paso."
 )
+CIERRE_DUDAS = ("¿Tienes alguna otra *duda o pregunta*, o seguimos con el siguiente paso: tu *asesoría virtual gratuita* 💻 "
+                "o tu *valoración con el Dr. Gio* 👨‍⚕️? 😊")
 BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
 # Separa la respuesta en dos mensajes de WhatsApp (bienvenida / información) para que no quede un bloque enorme
 PARTE = "\n\n<<<PARTE>>>\n\n"
@@ -610,6 +612,14 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                  + ("*valoración con el Dr. Gio*" if valoracion else "*asesoría virtual gratuita*") + ":\n"
                  "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion else ""))
+    # Respuesta a una duda: siempre cierra preguntando por más dudas y nombrando el siguiente paso
+    if hubo_bot and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
+                                  r'<<<NOTIFY|me cuentas que te interesa|asesora ya tiene tus datos|urgencias|l[ií]nea de emergencia)', texto, re.I):
+        lineas_t = texto.rstrip().split('\n')
+        while lineas_t and (not lineas_t[-1].strip() or re.search(r'\?\s*\S{0,3}\s*$', lineas_t[-1])
+                            and re.search(r'(duda|pregunta|algo m[aá]s|ayudar|siguiente paso)', lineas_t[-1], re.I)):
+            lineas_t.pop()
+        texto = '\n'.join(lineas_t).rstrip() + '\n\n' + CIERRE_DUDAS
     if not hubo_bot:
         # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
