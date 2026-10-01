@@ -1,6 +1,10 @@
 # FICHA TÉCNICA — BOT440
 
-**Documento de referencia.** Léelo antes de tocar el bot. Actualizado: 2026-05-26.
+**Documento de referencia.** Léelo antes de tocar el bot. Actualizado: 2026-09-30 (bot cirugías → MedFiles).
+
+> **2026-09-30 — Bot de cirugías (brain_cx.py) migrado a MedFiles.** Ver §4bis. Las secciones
+> sobre rotación de asesoras, `leads_comerciales` y push CORE440 aplican al bot de cirugías solo
+> si se activa `CX_LEGACY_CRM=1`.
 
 ---
 
@@ -158,6 +162,45 @@ ASESORAS     = ['bibiana', 'sara', 'lucero']
 ASESORA_ENV  = {'bibiana': 'ASESORA_1', 'sara': 'ASESORA_2', 'lucero': 'ASESORA_3'}
 ASESORA_LABEL= {'bibiana': 'Bibiana',   'sara': 'Sara',      'lucero': 'Lucero'}
 ```
+
+---
+
+## 4bis. Bot de cirugías → MedFiles (desde 2026-09-30)
+
+Guion aprobado: `consultorio-app/docs/guion-bot-cirugias.md`. Prompt `CX_SYSTEM` reescrito (secciones 1–13).
+
+**Flujo:** bienvenida aprobada ("Centro de Atención del Dr. Giovanni Fuentes", asistente virtual del Dr. Gio,
+`#LAbelleza440`) → info del procedimiento (1ª vez completa/resumida, luego 3–4 líneas) → precio "desde" y
+financiación SOLO si preguntan (excepto pauta Mamoplastia todo incluido $18M, respuesta fija en Python) →
+el paciente escoge **1 Asesoría virtual gratuita** o **2 Valoración con el Dr.** (presencial $260.000 / virtual $160.000)
+→ pide nombre, ciudad, correo (+ modalidad) → cierre "¡Listo, [nombre]! … Ya eres parte de #LAbelleza440" + `<<<NOTIFY>>>`.
+Si no continúa: despedida con @drgiovannifuentes / www.drgio440.com, **sin lead**. El bot **no agenda**
+(tools `check_slots_cx`/`create_event_cx` desactivadas; `TOOLS_CX = []`). Sin calificación CALIENTE/TIBIO/FRÍO:
+todo interesado que deja datos va a la asesora.
+
+**NOTIFY nuevo:** `nombre, telefono, email, ciudad, procedimiento, interes (asesoria|valoracion|urgencia), modalidad, pauta, financiacion`.
+
+**`_notify_lead` (nuevo):**
+1. `POST {MEDFILES_URL}/api/entrada/bot` con header `X-Clave: MEDFILES_BOT_CLAVE` y body
+   `{nombre, telefono, email, ciudad, procedimiento, interes, modalidad, pauta, resumen}` (resumen = últimos ~20 mensajes
+   "Paciente: … / Bot: …", con notas de pauta/financiación). Respuesta `{ok, persona, negocio, nuevo, asesora}`.
+2. Aviso WhatsApp a `ASESORA_MEDFILES_TEL`: "🆕 Nuevo lead: … Revísalo en MedFiles → CRM." (si vacío, no se envía).
+3. Dedup 24 h: `_already_notified_cx` (ignora avisos de urgencia).
+4. `interes: urgencia` → solo aviso WhatsApp a la asesora, sin lead.
+5. Instagram (`canal=instagram_cx`): el sender es IGSID → se envía a MedFiles solo si el paciente dio su número de WhatsApp.
+
+**Pausa:** antes de responder (solo WhatsApp) `GET {MEDFILES_URL}/api/entrada/bot?telefono=<sender>` con `X-Clave`
+→ `{pausado:true}` = alguien del equipo ya escribió desde MedFiles → se guarda el entrante y el bot NO responde.
+Fail-open, timeout 3 s. (Se mantiene además el `bot_pausado` del CRM viejo.)
+
+**Env vars nuevas (brain_cx.py):**
+
+| Variable | Para qué |
+|---|---|
+| `MEDFILES_URL` | Base de MedFiles (default `https://medfiles.drgiovannifuentes.com`) |
+| `MEDFILES_BOT_CLAVE` | Clave del canal "bot" (header `X-Clave`). Sin ella: no se envían leads ni se consulta la pausa (solo log) |
+| `ASESORA_MEDFILES_TEL` | WhatsApp de la asesora única para el aviso de nuevo lead (opcional) |
+| `CX_LEGACY_CRM` | `1` re-activa el CRM viejo (`leads_comerciales` + push CORE440 + rotación + referidos). Default OFF |
 
 ---
 
