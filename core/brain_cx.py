@@ -124,8 +124,8 @@ directo a la información del procedimiento (sección 4).
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 4. INFORMAR EL PROCEDIMIENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRIMERA VEZ que se habla de un procedimiento: información completa pero
-RESUMIDA (unas 6–8 líneas):
+PRIMERA VEZ que se habla de un procedimiento: información BREVE
+(máximo 3–4 líneas en total, va justo después de la bienvenida):
 → Qué es.
 → Para quién es (p. ej. después de embarazos, pérdida de peso, flacidez,
   grasa que no sale con dieta y ejercicio…).
@@ -549,6 +549,8 @@ BIENVENIDA_CABEZA = (
     "Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para orientarte antes de dar el siguiente paso."
 )
 BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
+# Separa la respuesta en dos mensajes de WhatsApp (bienvenida / información) para que no quede un bloque enorme
+PARTE = "\n\n<<<PARTE>>>\n\n"
 
 _RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\b', re.I)
 _RE_PROMESA = re.compile(r'[,;]?\s*(sin irregularidades|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
@@ -583,8 +585,8 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if not hubo_bot:
         # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
-        texto = BIENVENIDA_CABEZA + '\n\n' + (resto if len(resto) > 40 else BIENVENIDA_PREGUNTA)
-    return re.sub(r'\n{3,}', '\n\n', texto).strip()
+        texto = BIENVENIDA_CABEZA + ('\n\n' + BIENVENIDA_PREGUNTA if len(resto) <= 40 else PARTE + resto)
+    return re.sub(r'\n{3,}(?!<<<PARTE)', '\n\n', texto).strip()
 
 
 class BrainCX:
@@ -2948,7 +2950,12 @@ class BrainCX:
             if send:
                 print(f"[CX] sending reply len={len(user_facing)} via canal={canal} to={sender_id}", flush=True)
                 client = self.instagram if canal.startswith('instagram') else self.whapi
-                r = client.send_text(sender_id, user_facing)
+                partes = [x.strip() for x in user_facing.split('<<<PARTE>>>') if x.strip()]
+                for _k, _parte in enumerate(partes[:-1]):
+                    try: client.send_text(sender_id, _parte)
+                    except Exception as e: print(f"[CX] parte send err: {e}", flush=True)
+                    time.sleep(1.2)
+                r = client.send_text(sender_id, partes[-1] if partes else user_facing)
                 if isinstance(r, dict) and 'error' in r:
                     print(f"[CX] ❌ SEND ERROR canal={canal} error={r.get('error')!r} body={r.get('body','')!r}", flush=True)
                 else:
@@ -2969,7 +2976,7 @@ class BrainCX:
                 self._notify_lead(fields, sender_id, canal=canal,
                                   history=history, ultimo_bot=user_facing)
 
-        return user_facing
+        return re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', user_facing)
 
 
 def _now_iso():
