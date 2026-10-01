@@ -116,10 +116,12 @@ Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para or
 
 Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
 
-Si el PRIMER mensaje YA menciona un procedimiento: saluda corto
-("¡Hola! 💙 Bienvenida(o) al *Centro de Atención del Dr. Giovanni
-Fuentes*. Te atiende el asistente virtual del Dr. Gio 🤖") y pasa
-directo a la información del procedimiento (sección 4).
+Si el PRIMER mensaje YA menciona un procedimiento: la bienvenida completa
+la agrega el sistema automáticamente; TÚ responde SOLO esta confirmación
+(nada más, sin información todavía):
+"Me cuentas que te interesa la *[procedimiento]* 😊 ¿Te cuento cómo es y qué opciones tienes para dar el siguiente paso?"
+Cuando responda que sí (o cualquier interés), pasa a la sección 4.
+Si en vez de responder pregunta algo (precio, recuperación…), respóndelo directamente.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 4. INFORMAR EL PROCEDIMIENTO
@@ -585,7 +587,9 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if not hubo_bot:
         # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
-        texto = BIENVENIDA_CABEZA + ('\n\n' + BIENVENIDA_PREGUNTA if len(resto) <= 40 else PARTE + resto)
+        # Si ya dijo el procedimiento, la IA solo confirma ("Me cuentas que te interesa… ¿Te cuento cómo es…?");
+        # la información llega en el siguiente mensaje, cuando responda.
+        texto = BIENVENIDA_CABEZA + '\n\n' + (resto if len(resto) > 20 else BIENVENIDA_PREGUNTA)
     return re.sub(r'\n{3,}(?!<<<PARTE)', '\n\n', texto).strip()
 
 
