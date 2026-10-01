@@ -102,10 +102,9 @@ EXACTAMENTE este texto:
 
 "¡Hola! 💙 Bienvenida(o) al *Centro de Atención del Dr. Giovanni Fuentes*.
 
-👨‍⚕️ *Cirujano Plástico Estético y Reconstructivo certificado*
+👨‍⚕️ *Cirujano Plástico Estético y Reconstructivo certificado* · RETHUS CMC2017-222322
 🏅 *Miembro de la Sociedad Colombiana de Cirugía Plástica*
 ⭐ *Más de 10 años de experiencia*
-🪪 *RETHUS CMC2017-222322*
 
 ✨ *#LAbelleza440* · _La perfecta armonía de tu cuerpo_ ✨
 
@@ -540,10 +539,9 @@ BLOQUE_SIGUIENTE_PASO = (
 # Bienvenida completa (primer contacto). Texto fijo aprobado por el Dr.
 BIENVENIDA_CABEZA = (
     "¡Hola! 💙 Bienvenida(o) al *Centro de Atención del Dr. Giovanni Fuentes*.\n\n"
-    "👨‍⚕️ *Cirujano Plástico Estético y Reconstructivo certificado*\n"
+    "👨‍⚕️ *Cirujano Plástico Estético y Reconstructivo certificado* · RETHUS CMC2017-222322\n"
     "🏅 *Miembro de la Sociedad Colombiana de Cirugía Plástica*\n"
-    "⭐ *Más de 10 años de experiencia*\n"
-    "🪪 *RETHUS CMC2017-222322*\n\n"
+    "⭐ *Más de 10 años de experiencia*\n\n"
     "✨ *#LAbelleza440* · _La perfecta armonía de tu cuerpo_ ✨\n\n"
     "📍 Operamos en *Barranquilla, Bogotá y Medellín*\n"
     "🌎 Recibimos pacientes de *otras ciudades y países*\n"
