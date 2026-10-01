@@ -105,6 +105,7 @@ EXACTAMENTE este texto:
 👨‍⚕️ *Cirujano Plástico Estético y Reconstructivo certificado*
 🏅 *Miembro de la Sociedad Colombiana de Cirugía Plástica*
 ⭐ *Más de 10 años de experiencia*
+🪪 *RETHUS CMC2017-222322*
 
 ✨ *#LAbelleza440* · _La perfecta armonía de tu cuerpo_ ✨
 
@@ -536,6 +537,21 @@ BLOQUE_SIGUIENTE_PASO = (
     "✅ *Valoración con el Dr. Gio* 👨‍⚕️\n"
     "Presencial *$260.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente."
 )
+# Bienvenida completa (primer contacto). Texto fijo aprobado por el Dr.
+BIENVENIDA_CABEZA = (
+    "¡Hola! 💙 Bienvenida(o) al *Centro de Atención del Dr. Giovanni Fuentes*.\n\n"
+    "👨‍⚕️ *Cirujano Plástico Estético y Reconstructivo certificado*\n"
+    "🏅 *Miembro de la Sociedad Colombiana de Cirugía Plástica*\n"
+    "⭐ *Más de 10 años de experiencia*\n"
+    "🪪 *RETHUS CMC2017-222322*\n\n"
+    "✨ *#LAbelleza440* · _La perfecta armonía de tu cuerpo_ ✨\n\n"
+    "📍 Operamos en *Barranquilla, Bogotá y Medellín*\n"
+    "🌎 Recibimos pacientes de *otras ciudades y países*\n"
+    "✈️ *Planes de turismo médico todo incluido*\n\n"
+    "Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para orientarte antes de dar el siguiente paso."
+)
+BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
+
 _RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\b', re.I)
 _RE_PROMESA = re.compile(r'[,;]?\s*(sin irregularidades|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
 
@@ -551,13 +567,12 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     hubo_bot = any(m.get('role') == 'assistant' for m in (history or []))
     previos = '\n'.join(m.get('content', '') for m in (history or []) if m.get('role') == 'assistant')
     lineas = texto.split('\n')
-    if hubo_bot:
-        # Quita saludos/bienvenidas repetidas al inicio
-        while lineas and re.search(r'(bienvenid|centro de atenci[oó]n|te atiende el asistente|te est[aá] atendiendo)', lineas[0], re.I):
-            lineas.pop(0)
-        while lineas and not lineas[0].strip():
-            lineas.pop(0)
+    # Quita el saludo/bienvenida que haya escrito la IA (la bienvenida la pone el código)
+    _RE_SALUDO = r'(bienvenid|centro de atenci[oó]n|te atiende el asistente|te est[aá] atendiendo|cirujano pl[aá]stico est[eé]tico|sociedad colombiana|a[nñ]os de experiencia|rethus|#labelleza440|operamos en|recibimos pacientes|turismo m[eé]dico todo incluido|^\s*¡?hola!?\s*💙?\s*$)'
+    while lineas and (not lineas[0].strip() or re.search(_RE_SALUDO, lineas[0], re.I)):
+        lineas.pop(0)
     texto = '\n'.join(lineas)
+    texto = re.sub(r'^\s*[-—_*]{3,}\s*$', '', texto, flags=re.M)   # separadores tipo "---"
     texto = _RE_PROMESA.sub('', texto)
     if not _RE_TECNO.search(mensaje_paciente or ''):
         # Elimina las frases que mencionan tecnologías si el paciente no preguntó por ellas
@@ -567,6 +582,10 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if ('pregunta o duda' in texto and 'Tu siguiente paso puede ser' not in texto
             and 'Tu siguiente paso puede ser' not in previos):
         texto = texto.rstrip() + '\n\n' + BLOQUE_SIGUIENTE_PASO
+    if not hubo_bot:
+        # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
+        resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
+        texto = BIENVENIDA_CABEZA + '\n\n' + (resto if len(resto) > 40 else BIENVENIDA_PREGUNTA)
     return re.sub(r'\n{3,}', '\n\n', texto).strip()
 
 
