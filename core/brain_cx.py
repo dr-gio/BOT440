@@ -2987,6 +2987,27 @@ class BrainCX:
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
         user_facing = ajustar_respuesta_cx(user_facing, history, text)
+        # Despedida fija cuando deja sus datos (texto aprobado por el Dr.)
+        if match:
+            try:
+                _f = self._parse_notify(match.group(1)) or {}
+            except Exception:
+                _f = {}
+            _int = (_f.get('interes') or '').strip().lower()
+            if _int in ('asesoria', 'asesoría', 'valoracion', 'valoración'):
+                _nom = ((_f.get('nombre') or '').strip().split() or [''])[0].capitalize()
+                _ciu = (_f.get('ciudad') or '').strip()
+                _mod = (_f.get('modalidad') or '').strip().lower()
+                _que = ('*asesoría virtual gratuita*' if _int.startswith('asesor')
+                        else f"*valoración {_mod + ' ' if _mod in ('presencial', 'virtual') else ''}con el Dr. Gio*")
+                user_facing = (f"¡Listo{', ' + _nom if _nom else ''}! 💙 En cuanto nuestra asesora esté disponible, "
+                               f"*te contactará por aquí* para agendar tu {_que} 😊")
+                if _ciu and not re.search(r'barranquilla|soledad|puerto colombia|malambo', _ciu, re.I):
+                    user_facing += ("\n\nComo nos escribes desde *" + _ciu.title() + "*, te contará también sobre nuestros "
+                                    "*planes de turismo médico todo incluido* ✈️")
+                user_facing += ("\n\nMientras tanto, conoce *resultados reales y testimonios* del Dr. Gio:\n"
+                                "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n"
+                                "*Ya eres parte de #LAbelleza440* ✨")
 
         # FALLBACK: si se emitió un NOTIFY pero el texto visible quedó vacío/corto
         # (Haiku a veces manda solo el bloque NOTIFY), garantizar el cierre al lead.
