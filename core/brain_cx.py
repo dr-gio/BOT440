@@ -1810,7 +1810,7 @@ class BrainCX:
 
     @staticmethod
     def _resumen_conversacion(history, ultimo_bot='', n=20):
-        """Últimos ~n mensajes como texto plano 'Paciente: … / Bot: …'
+        """Mensajes de la paciente (últimos ~n) como lista
         (sin bloques NOTIFY/SLOTS ni el prefijo [tel|nombre])."""
         lineas = []
         msgs = list(history or [])
@@ -1826,9 +1826,11 @@ class BrainCX:
             c = c.strip()
             if not c:
                 continue
-            quien = 'Bot' if m.get('role') == 'assistant' else 'Paciente'
-            lineas.append(f"{quien}: {c}")
-        return '\n'.join(lineas)[-3900:]
+            # Solo lo que escribió la paciente: los mensajes del bot son fijos y largos (la asesora ya los conoce)
+            if m.get('role') == 'assistant':
+                continue
+            lineas.append(f"• {c}")
+        return ('Lo que escribió la paciente:\n' + '\n'.join(lineas))[-3900:] if lineas else ''
 
     @staticmethod
     def _pauta_from_history(history, text=''):
