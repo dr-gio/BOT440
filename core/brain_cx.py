@@ -116,11 +116,9 @@ Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para or
 
 Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
 
-Si el PRIMER mensaje YA menciona un procedimiento: la bienvenida completa
-la agrega el sistema automáticamente; TÚ responde SOLO esta confirmación
-(nada más, sin información todavía):
-"Me cuentas que te interesa la *[procedimiento]* 😊 ¿Te cuento cómo es y qué opciones tienes para dar el siguiente paso?"
-Cuando responda que sí (o cualquier interés), pasa a la sección 4.
+Si el PRIMER mensaje YA menciona un procedimiento: la bienvenida la agrega el
+sistema; tú da la información del procedimiento (sección 4). Nunca escribas
+frases como "Me cuentas que te interesa…".
 Si en vez de responder pregunta algo (precio, recuperación…), respóndelo directamente.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -580,6 +578,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     texto = '\n'.join(lineas)
     texto = re.sub(r'^\s*[-—_*]{3,}\s*$', '', texto, flags=re.M)   # separadores tipo "---"
     texto = _RE_PROMESA.sub('', texto)
+    texto = re.sub(r'\bes (perfect[ao]|ideal|lo mejor) para ti\b', 'puede ser una excelente opción', texto, flags=re.I)
     if not _RE_TECNO.search(mensaje_paciente or ''):
         # Elimina las frases que mencionan tecnologías si el paciente no preguntó por ellas
         partes = re.split(r'(?<=[.!?])\s+', texto)
@@ -609,7 +608,15 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
         # Si ya dijo el procedimiento, la IA solo confirma ("Me cuentas que te interesa… ¿Te cuento cómo es…?");
         # la información llega en el siguiente mensaje, cuando responda.
-        texto = BIENVENIDA_CABEZA + '\n\n' + (resto if len(resto) > 20 else BIENVENIDA_PREGUNTA)
+        proc = None
+        if len(resto) > 40:
+            m = re.search(r'\*([^*\n]{4,60})\*', resto)   # primer término en negrita = el procedimiento
+            proc = m.group(1).strip() if m and not re.search(r'pregunta|duda|asesor|valoraci|dr\.? gio', m.group(1), re.I) else None
+        if proc:
+            texto = (BIENVENIDA_CABEZA + '\n\n'
+                     f"Me cuentas que te interesa la *{proc}* 😊 ¿Te cuento cómo es y qué opciones tienes para dar el siguiente paso?")
+        else:
+            texto = BIENVENIDA_CABEZA + '\n\n' + (resto if len(resto) > 20 else BIENVENIDA_PREGUNTA)
     return re.sub(r'\n{3,}(?!<<<PARTE)', '\n\n', texto).strip()
 
 
@@ -2986,7 +2993,12 @@ class BrainCX:
                     print(f"[CX] ✅ send_text OK result={r}", flush=True)
             else:
                 print(f"[CX] send=False — reply delegado al caller len={len(user_facing)}", flush=True)
-            self._save_message(sender_id, sender_name, full_response, 'saliente', 'bot', canal=canal)
+            # Se guarda lo que vio el paciente (bienvenida/bloques fijos incluidos) + el bloque NOTIFY interno,
+            # así el historial que lee la IA en el siguiente mensaje coincide con la conversación real.
+            _guardado = re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', user_facing)
+            if match:
+                _guardado += '\n\n<<<NOTIFY>>>' + match.group(1) + '<<<END>>>'
+            self._save_message(sender_id, sender_name, _guardado, 'saliente', 'bot', canal=canal)
 
         if notify:
             fields = self._parse_notify(notify)
