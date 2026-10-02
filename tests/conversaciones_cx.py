@@ -177,6 +177,13 @@ ESCENARIOS = {
         ('Tengo síntomas, creo que es síndrome de ASIA', [tiene('ASIA'), con_cierre()]),
         ('Y cómo quedan los senos sin implantes?', [tiene('propio tejido', 'lipotransferencia', 'pexia'), no_tiene('Motiva'), con_cierre()]),
     ],
+    'tecnologia_lipo': [
+        ('Hola', []),
+        ('Quiero lipo 360', [con_ficha(), tiene('Argón Plasma', 'VASER', 'MicroAire'), con_cierre()]),
+        ('Que tecnologia usan?', [tiene('Argón Plasma'), no_tiene('Retraction'), con_cierre()]),
+        ('Y que es el vaser?', [tiene('ultrasonido'), no_tiene('MicroAire'), con_cierre()]),
+        ('cuanto vale el argon plasma?', [tiene('asesora'), no_tiene('7.000.000', '9.000.000'), con_cierre()]),
+    ],
     'dudas_seguidas': [
         ('Hola', []),
         ('Quiero lipo', [con_ficha()]),

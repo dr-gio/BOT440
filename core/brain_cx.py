@@ -373,8 +373,10 @@ más de 10 años de experiencia, miembro de la Sociedad Colombiana de
 Cirugía Plástica. Si piden verificar credenciales: ReTHUS en
 web.sispro.gov.co → Consulta pública de Talento Humano en Salud →
 Cédula 72.248.179 (Giovanni Fuentes).
-Tecnologías (solo si preguntan): VASER, MicroAire, RETRACTION®, J Plasma,
-Argón Plasma. La combinación ideal la define el Dr. en la valoración.
+Tecnologías: la lipoescultura 360 se realiza con tecnología. *Argón Plasma* es la que
+más usa el Dr. (retracción de la piel); también J Plasma, VASER y MicroAire. Retraction
+la usa poco, en casos puntuales. La combinación ideal la define el Dr. en la valoración.
+El valor de la tecnología lo explica la asesora (no des precios de tecnologías).
 
 CLÍNICAS DONDE OPERA (solo si preguntan):
 • Barranquilla: Clínica del Caribe, Clínica Diamante, Doral Medical, Iberoamericana
@@ -631,9 +633,16 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     texto = re.sub(r'\bes (perfect[ao]|lo mejor) para ti\b', 'puede ser una excelente opción', texto, flags=re.I)
     if not _RE_TECNO.search(mensaje_paciente or ''):
         # Elimina las frases que mencionan tecnologías si el paciente no preguntó por ellas
-        partes = re.split(r'(?<=[.!?])\s+', texto)
-        texto = ' '.join(p for p in partes if not _RE_TECNO.search(p)) if any(_RE_TECNO.search(p) for p in partes) else texto
-        texto = re.sub(r' (?=\n)', '', texto)
+        # (línea por línea; las líneas 🔬 de las fichas aprobadas se respetan)
+        nuevas = []
+        for linea in texto.split('\n'):
+            if '🔬' in linea or not _RE_TECNO.search(linea):
+                nuevas.append(linea)
+                continue
+            frases = [f for f in re.split(r'(?<=[.!?])\s+', linea) if not _RE_TECNO.search(f)]
+            if frases:
+                nuevas.append(' '.join(frases))
+        texto = '\n'.join(nuevas)
     if ('pregunta o duda' in texto and 'Tu siguiente paso puede ser' not in texto
             and 'Tu siguiente paso puede ser' not in previos):
         texto = texto.rstrip() + '\n\n' + BLOQUE_SIGUIENTE_PASO

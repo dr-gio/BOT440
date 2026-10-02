@@ -45,6 +45,15 @@ SENOS_TEMAS = {
     'via': "✂️ El implante entra por el *surco* debajo del seno (la cicatriz queda escondida) o por el *borde de la areola*.",
     'tamano': "📏 El Dr. escoge el *perfil, tamaño y volumen* del implante según tu anatomía y lo que buscas.",
     'recuperacion': "⏱️ Con implantes retomas actividades suaves en *1 semana*, con sostén postquirúrgico.",
+    'tecno_general': ("🔬 La *lipoescultura 360* se realiza con *tecnología*. La que más usa el Dr. Gio es *Argón Plasma*, "
+                      "que ayuda a la *retracción de la piel*; también usa *J Plasma*, *VASER* y *MicroAire*. "
+                      "La combinación ideal la define el Dr. según tu caso."),
+    'argon': "🔬 *Argón Plasma* es la tecnología que más usa el Dr. Gio: energía de plasma que ayuda a la *retracción y firmeza de la piel* después de la lipo.",
+    'jplasma': "🔬 *J Plasma* usa plasma frío para *tensar la piel desde adentro* y mejorar la firmeza.",
+    'vaser': "🔬 *VASER* usa *ultrasonido* para *emulsionar la grasa* y retirarla con menos trauma, ayudando a *definir* la silueta.",
+    'microaire': "🔬 *MicroAire* es una cánula con *vibración* que permite retirar la grasa de forma más *uniforme* y precisa.",
+    'retraction': "🔬 *Retraction* es un láser que estimula la *retracción de la piel*; el Dr. lo usa en *casos puntuales*.",
+    'tecno_precio': "💰 El valor de la tecnología depende de tu caso; nuestra *asesora experta* te lo explica en tu *asesoría virtual gratuita*.",
     'asia': ("🩺 Algunas pacientes consultan por síntomas que relacionan con sus implantes, como *cansancio*, *dolores articulares* "
              "o *molestias generales*; es lo que se conoce como *síndrome de ASIA* o enfermedad del implante mamario. "
              "El Dr. Gio evalúa tu caso y si está indicado *retirarlos (explantación)*."),
@@ -151,6 +160,17 @@ def decidir_paso(history, texto):
     contexto_senos = re.search(r'seno|busto|mama|pexia|levant|reducc|implante|pr[oó]tesis', t + '\n' + '\n'.join(bots[-2:]), re.I)
     pregunta_info = _es_pregunta(t) or re.search(r'\b(t[eé]cnicas?|marcas?|expl[ií]ca)', t, re.I)
     info = []
+    # Tecnologías de la lipo: solo lo que pregunta
+    tecno = []
+    if re.search(r'argo[nń]|arg[oó]n', t, re.I): tecno.append('argon')
+    if re.search(r'j\s?plasma|renuvion', t, re.I): tecno.append('jplasma')
+    if re.search(r'vaser', t, re.I): tecno.append('vaser')
+    if re.search(r'micro\s?aire', t, re.I): tecno.append('microaire')
+    if re.search(r'retraction', t, re.I): tecno.append('retraction')
+    if not tecno and re.search(r'tecnolog', t, re.I): tecno.append('tecno_general')
+    if tecno and re.search(r'cu[aá]nto|precio|valor|cuesta|vale', t, re.I): tecno.append('tecno_precio')
+    if tecno:
+        return {'paso': 'info_senos', 'temas': tecno}
     contexto_explant = re.search(r'explant|retir\w* (los |mis )?implantes|sacar (los |mis )?implantes|asia|enfermedad del implante', t + '\n' + '\n'.join(bots[-2:]), re.I)
     if contexto_explant and (pregunta_info or re.search(r'asia|s[ií]ntomas', t, re.I)):
         if re.search(r'asia|enfermedad del implante|\bbii\b|s[ií]ntoma|autoinmun|cansancio|enferm', t, re.I): info.append('asia')

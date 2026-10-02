@@ -3,8 +3,10 @@
 _PIE = "👨‍⚕️ La realiza el Dr. Gio con *anestesiólogo* y en *clínica certificada*"
 
 
-def _ficha(titulo, que_es, ideal, combina, recuperacion):
+def _ficha(titulo, que_es, ideal, combina, recuperacion, tecnologia=None):
     txt = f"{que_es} ✨\n\nPor lo general es ideal para ti si:\n" + "\n".join(f"✅ {x}" for x in ideal)
+    if tecnologia:
+        txt += f"\n\n🔬 {tecnologia}"
     if combina:
         txt += f"\n\n🔗 {combina}"
     return txt + f"\n\n⏱️ *Recuperación:* {recuperacion}\n{_PIE}"
@@ -34,7 +36,8 @@ FICHAS = {
          "Tienes *buena elasticidad de piel*",
          "Estás *cerca de tu peso ideal*"],
         "Se puede *combinar* con *lipotransferencia glútea* (tu propia grasa para dar volumen a los glúteos) y, si hay piel sobrante en el abdomen, con *abdominoplastia*.",
-        "actividades suaves en *1 a 2 semanas* con faja y drenajes"),
+        "actividades suaves en *1 a 2 semanas* con faja y drenajes",
+        "Se realiza con *tecnología*: *Argón Plasma*, la que más usa el Dr. Gio para ayudar a la *retracción de la piel*, y también *J Plasma*, *VASER* y *MicroAire*, según tu caso."),
     'lipotransferencia': _ficha('Lipotransferencia glútea',
         "La *lipotransferencia glútea* usa *tu propia grasa*, obtenida con lipoescultura, para dar *volumen y forma* a los glúteos de manera *natural*",
         ["Quieres *más volumen o proyección* en los glúteos",
