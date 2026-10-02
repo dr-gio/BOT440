@@ -2274,7 +2274,8 @@ class BrainCX:
         # ── BOT PAUSADO (CRM viejo): guardar entrante y salir sin responder ─
         # Si la asesora marcó este lead como pausado desde el CRM, NO
         # invocamos a Claude ni respondemos — solo registramos el mensaje.
-        _lead_pause = self._check_lead_crm(sender_id)
+        # Con MedFiles como CRM, la pausa vieja ya no aplica (solo si CX_LEGACY_CRM=1).
+        _lead_pause = self._check_lead_crm(sender_id) if _LEGACY_CRM else None
         if _lead_pause and _lead_pause.get('bot_pausado'):
             print(f"[CX] bot_pausado=True para {sender_id} — solo guardar entrante", flush=True)
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
