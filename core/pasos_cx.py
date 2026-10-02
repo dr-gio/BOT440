@@ -72,7 +72,7 @@ CICATRICES_SENOS = ("¡Claro! 💙 En el *levantamiento (pexia)* y la *reducció
 
 VERIFICAR = ("¡Sí! 💙 El *Dr. Giovanni Fuentes* es *Cirujano Plástico, Estético y Reconstructivo certificado* "
              "y *Miembro de la Sociedad Colombiana de Cirugía Plástica* 🏅\n\n"
-             "Puedes verificarlo tú misma:\n\n"
+             "Puedes verificarlo aquí:\n\n"
              "🏅 *Sociedad Colombiana de Cirugía Plástica*\n"
              "https://cirugiaplastica.org.co/buscar-cirujano/\n"
              "Elige la ciudad *Barranquilla* y toca *Buscar*: aparece *Giovanni Fuentes*.\n\n"
