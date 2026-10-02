@@ -168,7 +168,8 @@ ESCENARIOS = {
         ('Hola', []),
         ('Quiero levantamiento de senos', [con_ficha(), tiene('Pexia')]),
         ('Que tecnicas usan? me preocupa la cicatriz en el escote', [tiene('En L', 'T invertida', 'Periareolar', 'Vertical'), con_cierre()]),
-        ('Y que marca de implantes usan?', [tiene('Motiva', 'Preservé', 'Silimed'), con_cierre()]),
+        ('Y que marca de implantes usan?', [tiene('Motiva', 'Silimed'), no_tiene('Preservé', 'Plano', 'surco'), con_cierre()]),
+        ('que es preserve?', [tiene('Preservé'), no_tiene('Silimed'), con_cierre()]),
     ],
     'dudas_seguidas': [
         ('Hola', []),

@@ -35,15 +35,17 @@ TURISMO = ("¡Claro! 💙 Nuestros *planes de turismo médico todo incluido* te 
            "*hospedaje* en recovery house u hotel, *alimentación*, *enfermería* y más ✈️\n\n"
            "Nuestra *asesora experta* te explica el plan completo en tu *asesoría virtual gratuita* 😊")
 
-IMPLANTES = ("¡Claro! 💙 Te cuento sobre los *implantes mamarios*:\n\n"
-             "🏷️ *Marcas:* trabajamos con *Motiva*, *Silimed* y *Eurosilicone*, marcas reconocidas a nivel mundial.\n"
-             "✨ *Técnica Motiva Preservé:* aumento *mínimamente invasivo* que *preserva tus tejidos*, con una *incisión pequeña*, "
-             "menos inflamación y una *recuperación más rápida*.\n"
-             "📐 *Plano del implante:* puede ir *sobre el músculo* (subglandular o subfascial) o *detrás del músculo* "
-             "(submuscular o dual plane), según tu tejido y el resultado que buscas.\n"
-             "✂️ *Vía de entrada:* por el *surco* debajo del seno (la cicatriz queda escondida) o por el *borde de la areola*.\n"
-             "📏 El Dr. escoge el *perfil, tamaño y volumen* ideales para tu anatomía.\n"
-             "⏱️ *Recuperación:* actividades suaves en *1 semana*, con sostén postquirúrgico.")
+# Respuestas cortas por tema (si pregunta la marca, solo la marca; si pregunta la técnica, solo la técnica)
+SENOS_TEMAS = {
+    'marca': "🏷️ Trabajamos con implantes *Motiva*, *Silimed* y *Eurosilicone*, marcas reconocidas a nivel mundial.",
+    'preserve': ("✨ La técnica *Motiva Preservé* es un aumento *mínimamente invasivo* que *preserva tus tejidos*: "
+                 "*incisión pequeña*, menos inflamación y *recuperación más rápida*."),
+    'plano': ("📐 El implante puede ir *sobre el músculo* (subglandular o subfascial) o *detrás del músculo* "
+              "(submuscular o dual plane); el Dr. elige según tu tejido y el resultado que buscas."),
+    'via': "✂️ El implante entra por el *surco* debajo del seno (la cicatriz queda escondida) o por el *borde de la areola*.",
+    'tamano': "📏 El Dr. escoge el *perfil, tamaño y volumen* del implante según tu anatomía y lo que buscas.",
+    'recuperacion': "⏱️ Con implantes retomas actividades suaves en *1 semana*, con sostén postquirúrgico.",
+}
 
 CICATRICES_SENOS = ("¡Claro! 💙 En el *levantamiento (pexia)* y la *reducción* la técnica depende de cada caso, "
                     "buscando siempre *la menor cicatriz posible*:\n\n"
@@ -139,14 +141,20 @@ def decidir_paso(history, texto):
         return {'paso': 'elige'}
     if re.search(r'turismo|hospedaje|alojamiento|recovery|hotel|d[oó]nde me (quedo|hospedo)|vengo de (otra|otro|fuera)', t, re.I):
         return {'paso': 'turismo'}
-    # Preguntas técnicas de senos: implantes (marcas, Preservé, plano, vía) y cicatrices (pexia/reducción)
+    # Preguntas técnicas de senos: se responde SOLO el tema preguntado (marca, Preservé, plano, vía, tamaño, cicatrices)
     contexto_senos = re.search(r'seno|busto|mama|pexia|levant|reducc|implante|pr[oó]tesis', t + '\n' + '\n'.join(bots[-2:]), re.I)
     pregunta_info = _es_pregunta(t) or re.search(r'\b(t[eé]cnicas?|marcas?|expl[ií]ca)', t, re.I)
     info = []
-    if pregunta_info and re.search(r'marca|pr[oó]tesis|implante|preserv|motiva|silimed|eurosilicone|plano|submuscular|dual', t, re.I):
-        info.append('implantes')
-    if pregunta_info and contexto_senos and re.search(r't[eé]cnica|cicatri|incisi[oó]n|corte|escote|\ben (l|t)\b|periareolar|vertical', t, re.I):
-        info.append('cicatrices')
+    if pregunta_info and contexto_senos:
+        if re.search(r'marca|motiva|silimed|eurosilicone', t, re.I): info.append('marca')
+        if re.search(r'preserv', t, re.I): info.append('preserve')
+        if re.search(r'plano|m[uú]sculo|submuscular|subglandular|subfascial|dual', t, re.I): info.append('plano')
+        if re.search(r'v[ií]a|por d[oó]nde (entra|meten|ponen)|entrada', t, re.I): info.append('via')
+        if re.search(r'tama[ñn]o|\bcc\b|perfil|qu[eé] tan grande', t, re.I): info.append('tamano')
+        if re.search(r't[eé]cnica|cicatri|incisi[oó]n|corte|escote|\ben (l|t)\b|periareolar|vertical', t, re.I):
+            pexia = re.search(r'pexia|levant|reducc|ca[ií]d', t + '\n' + '\n'.join(bots[-2:]), re.I)
+            info.append('cicatrices' if pexia else 'preserve')
+        info = list(dict.fromkeys(info))
     if info:
         return {'paso': 'info_senos', 'temas': info}
     if MARCA_ORIENTAR in ultimo and not _es_pregunta(t):
@@ -233,10 +241,9 @@ def aplicar_paso(texto, paso, history, mensaje):
     if p == 'turismo':
         return TURISMO + '\n\n' + CIERRE_DUDAS
     if p == 'info_senos':
-        partes = [IMPLANTES if x == 'implantes' else CICATRICES_SENOS for x in paso['temas']]
-        if len(partes) == 2:
-            partes[1] = partes[1].replace('¡Claro! 💙 ', '')
-        return '\n\n'.join(partes) + '\n\n' + FRASE_ASESORA + '\n\n' + CIERRE_DUDAS
+        temas = paso['temas']
+        partes = [CICATRICES_SENOS.replace('¡Claro! 💙 ', '') if x == 'cicatrices' else SENOS_TEMAS[x] for x in temas]
+        return '¡Claro! 💙\n\n' + '\n'.join(partes) + '\n\n' + CIERRE_DUDAS
     if p not in ('recomendar', 'procedimiento', 'duda'):
         return texto
     # Mensajes que tienen su propio cierre aprobado: no se tocan
