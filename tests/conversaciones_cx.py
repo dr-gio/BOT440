@@ -124,8 +124,8 @@ ESCENARIOS = {
         ('Hola', []),
         ('Quiero lipo', [con_ficha()]),
         ('Valoración', [pide_datos()]),
-        ('El pertenece a la sociedad de cirujanos?', [tiene('Sociedad Colombiana', 'Nombre completo'), no_tiene('Excelente decisión')]),
-        ('El Dr es certificado?', [tiene('RETHUS'), no_tiene('Excelente decisión')]),
+        ('El pertenece a la sociedad de cirujanos?', [tiene('cirugiaplastica.org.co', 'web.sispro.gov.co', 'Nombre completo'), no_tiene('Excelente decisión'), sin_cierre()]),
+        ('El Dr es certificado?', [tiene('RETHUS', '72248179'), no_tiene('Excelente decisión')]),
         ('Juan Pérez\nBogotá\njuan@gmail.com\nlipo', [tiene('drgio440.com')]),
     ],
     'valoracion_virtual': [
@@ -158,7 +158,7 @@ ESCENARIOS = {
         ('Hola', []),
         ('Quiero abdominoplastia', [con_ficha()]),
         ('Tienes plan de turismo médico?', [tiene('recovery house', 'alimentación', 'enfermería'), con_cierre()]),
-        ('El doctor pertenece a la sociedad colombiana de cirugia plastica?', [tiene('Sociedad Colombiana'), con_cierre()]),
+        ('El doctor pertenece a la sociedad colombiana de cirugia plastica?', [tiene('Sociedad Colombiana', 'cirugiaplastica.org.co'), con_cierre()]),
         ('Donde operan?', [tiene('Barranquilla'), con_cierre()]),
     ],
     'pauta_mamoplastia': [

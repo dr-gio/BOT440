@@ -70,6 +70,20 @@ CICATRICES_SENOS = ("¡Claro! 💙 En el *levantamiento (pexia)* y la *reducció
                     "⊥ *En T invertida:* alrededor de la areola, vertical y en el *surco*. Para descensos grandes o reducciones de mucho volumen.\n\n"
                     "Si además quieres más volumen, la pexia se hace *con implantes*.")
 
+VERIFICAR = ("¡Sí! 💙 El *Dr. Giovanni Fuentes* es *Cirujano Plástico, Estético y Reconstructivo certificado* "
+             "y *Miembro de la Sociedad Colombiana de Cirugía Plástica* 🏅\n\n"
+             "Puedes verificarlo tú misma:\n\n"
+             "🏅 *Sociedad Colombiana de Cirugía Plástica*\n"
+             "https://cirugiaplastica.org.co/buscar-cirujano/\n"
+             "Elige la ciudad *Barranquilla* y toca *Buscar*: aparece *Giovanni Fuentes*.\n\n"
+             "🪪 *RETHUS — Ministerio de Salud* (registro oficial de profesionales de la salud)\n"
+             "https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx\n"
+             "En *Tipo de identificación* elige *Cédula de Ciudadanía*, escribe *72248179*, completa el código de la imagen "
+             "y toca *Consultar*: aparece como especialista en *Cirugía Plástica* (RETHUS CMC2017-222322).")
+
+RECORDAR_DATOS = ("Cuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
+                  "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*")
+
 FRASE_ASESORA = ("En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta "
                  "según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️")
 
@@ -150,6 +164,9 @@ def decidir_paso(history, texto):
     if not bots:
         return {'paso': 'bienvenida'}
     ultimo = bots[-1]
+    if re.search(r'sociedad|certificad|rethus|verific|registrad|avalad|es (cirujano|especialista|pl[aá]stico)|t[ií]tulo|idoneidad|es real', t, re.I):
+        return {'paso': 'verificar', 'datos_pendientes': bool(re.search(r'nombre completo', ultimo, re.I))
+                and not re.search(r'drgio440\.com', ultimo, re.I)}
     if re.search(r'nombre completo', ultimo, re.I) and not re.search(r'drgio440\.com', ultimo, re.I):
         return {'paso': 'datos'}
     if _es_eleccion(t):
@@ -269,6 +286,8 @@ def aplicar_paso(texto, paso, history, mensaje):
     p = paso.get('paso')
     if p == 'orientar':
         return ORIENTAR[paso['zona']]
+    if p == 'verificar':
+        return VERIFICAR + '\n\n' + (RECORDAR_DATOS if paso.get('datos_pendientes') else CIERRE_DUDAS)
     if p == 'turismo':
         return TURISMO + '\n\n' + CIERRE_DUDAS
     if p == 'info_senos':
