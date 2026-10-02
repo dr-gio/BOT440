@@ -359,6 +359,11 @@ SENOS (datos del Dr.):
   aumento mínimamente invasivo que preserva los tejidos, incisión pequeña, recuperación más rápida.
   Plano: sobre el músculo (subglandular/subfascial) o detrás (submuscular/dual plane) según el caso.
   Vía: surco submamario o borde de la areola. Perfil, tamaño y volumen según la anatomía.
+• Explantación: retira los implantes (y la cápsula si es necesario); el seno se reconstruye con su
+  propio tejido, SIN implantes; se complementa con lipotransferencia de grasa y a veces pexia (técnicas
+  periareolar, vertical, en L o en T). Muchas consultan por síntomas que asocian a los implantes
+  (síndrome de ASIA / enfermedad del implante mamario): el Dr. evalúa si está indicado retirarlos.
+  No prometas que los síntomas desaparecerán.
 • Pexia y reducción — cicatriz según el caso, buscando la menor posible: periareolar (descensos
   leves), vertical (moderados), en L (sin cicatriz hacia el escote), en T invertida (descensos
   grandes o reducciones de mucho volumen).
@@ -584,7 +589,7 @@ BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gus
 PARTE = "\n\n<<<PARTE>>>\n\n"
 
 _RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\b', re.I)
-_RE_PROMESA = re.compile(r'[,;]?\s*(sin (dejar )?irregularidades|de forma natural y sin [^.,\n]*|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
+_RE_PROMESA = re.compile(r'[,;]?\s*(con (excelentes|los mejores) resultados|sin (dejar )?irregularidades|de forma natural y sin [^.,\n]*|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
 
 
 def ajustar_respuesta_cx(texto, history, mensaje_paciente):

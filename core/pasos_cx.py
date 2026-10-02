@@ -45,6 +45,12 @@ SENOS_TEMAS = {
     'via': "✂️ El implante entra por el *surco* debajo del seno (la cicatriz queda escondida) o por el *borde de la areola*.",
     'tamano': "📏 El Dr. escoge el *perfil, tamaño y volumen* del implante según tu anatomía y lo que buscas.",
     'recuperacion': "⏱️ Con implantes retomas actividades suaves en *1 semana*, con sostén postquirúrgico.",
+    'asia': ("🩺 Algunas pacientes consultan por síntomas que relacionan con sus implantes, como *cansancio*, *dolores articulares* "
+             "o *molestias generales*; es lo que se conoce como *síndrome de ASIA* o enfermedad del implante mamario. "
+             "El Dr. Gio evalúa tu caso y si está indicado *retirarlos (explantación)*."),
+    'reconstruccion': ("🌸 En la explantación el seno se *reconstruye con tu propio tejido*, *sin implantes*. Se puede complementar con "
+                       "*lipotransferencia de grasa* para dar volumen y, a veces, se requiere *pexia* (levantamiento) con la técnica "
+                       "que corresponda a tu caso: *periareolar*, *vertical*, *en L* o *en T*."),
 }
 
 CICATRICES_SENOS = ("¡Claro! 💙 En el *levantamiento (pexia)* y la *reducción* la técnica depende de cada caso, "
@@ -67,7 +73,7 @@ _CLAVES = [
     (r'abdominoplast|abdomino\b|cirug[ií]a de abdomen', 'abdominoplastia'),
     (r'lipotransfer|\bbbl\b|gl[uú]teos? con (mi )?(propia )?grasa', 'lipotransferencia'),
     (r'gluteoplastia|implantes? de gl[uú]te', 'gluteoplastia_implante'),
-    (r'explant|retir(ar|o) (los )?implantes', 'explantacion'),
+    (r'explant|(retir|sac|quit)\w* (los |mis )?(implantes|pr[oó]tesis)', 'explantacion'),
     (r'reducci[oó]n (de senos|mamaria)|mamoplastia de reducci|reducir (los )?senos', 'reduccion'),
     (r'pexia|levantamiento de senos|levantar (los )?senos|senos ca[ií]dos', 'pexia'),
     (r'aumento de senos|mamoplastia( de aumento)?|implantes? mamari|implantes? de senos|aumentar (los )?senos', 'mamoplastia_aumento'),
@@ -145,7 +151,12 @@ def decidir_paso(history, texto):
     contexto_senos = re.search(r'seno|busto|mama|pexia|levant|reducc|implante|pr[oó]tesis', t + '\n' + '\n'.join(bots[-2:]), re.I)
     pregunta_info = _es_pregunta(t) or re.search(r'\b(t[eé]cnicas?|marcas?|expl[ií]ca)', t, re.I)
     info = []
-    if pregunta_info and contexto_senos:
+    contexto_explant = re.search(r'explant|retir\w* (los |mis )?implantes|sacar (los |mis )?implantes|asia|enfermedad del implante', t + '\n' + '\n'.join(bots[-2:]), re.I)
+    if contexto_explant and (pregunta_info or re.search(r'asia|s[ií]ntomas', t, re.I)):
+        if re.search(r'asia|enfermedad del implante|\bbii\b|s[ií]ntoma|autoinmun|cansancio|enferm', t, re.I): info.append('asia')
+        if re.search(r'c[oó]mo (queda|quedan)|reconstru|sin implante|vac[ií]o|ca[ií]d|volumen|grasa|lipotransfer|pexia|t[eé]cnica|cicatri|forma', t, re.I):
+            info.append('reconstruccion')
+    elif pregunta_info and contexto_senos:
         if re.search(r'marca|motiva|silimed|eurosilicone', t, re.I): info.append('marca')
         if re.search(r'preserv', t, re.I): info.append('preserve')
         if re.search(r'plano|m[uú]sculo|submuscular|subglandular|subfascial|dual', t, re.I): info.append('plano')

@@ -171,6 +171,12 @@ ESCENARIOS = {
         ('Y que marca de implantes usan?', [tiene('Motiva', 'Silimed'), no_tiene('Preservé', 'Plano', 'surco'), con_cierre()]),
         ('que es preserve?', [tiene('Preservé'), no_tiene('Silimed'), con_cierre()]),
     ],
+    'explantacion': [
+        ('Hola', []),
+        ('Quiero sacarme los implantes', [con_ficha(), tiene('propio tejido'), con_cierre()]),
+        ('Tengo síntomas, creo que es síndrome de ASIA', [tiene('ASIA'), con_cierre()]),
+        ('Y cómo quedan los senos sin implantes?', [tiene('propio tejido', 'lipotransferencia', 'pexia'), no_tiene('Motiva'), con_cierre()]),
+    ],
     'dudas_seguidas': [
         ('Hola', []),
         ('Quiero lipo', [con_ficha()]),
