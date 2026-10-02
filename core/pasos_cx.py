@@ -51,7 +51,7 @@ _CLAVES = [
     (r'reducci[oó]n (de senos|mamaria)|mamoplastia de reducci|reducir (los )?senos', 'reduccion'),
     (r'pexia|levantamiento de senos|levantar (los )?senos|senos ca[ií]dos', 'pexia'),
     (r'aumento de senos|mamoplastia( de aumento)?|implantes? mamari|implantes? de senos|aumentar (los )?senos', 'mamoplastia_aumento'),
-    (r'ginecomast', 'ginecomastia'),
+    (r'ginecomast|tetillas?|pecho de (hombre|mujer)|senos de hombre|bubis de hombre', 'ginecomastia'),
     (r'blefaro|p[aá]rpados', 'blefaroplastia'),
     (r'papada', 'papada'),
     (r'otoplast|orejas', 'otoplastia'),
@@ -210,12 +210,17 @@ def aplicar_paso(texto, paso, history, mensaje):
     if re.search(r'(nombre completo|<<<NOTIFY|drgio440\.com|urgencias|l[ií]nea de emergencia|asesora ya tiene tus datos)', texto, re.I):
         return texto
     tiene_ficha = 'Por lo general es ideal para ti si' in texto
+    # Describió algo y la IA reconoció el procedimiento (ej. "tetillas" → ginecomastia): va la ficha aprobada
+    if p == 'duda' and not tiene_ficha and not _es_pregunta(mensaje or ''):
+        clave = clave_de(texto)
+        if clave and _titulo(clave).lower() not in '\n'.join(_textos_bot(history)).lower():
+            p, paso = 'procedimiento', {'paso': 'procedimiento', 'clave': clave, 'intro_ia': True}
     if p in ('recomendar', 'procedimiento') and not tiene_ficha:
         clave = paso.get('clave') if p == 'procedimiento' else _clave_recomendada(texto, mensaje, paso.get('zona'))
         ficha = _ficha(clave) if clave else ''
         if ficha:
             intro = _quitar_cierres(texto)
-            if p == 'procedimiento' or len(intro) > 400:
+            if (p == 'procedimiento' and not paso.get('intro_ia')) or len(intro) > 400:
                 intro = '¡Excelente! 💙'
             texto = intro + '\n\n' + ficha
     cuerpo = _quitar_cierres(texto)

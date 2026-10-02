@@ -160,6 +160,10 @@ ESCENARIOS = {
         ('Hola', []),
         ('Soy hombre y tengo pecho grande, ginecomastia', [con_ficha(), con_cierre()]),
     ],
+    'hombre_palabras_propias': [
+        ('Hola', []),
+        ('Tengo muchas tetillas', [con_ficha(), tiene('ginecomastia'), con_cierre()]),
+    ],
     'dudas_seguidas': [
         ('Hola', []),
         ('Quiero lipo', [con_ficha()]),
