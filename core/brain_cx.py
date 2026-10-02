@@ -616,6 +616,9 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
         dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'] + [mensaje_paciente or ''])
         modalidad = 'virtual' if re.search(r'\bvirtual\b', dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else ''
+        # Procedimiento: se pide solo si el paciente todavía no lo ha dicho
+        sabe_proc = bool(re.search(r'(lipo|abdomino|mamo|seno|busto|pexia|reducci|explant|gineco|blefaro|p[aá]rpado|papada|'
+                                   r'otoplast|oreja|gl[uú]te|lifting|mommy|rinoplast|nariz|implante|bichect|cicatriz|brazos|muslos)', dicho, re.I))
         listo = 'listo' if re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I) else 'lista'
         explica = ''
         if not valoracion:
@@ -638,6 +641,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                  "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
                  + ((f"*valoración {modalidad} con el Dr. Gio*" if modalidad else "*valoración con el Dr. Gio*") if valoracion else "*asesoría virtual gratuita*") + ":\n"
                  "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                 + ("" if sabe_proc else "\n✨ *Procedimiento de interés*")
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion and not modalidad else ""))
     # Si la IA ya escribió sus propias opciones (1️⃣/2️⃣ asesoría/valoración), se quitan: el bloque aprobado va una sola vez
     if 'Tu siguiente paso puede ser' not in texto and re.search(r'1️⃣.*asesor[ií]a.*2️⃣.*valoraci[oó]n', texto, re.I | re.S):
