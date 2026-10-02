@@ -603,9 +603,19 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         if not re.search(r'te gustar[ií]a agendar', texto, re.I):
             texto += '\n\n¿Te gustaría agendar tu *asesoría virtual gratuita*? 😊'
         texto = re.sub(r'(te gustar[ií]a agendar[^?\n]*\?)\s*🤖', r'\1 😊', texto, flags=re.I)
+    # El paciente pide directamente la valoración/consulta o la asesoría → directo al pedido de datos, sin más preguntas
+    _msg = mensaje_paciente or ''
+    _es_pregunta = '?' in _msg or re.search(r'\b(cu[aá]nto|precio|valor|qu[eé] es|c[oó]mo es|incluye)\b', _msg, re.I)
+    if hubo_bot and not _es_pregunta and '<<<NOTIFY' not in texto and not re.search(r'nombre completo', texto, re.I):
+        if re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para)|cita con (el )?(dr|doctor))', _msg, re.I):
+            texto = 'valoración · nombre completo · ciudad'
+        elif re.search(r'asesor[ií]a', _msg, re.I):
+            texto = 'asesoría virtual · nombre completo · ciudad'
     # Pedido de datos: texto fijo aprobado (#LAbelleza440 + "nuestra asesora te contactará" + correo sin "opcional")
     if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
+        dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'] + [mensaje_paciente or ''])
+        modalidad = 'virtual' if re.search(r'\bvirtual\b', dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else ''
         listo = 'listo' if re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I) else 'lista'
         explica = ''
         if not valoracion:
@@ -626,9 +636,9 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                        "📍 *Consulta presencial:* Barranquilla (Carrera 47 #79-191) · Bogotá (Clínica Intercirugías) · Medellín (Clínica AC Quirófanos)\n\n")
         texto = (("¡Excelente decisión! 💙\n\n" + explica) if explica else "¡Listo! 💙 ") + (f"*¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
                  "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
-                 + ("*valoración con el Dr. Gio*" if valoracion else "*asesoría virtual gratuita*") + ":\n"
+                 + ((f"*valoración {modalidad} con el Dr. Gio*" if modalidad else "*valoración con el Dr. Gio*") if valoracion else "*asesoría virtual gratuita*") + ":\n"
                  "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
-                 + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion else ""))
+                 + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion and not modalidad else ""))
     # Si la IA ya escribió sus propias opciones (1️⃣/2️⃣ asesoría/valoración), se quitan: el bloque aprobado va una sola vez
     if 'Tu siguiente paso puede ser' not in texto and re.search(r'1️⃣.*asesor[ií]a.*2️⃣.*valoraci[oó]n', texto, re.I | re.S):
         lineas_o = texto.split('\n')
@@ -637,7 +647,8 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
             texto = '\n'.join(lineas_o[:corte]).rstrip()
     # El paciente ya escogió (pide asesoría/valoración/agendar) o la IA le está preguntando presencial o virtual:
     # no se le vuelven a ofrecer las opciones
-    ya_escogio = bool(re.search(r'\b(valoraci[oó]n|asesor[ií]a|consulta|agendar|cita)\b', mensaje_paciente or '', re.I)) or \
+    _preg = '?' in (mensaje_paciente or '') or re.search(r'\b(cu[aá]nto|precio|valor|qu[eé] es|c[oó]mo es|incluye)\b', mensaje_paciente or '', re.I)
+    ya_escogio = bool(not _preg and re.search(r'\b(valoraci[oó]n|asesor[ií]a|consulta|agendar|cita)\b', mensaje_paciente or '', re.I)) or \
         bool(re.search(r'presencial[^?\n]{0,60}virtual[^?\n]{0,20}\?', texto, re.I))
     # Respuesta a una duda: siempre cierra preguntando por más dudas y nombrando el siguiente paso
     if hubo_bot and not ya_escogio and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
