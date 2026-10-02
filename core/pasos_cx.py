@@ -75,7 +75,7 @@ VERIFICAR = ("¡Sí! 💙 El *Dr. Giovanni Fuentes* es *Cirujano Plástico, Est�
              "Puedes verificarlo aquí:\n\n"
              "🏅 *Sociedad Colombiana de Cirugía Plástica*\n"
              "https://cirugiaplastica.org.co/buscar-cirujano/\n"
-             "Elige la ciudad *Barranquilla* y toca *Buscar*: aparece *Giovanni Fuentes*.\n\n"
+             "Escribe el nombre *Giovanni Fuentes*, elige la ciudad *Barranquilla* y toca *Buscar*.\n\n"
              "🪪 *RETHUS — Ministerio de Salud* (registro oficial de profesionales de la salud)\n"
              "https://web.sispro.gov.co/THS/Cliente/ConsultasPublicas/ConsultaPublicaDeTHxIdentificacion.aspx\n"
              "En *Tipo de identificación* elige *Cédula de Ciudadanía*, escribe *72248179*, completa el código de la imagen "
