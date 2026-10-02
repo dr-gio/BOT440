@@ -35,6 +35,24 @@ TURISMO = ("¡Claro! 💙 Nuestros *planes de turismo médico todo incluido* te 
            "*hospedaje* en recovery house u hotel, *alimentación*, *enfermería* y más ✈️\n\n"
            "Nuestra *asesora experta* te explica el plan completo en tu *asesoría virtual gratuita* 😊")
 
+IMPLANTES = ("¡Claro! 💙 Te cuento sobre los *implantes mamarios*:\n\n"
+             "🏷️ *Marcas:* trabajamos con *Motiva*, *Silimed* y *Eurosilicone*, marcas reconocidas a nivel mundial.\n"
+             "✨ *Técnica Motiva Preservé:* aumento *mínimamente invasivo* que *preserva tus tejidos*, con una *incisión pequeña*, "
+             "menos inflamación y una *recuperación más rápida*.\n"
+             "📐 *Plano del implante:* puede ir *sobre el músculo* (subglandular o subfascial) o *detrás del músculo* "
+             "(submuscular o dual plane), según tu tejido y el resultado que buscas.\n"
+             "✂️ *Vía de entrada:* por el *surco* debajo del seno (la cicatriz queda escondida) o por el *borde de la areola*.\n"
+             "📏 El Dr. escoge el *perfil, tamaño y volumen* ideales para tu anatomía.\n"
+             "⏱️ *Recuperación:* actividades suaves en *1 semana*, con sostén postquirúrgico.")
+
+CICATRICES_SENOS = ("¡Claro! 💙 En el *levantamiento (pexia)* y la *reducción* la técnica depende de cada caso, "
+                    "buscando siempre *la menor cicatriz posible*:\n\n"
+                    "⭕ *Periareolar:* cicatriz solo *alrededor de la areola*. Para descensos leves.\n"
+                    "📍 *Vertical:* alrededor de la areola y una *línea vertical* hacia abajo. Para descensos moderados.\n"
+                    "↪️ *En L:* alrededor de la areola, vertical y una línea corta *hacia afuera*, *sin cicatriz hacia el escote*.\n"
+                    "⊥ *En T invertida:* alrededor de la areola, vertical y en el *surco*. Para descensos grandes o reducciones de mucho volumen.\n\n"
+                    "Si además quieres más volumen, la pexia se hace *con implantes*.")
+
 FRASE_ASESORA = ("En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta "
                  "según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️")
 
@@ -121,6 +139,16 @@ def decidir_paso(history, texto):
         return {'paso': 'elige'}
     if re.search(r'turismo|hospedaje|alojamiento|recovery|hotel|d[oó]nde me (quedo|hospedo)|vengo de (otra|otro|fuera)', t, re.I):
         return {'paso': 'turismo'}
+    # Preguntas técnicas de senos: implantes (marcas, Preservé, plano, vía) y cicatrices (pexia/reducción)
+    contexto_senos = re.search(r'seno|busto|mama|pexia|levant|reducc|implante|pr[oó]tesis', t + '\n' + '\n'.join(bots[-2:]), re.I)
+    pregunta_info = _es_pregunta(t) or re.search(r'\b(t[eé]cnicas?|marcas?|expl[ií]ca)', t, re.I)
+    info = []
+    if pregunta_info and re.search(r'marca|pr[oó]tesis|implante|preserv|motiva|silimed|eurosilicone|plano|submuscular|dual', t, re.I):
+        info.append('implantes')
+    if pregunta_info and contexto_senos and re.search(r't[eé]cnica|cicatri|incisi[oó]n|corte|escote|\ben (l|t)\b|periareolar|vertical', t, re.I):
+        info.append('cicatrices')
+    if info:
+        return {'paso': 'info_senos', 'temas': info}
     if MARCA_ORIENTAR in ultimo and not _es_pregunta(t):
         zona = next((z for z, txt in ORIENTAR.items() if txt.split('\n')[-1] in ultimo), None)
         return {'paso': 'recomendar', 'zona': zona}
@@ -204,6 +232,11 @@ def aplicar_paso(texto, paso, history, mensaje):
         return ORIENTAR[paso['zona']]
     if p == 'turismo':
         return TURISMO + '\n\n' + CIERRE_DUDAS
+    if p == 'info_senos':
+        partes = [IMPLANTES if x == 'implantes' else CICATRICES_SENOS for x in paso['temas']]
+        if len(partes) == 2:
+            partes[1] = partes[1].replace('¡Claro! 💙 ', '')
+        return '\n\n'.join(partes) + '\n\n' + FRASE_ASESORA + '\n\n' + CIERRE_DUDAS
     if p not in ('recomendar', 'procedimiento', 'duda'):
         return texto
     # Mensajes que tienen su propio cierre aprobado: no se tocan

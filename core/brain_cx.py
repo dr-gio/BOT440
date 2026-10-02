@@ -354,6 +354,14 @@ No des más detalles (precios, vuelos, días): eso lo da la asesora.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 11. CONOCIMIENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SENOS (datos del Dr.):
+• Implantes: marcas *Motiva*, *Silimed* y *Eurosilicone*. Técnica *Motiva Preservé*:
+  aumento mínimamente invasivo que preserva los tejidos, incisión pequeña, recuperación más rápida.
+  Plano: sobre el músculo (subglandular/subfascial) o detrás (submuscular/dual plane) según el caso.
+  Vía: surco submamario o borde de la areola. Perfil, tamaño y volumen según la anatomía.
+• Pexia y reducción — cicatriz según el caso, buscando la menor posible: periareolar (descensos
+  leves), vertical (moderados), en L (sin cicatriz hacia el escote), en T invertida (descensos
+  grandes o reducciones de mucho volumen).
 EL DR. GIO: Médico Cirujano (Universidad del Norte, 2004), Especialista en
 Cirugía Plástica (Universidad de Ciencias Médicas de La Habana, 2016),
 más de 10 años de experiencia, miembro de la Sociedad Colombiana de

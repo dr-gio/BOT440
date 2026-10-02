@@ -164,6 +164,12 @@ ESCENARIOS = {
         ('Hola', []),
         ('Tengo muchas tetillas', [con_ficha(), tiene('ginecomastia'), con_cierre()]),
     ],
+    'senos_tecnicas': [
+        ('Hola', []),
+        ('Quiero levantamiento de senos', [con_ficha(), tiene('Pexia')]),
+        ('Que tecnicas usan? me preocupa la cicatriz en el escote', [tiene('En L', 'T invertida', 'Periareolar', 'Vertical'), con_cierre()]),
+        ('Y que marca de implantes usan?', [tiene('Motiva', 'Preservé', 'Silimed'), con_cierre()]),
+    ],
     'dudas_seguidas': [
         ('Hola', []),
         ('Quiero lipo', [con_ficha()]),
