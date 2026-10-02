@@ -25,6 +25,7 @@ from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
 from core.fichas_cx import FICHAS, expandir_fichas
+from core.pasos_cx import decidir_paso, instruccion_paso, aplicar_paso
 
 # Detección de mensajes "solo emojis" (👍😊🙏❤️✅, etc.).
 _EMOJI_ONLY_RE_CX = re.compile(
@@ -590,7 +591,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if '<<<FICHA:' in texto:
         # Saludo corto de la IA (si lo hay) + fichas en orden + la pregunta aprobada; lo demás que escriba la IA se descarta
         intro = texto.split('<<<FICHA:', 1)[0].strip()
-        intro = intro if len(intro) <= 120 and '\n' not in intro else ''
+        intro = intro if len(intro) <= 350 else ''
         intro = re.sub(r'[:,]?\s*(te cuento|aqu[ií] (va|tienes)|esta es)[^.!\n]*[:.]?\s*$', '', intro, flags=re.I).strip()
         fichas = [m.group(0) for m in re.finditer(r'<<<FICHA:[a-z_]+>>>', texto)]
         cuerpo, hubo_ficha = expandir_fichas('\n\n'.join(fichas))
@@ -3014,6 +3015,15 @@ class BrainCX:
                   "bypass aplicado", flush=True)
             return _bypass_text
 
+        # ── CONTROL DE PASOS: el código decide el paso y le dice a la IA qué escribir ──
+        try:
+            _paso = decidir_paso(history, text)
+        except Exception as _e:
+            print(f"[CX] decidir_paso err: {_e}", flush=True)
+            _paso = {'paso': 'libre'}
+        print(f"[CX] paso={_paso}", flush=True)
+        paciente_ctx += instruccion_paso(_paso)
+
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
@@ -3050,6 +3060,11 @@ class BrainCX:
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
         user_facing = ajustar_respuesta_cx(user_facing, history, text)
+        if not match:
+            try:
+                user_facing = aplicar_paso(user_facing, _paso, history, text)
+            except Exception as _e:
+                print(f"[CX] aplicar_paso err: {_e}", flush=True)
         # Despedida fija cuando deja sus datos (texto aprobado por el Dr.)
         if match:
             try:
