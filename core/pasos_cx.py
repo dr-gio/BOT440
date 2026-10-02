@@ -31,6 +31,10 @@ ORIENTAR = {
                 "🤏 ¿Tienes *grasa localizada* en abdomen, cintura o espalda? 😊"),
 }
 
+TURISMO = ("¡Claro! 💙 Nuestros *planes de turismo médico todo incluido* te acompañan en tu cirugía y recuperación: "
+           "*hospedaje* en recovery house u hotel, *alimentación*, *enfermería* y más ✈️\n\n"
+           "Nuestra *asesora experta* te explica el plan completo en tu *asesoría virtual gratuita* 😊")
+
 FRASE_ASESORA = ("En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta "
                  "según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️")
 
@@ -115,6 +119,8 @@ def decidir_paso(history, texto):
         return {'paso': 'datos'}
     if _es_eleccion(t):
         return {'paso': 'elige'}
+    if re.search(r'turismo|hospedaje|alojamiento|recovery|hotel|d[oó]nde me (quedo|hospedo)|vengo de (otra|otro|fuera)', t, re.I):
+        return {'paso': 'turismo'}
     if MARCA_ORIENTAR in ultimo and not _es_pregunta(t):
         zona = next((z for z, txt in ORIENTAR.items() if txt.split('\n')[-1] in ultimo), None)
         return {'paso': 'recomendar', 'zona': zona}
@@ -196,6 +202,8 @@ def aplicar_paso(texto, paso, history, mensaje):
     p = paso.get('paso')
     if p == 'orientar':
         return ORIENTAR[paso['zona']]
+    if p == 'turismo':
+        return TURISMO + '\n\n' + CIERRE_DUDAS
     if p not in ('recomendar', 'procedimiento', 'duda'):
         return texto
     # Mensajes que tienen su propio cierre aprobado: no se tocan

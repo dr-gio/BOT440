@@ -604,7 +604,11 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     previos = '\n'.join(m.get('content', '') for m in (history or []) if m.get('role') == 'assistant')
     lineas = texto.split('\n')
     # Quita el saludo/bienvenida que haya escrito la IA (la bienvenida la pone el código)
-    _RE_SALUDO = r'(bienvenid|centro de atenci[oó]n|te atiende el asistente|te est[aá] atendiendo|cirujano pl[aá]stico est[eé]tico|sociedad colombiana|a[nñ]os de experiencia|rethus|#labelleza440|operamos en|recibimos pacientes|turismo m[eé]dico todo incluido|^\s*¡?hola!?\s*💙?\s*$)'
+    # Solo líneas con el formato de la bienvenida (con su emoji); si el paciente PREGUNTA por turismo,
+    # dónde operamos o la experiencia del Dr., la respuesta no se borra.
+    _RE_SALUDO = (r'(bienvenid|centro de atenci[oó]n|te atiende el asistente|te est[aá] atendiendo|'
+                  r'^\s*👨‍⚕️\s*\*?cirujano|^\s*🏅|^\s*⭐\s*\*?m[aá]s de|^\s*✨\s*\*?#labelleza440|'
+                  r'^\s*📍\s*operamos en|^\s*🌎|^\s*✈️\s*\*?planes de turismo|^\s*¡?hola!?\s*💙?\s*$)')
     while lineas and (not lineas[0].strip() or re.search(_RE_SALUDO, lineas[0], re.I)):
         lineas.pop(0)
     texto = '\n'.join(lineas)

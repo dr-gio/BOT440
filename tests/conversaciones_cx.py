@@ -146,6 +146,13 @@ ESCENARIOS = {
         ('Quiero una lipo', [con_ficha()]),
         ('Que es la asesoria virtual gratuita?', [tiene('asesora')]),
     ],
+    'turismo_y_datos_del_dr': [
+        ('Hola', []),
+        ('Quiero abdominoplastia', [con_ficha()]),
+        ('Tienes plan de turismo médico?', [tiene('recovery house', 'alimentación', 'enfermería'), con_cierre()]),
+        ('El doctor pertenece a la sociedad colombiana de cirugia plastica?', [tiene('Sociedad Colombiana'), con_cierre()]),
+        ('Donde operan?', [tiene('Barranquilla'), con_cierre()]),
+    ],
     'pauta_mamoplastia': [
         ('Hola estoy interesado en todo incluido de mamoplastia', [tiene('18.000.000')]),
     ],
