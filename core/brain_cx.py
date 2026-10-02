@@ -139,7 +139,9 @@ Termina SOLO con esa pregunta (sin el bloque del siguiente paso).
 Con su respuesta, explica en 2–3 líneas cuál le conviene y POR QUÉ, en su caso
 (hijos/piel floja/estrías → abdominoplastia, o lipoabdominoplastia si además hay
 grasa; solo grasa con buena piel → lipoescultura 360; volumen → aumento;
-caídos → pexia), y cierra mencionando AMBOS caminos para definirlo: "En tu
+caídos → pexia) en 1–2 líneas y en la línea siguiente el marcador de la ficha
+(<<<FICHA:clave>>>) — la información del procedimiento SIEMPRE va con la ficha
+aprobada, nunca escrita por ti. Menciona AMBOS caminos para definirlo: "En tu
 *asesoría virtual gratuita* nuestra asesora experta en cirugía plástica te
 orienta según tu caso, y el Dr. Gio lo confirma en tu valoración". Nunca digas
 que SOLO el Dr. puede definirlo: la asesora también orienta (gratis).
@@ -573,7 +575,7 @@ BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gus
 PARTE = "\n\n<<<PARTE>>>\n\n"
 
 _RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\b', re.I)
-_RE_PROMESA = re.compile(r'[,;]?\s*(sin irregularidades|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
+_RE_PROMESA = re.compile(r'[,;]?\s*(sin (dejar )?irregularidades|de forma natural y sin [^.,\n]*|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
 
 
 def ajustar_respuesta_cx(texto, history, mensaje_paciente):
@@ -676,13 +678,21 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         bool(re.search(r'presencial[^?\n]{0,60}virtual[^?\n]{0,20}\?', texto, re.I))
     # Quién define el caso: la asesora orienta (gratis) y el Dr. confirma — nunca solo "el Dr. te evalúa"
     if not re.search(r'nombre completo|<<<NOTIFY', texto, re.I) and not re.search(r'asesor[ií]a virtual gratuita[^\n]*orienta|asesora[^\n]*orienta', texto, re.I):
-        texto = re.sub(r'[^.!\n]*\b(el )?dr\.? gio\b[^.!\n]*\b(defin|evalu|confirm|determin|indic)\w*[^.!\n]*valoraci[oó]n[^.!\n]*[.!]?(\s*👨‍⚕️)?',
+        texto = re.sub(r'[^.!\n]*\b(el )?dr\.? gio\b[^.!\n]*\b(defin|eval[uú]|confirm|determin|indic)\w*[^.!\n]*valoraci[oó]n[^.!\n]*[.!]?(\s*👨‍⚕️)?',
                        ' En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️',
                        texto, count=1, flags=re.I).replace('  ', ' ')
+    forzar_cierre = False
+    _lt = texto.rstrip().split('\n')
+    while _lt and not _lt[-1].strip():
+        _lt.pop()
+    if _lt and '?' in _lt[-1] and re.search(r'asesor', _lt[-1], re.I) and re.search(r'valoraci|dr\.? gio', _lt[-1], re.I):
+        _lt.pop()
+        texto = '\n'.join(_lt).rstrip()
+        forzar_cierre = True
     ultima = next((l for l in reversed(texto.strip().split('\n')) if l.strip()), '')
     orientando = '?' in ultima and not re.search(r'(duda|otra \*?pregunta|siguiente paso|agendar|te cuento)', ultima, re.I)
     # Respuesta a una duda: siempre cierra preguntando por más dudas y nombrando el siguiente paso
-    if hubo_bot and not ya_escogio and not orientando and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
+    if hubo_bot and not ya_escogio and (forzar_cierre or not orientando) and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
                                   r'<<<NOTIFY|me cuentas que te interesa|asesora ya tiene tus datos|urgencias|l[ií]nea de emergencia)', texto, re.I):
         lineas_t = texto.rstrip().split('\n')
         while lineas_t and (not lineas_t[-1].strip() or re.search(r'\?\s*\S{0,3}\s*$', lineas_t[-1])
