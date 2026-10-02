@@ -629,8 +629,18 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                  + ("*valoración con el Dr. Gio*" if valoracion else "*asesoría virtual gratuita*") + ":\n"
                  "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion else ""))
+    # Si la IA ya escribió sus propias opciones (1️⃣/2️⃣ asesoría/valoración), se quitan: el bloque aprobado va una sola vez
+    if 'Tu siguiente paso puede ser' not in texto and re.search(r'1️⃣.*asesor[ií]a.*2️⃣.*valoraci[oó]n', texto, re.I | re.S):
+        lineas_o = texto.split('\n')
+        corte = next((i for i, l in enumerate(lineas_o) if re.search(r'(1️⃣|c[oó]mo te gustar[ií]a dar el siguiente paso)', l, re.I)), None)
+        if corte is not None:
+            texto = '\n'.join(lineas_o[:corte]).rstrip()
+    # El paciente ya escogió (pide asesoría/valoración/agendar) o la IA le está preguntando presencial o virtual:
+    # no se le vuelven a ofrecer las opciones
+    ya_escogio = bool(re.search(r'\b(valoraci[oó]n|asesor[ií]a|consulta|agendar|cita)\b', mensaje_paciente or '', re.I)) or \
+        bool(re.search(r'presencial[^?\n]{0,60}virtual[^?\n]{0,20}\?', texto, re.I))
     # Respuesta a una duda: siempre cierra preguntando por más dudas y nombrando el siguiente paso
-    if hubo_bot and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
+    if hubo_bot and not ya_escogio and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
                                   r'<<<NOTIFY|me cuentas que te interesa|asesora ya tiene tus datos|urgencias|l[ií]nea de emergencia)', texto, re.I):
         lineas_t = texto.rstrip().split('\n')
         while lineas_t and (not lineas_t[-1].strip() or re.search(r'\?\s*\S{0,3}\s*$', lineas_t[-1])
