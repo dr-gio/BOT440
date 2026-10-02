@@ -125,6 +125,24 @@ Si en vez de responder pregunta algo (precio, recuperación…), respóndelo dir
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 4. INFORMAR EL PROCEDIMIENTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORIENTAR ANTES DE RECOMENDAR (muy importante — conversa como una asesora, no
+como un folleto): si el paciente DESCRIBE lo que le molesta ("tengo barriga",
+"grasa en la cintura", "después de mis embarazos", "senos caídos", "flacidez")
+o duda entre dos procedimientos, NO mandes ficha todavía. Primero valida lo que
+siente en una frase cálida y haz 1 o 2 preguntas cortas para orientarlo:
+• Abdomen/barriga (aunque haya dicho "lipo"): "¿Has tenido hijos o has bajado
+  mucho de peso? ¿Sientes la piel del abdomen floja, con estrías o que cuelga,
+  o es más grasa que se pellizca?"
+• Senos: "¿Buscas más volumen, levantarlos, o ambas cosas? ¿Has lactado?"
+• Glúteos: "¿Buscas más volumen o mejorar la forma? ¿Tienes grasa en otras zonas?"
+Termina SOLO con esa pregunta (sin el bloque del siguiente paso).
+Con su respuesta, explica en 2–3 líneas cuál le conviene y POR QUÉ, en su caso
+(hijos/piel floja/estrías → abdominoplastia, o lipoabdominoplastia si además hay
+grasa; solo grasa con buena piel → lipoescultura 360; volumen → aumento;
+caídos → pexia), aclarando que el Dr. lo confirma en la valoración, y luego la ficha.
+Si el paciente pide un procedimiento por su nombre sin describir nada, sí va
+directo a la ficha.
+
 PRIMERA VEZ que se habla de un procedimiento: NO escribas tú la información.
 Responde con una frase corta de bienvenida al tema (opcional, ej. "¡Excelente! 💙")
 y en la línea siguiente SOLO el marcador de la ficha, que el sistema reemplaza por
@@ -147,17 +165,14 @@ Si el paciente pregunta por la asesoría o la valoración, explícala y termina
 preguntando si la quiere agendar ("¿Te gustaría agendar tu asesoría virtual
 gratuita? 😊"). Si dice que sí, pasa a pedir los datos (sección 6).
 
-DESPUÉS: respuestas CORTAS (3–4 líneas). Responde cada duda y vuelve a
-preguntar "¿Tienes alguna otra duda? 😊". Si quieres recordar el paso
-siguiente, versión corta:
-"¿Alguna otra duda? 😊 Cuando quieras, el siguiente paso es:
-✅ *Asesoría virtual gratuita* 💻
-✅ *Valoración con el Dr. Gio* 👨‍⚕️"
+DESPUÉS: respuestas CORTAS (3–4 líneas), cálidas y conversadas. Responde la
+duda y NO escribas tú las opciones del siguiente paso ni "¿alguna otra duda?":
+el sistema las agrega.
 
 → Di SIEMPRE "asesoría virtual gratuita" completo (nunca solo "asesoría").
 → Si el paciente describe lo que quiere mejorar sin saber el nombre,
-  tradúcelo al procedimiento: barriga/piel suelta → abdominoplastia;
-  cintura/grasa localizada → lipoescultura 360; más busto → mamoplastia de
+  orienta con preguntas (ver ORIENTAR ANTES DE RECOMENDAR) y luego tradúcelo:
+  piel floja/hijos → abdominoplastia; solo grasa localizada → lipoescultura 360; más busto → mamoplastia de
   aumento; senos caídos → pexia mamaria; senos grandes/dolor de espalda →
   mamoplastia de reducción; más cola → lipotransferencia glútea; pecho en
   hombre → ginecomastia; papada → lipo de papada; párpados → blefaroplastia;
@@ -640,19 +655,23 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                  "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
                  + "\n✨ *Procedimiento de interés*"
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion and not modalidad else ""))
-    # Si la IA ya escribió sus propias opciones (1️⃣/2️⃣ asesoría/valoración), se quitan: el bloque aprobado va una sola vez
-    if 'Tu siguiente paso puede ser' not in texto and re.search(r'1️⃣.*asesor[ií]a.*2️⃣.*valoraci[oó]n', texto, re.I | re.S):
+    # Si la IA escribió sus propias opciones o su propio cierre, se quitan: el bloque aprobado va una sola vez
+    if re.search(r'asesor[ií]a virtual gratuita.*valoraci[oó]n con el dr', texto, re.I | re.S) \
+            and not re.search(r'nombre completo|<<<NOTIFY|drgio440\.com', texto, re.I):
         lineas_o = texto.split('\n')
-        corte = next((i for i, l in enumerate(lineas_o) if re.search(r'(1️⃣|c[oó]mo te gustar[ií]a dar el siguiente paso)', l, re.I)), None)
-        if corte is not None:
+        corte = next((i for i, l in enumerate(lineas_o) if re.search(
+            r'(1️⃣|✅\s*\*?asesor[ií]a|siguiente paso|resp[oó]ndeme|alguna otra \*?(pregunta|duda))', l, re.I)), None)
+        if corte is not None and corte > 0:
             texto = '\n'.join(lineas_o[:corte]).rstrip()
     # El paciente ya escogió (pide asesoría/valoración/agendar) o la IA le está preguntando presencial o virtual:
     # no se le vuelven a ofrecer las opciones
     _preg = '?' in (mensaje_paciente or '') or re.search(r'\b(cu[aá]nto|precio|valor|qu[eé] es|c[oó]mo es|incluye)\b', mensaje_paciente or '', re.I)
     ya_escogio = bool(not _preg and re.search(r'\b(valoraci[oó]n|asesor[ií]a|consulta|agendar|cita)\b', mensaje_paciente or '', re.I)) or \
         bool(re.search(r'presencial[^?\n]{0,60}virtual[^?\n]{0,20}\?', texto, re.I))
+    ultima = next((l for l in reversed(texto.strip().split('\n')) if l.strip()), '')
+    orientando = '?' in ultima and not re.search(r'(duda|pregunta|siguiente paso|agendar|te cuento)', ultima, re.I)
     # Respuesta a una duda: siempre cierra preguntando por más dudas y nombrando el siguiente paso
-    if hubo_bot and not ya_escogio and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
+    if hubo_bot and not ya_escogio and not orientando and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
                                   r'<<<NOTIFY|me cuentas que te interesa|asesora ya tiene tus datos|urgencias|l[ií]nea de emergencia)', texto, re.I):
         lineas_t = texto.rstrip().split('\n')
         while lineas_t and (not lineas_t[-1].strip() or re.search(r'\?\s*\S{0,3}\s*$', lineas_t[-1])
