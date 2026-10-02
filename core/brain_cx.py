@@ -2058,9 +2058,14 @@ class BrainCX:
             'resumen': resumen,
         }
         print(f"[CX] lead → MedFiles interes={interes} modalidad={modalidad} pauta={pauta!r} tel={telefono}", flush=True)
-        self._push_medfiles_lead(body)
+        _resp = self._push_medfiles_lead(body) or {}
+        # WhatsApp de la asesora asignada (se configura en MedFiles → Configuración → Equipo);
+        # si no tiene, el de ASESORA_MEDFILES_TEL.
+        _tel_mf = re.sub(r'[^\d]', '', str(((_resp.get('asesora') or {}).get('whatsapp')) or ''))
+        if _tel_mf:
+            asesora_tel = _tel_mf
 
-        # Aviso por WhatsApp a la asesora única (opcional).
+        # Aviso por WhatsApp a la asesora (opcional).
         if asesora_tel:
             if interes == 'valoracion':
                 tipo_txt = 'Valoración con el Dr.' + (f' ({modalidad})' if modalidad else '')
@@ -2074,7 +2079,7 @@ class BrainCX:
             except Exception as e:
                 print(f"[CX] aviso asesora MedFiles err: {e}", flush=True)
         else:
-            print("[CX] ASESORA_MEDFILES_TEL vacío — sin aviso por WhatsApp (MedFiles asigna)", flush=True)
+            print("[CX] asesora sin WhatsApp (ni en MedFiles ni ASESORA_MEDFILES_TEL) — sin aviso", flush=True)
 
         # CRM viejo solo si se re-activa explícitamente.
         if _LEGACY_CRM:
