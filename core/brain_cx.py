@@ -2071,8 +2071,21 @@ class BrainCX:
                 tipo_txt = 'Valoración con el Dr.' + (f' ({modalidad})' if modalidad else '')
             else:
                 tipo_txt = 'Asesoría virtual gratuita'
-            msg = (f"🆕 Nuevo lead: {nombre} · {proc} · {ciudad or 'ciudad sin dato'} · {tipo_txt}. "
-                   "Revísalo en MedFiles → CRM.")
+            _tel_txt = f"+{telefono}" if telefono else 'sin dato'
+            _base_mf, _ = self._medfiles_cfg()
+            _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
+            msg = "\n".join(x for x in [
+                "🆕 *Nuevo lead del asistente*",
+                f"👤 *{nombre}*",
+                f"📱 {_tel_txt}",
+                f"📧 {email or 'sin correo'}",
+                f"📍 {ciudad or 'ciudad sin dato'}",
+                f"✨ {proc}",
+                f"💬 Quiere: *{tipo_txt}*",
+                f"📣 Pauta: {pauta}" if pauta else None,
+                "",
+                f"Atiéndelo desde MedFiles 👉 {_link}",
+            ] if x is not None)
             try:
                 r = self.whapi.send_text(asesora_tel, msg)
                 print(f"[CX] aviso asesora MedFiles → {r if isinstance(r, dict) and 'error' in r else 'OK'}", flush=True)
