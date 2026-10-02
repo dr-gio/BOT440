@@ -661,6 +661,22 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
             texto = 'valoración · nombre completo · ciudad'
         elif re.search(r'asesor[ií]a', _msg, re.I):
             texto = 'asesoría virtual · nombre completo · ciudad'
+    # Ya se pidieron los datos y el paciente hace otra pregunta: se responde la pregunta y se recuerda en corto
+    # (no se repite el pedido completo, que borraría la respuesta)
+    if re.search(r'nombre completo', previos, re.I) and _es_pregunta and '<<<NOTIFY' not in texto:
+        lineas_r = []
+        for l in texto.split('\n'):
+            if re.search(r'(d[eé]jame|nombre completo|tus datos|nuestra asesora te contactar|estás list[ao] para ser parte)', l, re.I):
+                break
+            lineas_r.append(l)
+        while lineas_r and (not lineas_r[-1].strip() or '?' in lineas_r[-1]):
+            lineas_r.pop()
+        respuesta = '\n'.join(lineas_r).strip()
+        respuesta = re.sub(r'^¡?excelente decisi[oó]n!?\s*💙?\s*', '', respuesta, flags=re.I).strip()
+        respuesta = _RE_PROMESA.sub('', re.sub(r'\*\*([^*\n]+)\*\*', r'*\1*', respuesta))
+        if len(respuesta) > 15:
+            return re.sub(r'\n{3,}', '\n\n', respuesta + "\n\nCuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
+                          "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*").strip()
     # Pedido de datos: texto fijo aprobado (#LAbelleza440 + "nuestra asesora te contactará" + correo sin "opcional")
     if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)

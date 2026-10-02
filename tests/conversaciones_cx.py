@@ -120,6 +120,14 @@ ESCENARIOS = {
         ('Hola', []),
         ('Hola quisiera consultar para una valoración por favor', [pide_datos(), tiene('valoración'), sin_cierre()]),
     ],
+    'pregunta_despues_de_pedir_datos': [
+        ('Hola', []),
+        ('Quiero lipo', [con_ficha()]),
+        ('Valoración', [pide_datos()]),
+        ('El pertenece a la sociedad de cirujanos?', [tiene('Sociedad Colombiana', 'Nombre completo'), no_tiene('Excelente decisión')]),
+        ('El Dr es certificado?', [tiene('RETHUS'), no_tiene('Excelente decisión')]),
+        ('Juan Pérez\nBogotá\njuan@gmail.com\nlipo', [tiene('drgio440.com')]),
+    ],
     'valoracion_virtual': [
         ('Hola', []),
         ('quiero valoración virtual con el dr', [pide_datos(), tiene('valoración virtual'), no_tiene('presencial* o *virtual')]),
