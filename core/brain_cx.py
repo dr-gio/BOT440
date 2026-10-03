@@ -663,7 +663,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
             texto = 'asesoría virtual · nombre completo · ciudad'
     # Ya se pidieron los datos y el paciente hace otra pregunta: se responde la pregunta y se recuerda en corto
     # (no se repite el pedido completo, que borraría la respuesta)
-    if re.search(r'nombre completo', previos, re.I) and _es_pregunta and '<<<NOTIFY' not in texto:
+    if re.search(r'nombre completo', previos, re.I) and not re.search(r'drgio440\.com', previos, re.I) and '<<<NOTIFY' not in texto:
         lineas_r = []
         for l in texto.split('\n'):
             if re.search(r'(d[eé]jame|nombre completo|tus datos|nuestra asesora te contactar|estás list[ao] para ser parte)', l, re.I):
@@ -674,9 +674,15 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         respuesta = '\n'.join(lineas_r).strip()
         respuesta = re.sub(r'^¡?excelente decisi[oó]n!?\s*💙?\s*', '', respuesta, flags=re.I).strip()
         respuesta = _RE_PROMESA.sub('', re.sub(r'\*\*([^*\n]+)\*\*', r'*\1*', respuesta))
-        if len(respuesta) > 15:
-            return re.sub(r'\n{3,}', '\n\n', respuesta + "\n\nCuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
-                          "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*").strip()
+        if not re.search(r'asesora[^\n]*orienta', respuesta, re.I):
+            respuesta = re.sub(r'[^.!\n]*\b(el )?dr\.? gio\b[^.!\n]*\b(defin|eval[uú]|confirm|determin|indic)\w*[^.!\n]*valoraci[oó]n[^.!\n]*[.!]?(\s*👨‍⚕️)?',
+                               ' En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️',
+                               respuesta, count=1, flags=re.I).replace('  ', ' ').strip()
+        recordar = ("Cuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
+                    "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*")
+        if len(respuesta) <= 15 or re.search(r'nombre completo', respuesta, re.I):
+            return recordar
+        return re.sub(r'\n{3,}', '\n\n', respuesta + "\n\n" + recordar).strip()
     # Pedido de datos: texto fijo aprobado (#LAbelleza440 + "nuestra asesora te contactará" + correo sin "opcional")
     if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
@@ -1976,6 +1982,44 @@ class BrainCX:
             print(f"[CX] medfiles lead error: {e}", flush=True)
         return None
 
+    def _recordar_asesora(self, sender_id, texto=''):
+        """El paciente dice que no lo han contactado: nota en MedFiles + aviso al WhatsApp de su asesora."""
+        base, clave = self._medfiles_cfg()
+        if not clave:
+            return
+        try:
+            req = urllib.request.Request(f"{base}/api/entrada/bot",
+                data=json.dumps({'accion': 'recordar', 'telefono': str(sender_id), 'texto': texto}, ensure_ascii=False).encode(),
+                headers={'X-Clave': clave, 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': _BROWSER_UA},
+                method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                d = json.loads(r.read() or b'{}')
+        except Exception as e:
+            print(f"[CX] recordar asesora err: {e}", flush=True)
+            return
+        tel = re.sub(r'[^\d]', '', str(((d.get('asesora') or {}).get('whatsapp')) or os.environ.get('ASESORA_MEDFILES_TEL', '')))
+        if not tel:
+            print("[CX] recordar: asesora sin WhatsApp", flush=True)
+            return
+        quiere = {'valoracion': 'Valoración con el Dr.', 'asesoria': 'Asesoría virtual gratuita'}.get(d.get('interes') or '', '')
+        msg = "\n".join(x for x in [
+            "⚠️ *Lead pendiente por atender*",
+            "El paciente escribió que *aún no lo han contactado*.",
+            "",
+            f"👤 *{d.get('nombre') or 'Paciente'}*",
+            "📱 +" + re.sub(r'[^\d]', '', str(sender_id)),
+            f"📧 {d['email']}" if d.get('email') else None,
+            f"✨ {d['procedimiento']}" if d.get('procedimiento') else None,
+            f"💬 Quiere: *{quiere}*" if quiere else None,
+            "",
+            f"Escríbele ya desde MedFiles 👉 {base}/crm/whatsapp?persona={d['persona']}" if d.get('persona') else f"Escríbele ya desde MedFiles 👉 {base}/crm",
+        ] if x is not None)
+        try:
+            self.whapi.send_text(tel, msg)
+            print(f"[CX] recordatorio a asesora → {tel}", flush=True)
+        except Exception as e:
+            print(f"[CX] recordatorio asesora send err: {e}", flush=True)
+
     def _notify_lead(self, fields, sender_id, canal='whatsapp', history=None, ultimo_bot=''):
         """Flujo nuevo: envía el lead a MedFiles + aviso por WhatsApp a la
         asesora única (ASESORA_MEDFILES_TEL). El dedup <24h lo hace el caller
@@ -2755,13 +2799,14 @@ class BrainCX:
             _ya_lead = any(m.get('role') == 'assistant' and isinstance(m.get('content'), str)
                            and '<<<NOTIFY>>>' in m['content'] and 'urgencia' not in m['content'].lower()
                            for m in history)
-            if _ya_lead:
-                reply = (f"¡Hola, {_nombre_p}! 💙 " if _nombre_p else "¡Hola! 💙 ") + \
-                        "Nuestra asesora ya tiene tus datos y te escribirá muy pronto 😊"
-            else:
-                reply = (f"¡Hola de nuevo {_nombre_p}! 💙\n¿En qué más te puedo ayudar? 😊"
-                         if _nombre_p else
-                         "¡Hola de nuevo! 💙\n¿En qué más te puedo ayudar? 😊")
+            # Retoma la conversación (procedimiento del que hablaron, datos pendientes o ya dados)
+            try:
+                reply = aplicar_paso('', decidir_paso(history, _s_in or text), history, text)
+            except Exception as _e:
+                print(f"[CX] regreso err: {_e}", flush=True)
+                reply = ''
+            if not reply:
+                reply = "¡Hola de nuevo! 💙\n¿En qué más te puedo ayudar? 😊"
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             if send:
                 client = self.instagram if canal.startswith('instagram') else self.whapi
@@ -3083,6 +3128,8 @@ class BrainCX:
             _paso = {'paso': 'libre'}
         print(f"[CX] paso={_paso}", flush=True)
         paciente_ctx += instruccion_paso(_paso)
+        if _paso.get('paso') == 'reclamo' and _paso.get('datos_dados') and not self._es_canal_instagram(canal):
+            self._recordar_asesora(sender_id, text)
 
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)

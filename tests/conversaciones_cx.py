@@ -192,6 +192,17 @@ ESCENARIOS = {
         ('Y que es el vaser?', [tiene('ultrasonido'), no_tiene('MicroAire'), con_cierre()]),
         ('cuanto vale el argon plasma?', [tiene('asesora'), no_tiene('7.000.000', '9.000.000'), con_cierre()]),
     ],
+    'regreso_y_reclamo': [
+        ('Hola', []),
+        ('Quiero reducir mis senos', [con_ficha()]),
+        ('Asesoría virtual', [pide_datos()]),
+        ('No quiero implantes, quiero la reducción o pexia sin implantes', [no_tiene('Excelente decisión', 'valoración con el Dr. Gio*:'), tiene('Nombre completo')]),
+        ('Hola', [tiene('de nuevo', 'reducción'), no_tiene('qué procedimiento te interesa')]),
+        ('No me han escrito todavía', [tiene('disculpa', 'datos'), no_tiene('Excelente decisión')]),
+        ('Ana Ruiz\nBarranquilla\nana@gmail.com\nreducción', [tiene('drgio440.com')]),
+        ('Hola', [tiene('de nuevo', 'ya tenemos tus datos')]),
+        ('No me han contactado todavía', [tiene('Mil disculpas', 'avisé'), sin_cierre()]),
+    ],
     'dudas_seguidas': [
         ('Hola', []),
         ('Quiero lipo', [con_ficha()]),

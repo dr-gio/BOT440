@@ -84,6 +84,11 @@ VERIFICAR = ("¡Sí! 💙 El *Dr. Giovanni Fuentes* es *Cirujano Plástico, Est�
 RECORDAR_DATOS = ("Cuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
                   "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*")
 
+DISCULPA_CONTACTO = ("¡Mil disculpas por la espera! 🙏💙 Nuestras asesoras han tenido mucha demanda estos días.\n\n"
+                     "Ya le avisé nuevamente a tu asesora para que te contacte *lo antes posible* por aquí 📲\n\n"
+                     "Mientras tanto, si tienes alguna pregunta, con gusto te ayudo 😊")
+FALTAN_DATOS_CONTACTO = ("¡Disculpa la espera! 🙏💙 Para que nuestra asesora pueda contactarte, aún me faltan tus datos:")
+
 FRASE_ASESORA = ("En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta "
                  "según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️")
 
@@ -97,8 +102,8 @@ _CLAVES = [
     (r'lipotransfer|\bbbl\b|gl[uú]teos? con (mi )?(propia )?grasa', 'lipotransferencia'),
     (r'gluteoplastia|implantes? de gl[uú]te', 'gluteoplastia_implante'),
     (r'explant|(retir|sac|quit)\w* (los |mis )?(implantes|pr[oó]tesis)', 'explantacion'),
-    (r'reducci[oó]n (de senos|mamaria)|mamoplastia de reducci|reducir (los )?senos', 'reduccion'),
-    (r'pexia|levantamiento de senos|levantar (los )?senos|senos ca[ií]dos', 'pexia'),
+    (r'reducci[oó]n (de (los |mis )?senos|mamaria)|mamoplastia de reducci|reducir (los |mis )?senos|\bla reducci[oó]n\b', 'reduccion'),
+    (r'pexia|levantamiento de senos|levantar (los |mis )?senos|senos ca[ií]dos', 'pexia'),
     (r'aumento de senos|mamoplastia( de aumento)?|implantes? mamari|implantes? de senos|aumentar (los )?senos', 'mamoplastia_aumento'),
     (r'ginecomast|tetillas?|pecho de (hombre|mujer)|senos de hombre|bubis de hombre', 'ginecomastia'),
     (r'blefaro|p[aá]rpados', 'blefaroplastia'),
@@ -158,12 +163,33 @@ def _textos_bot(history):
     return [m.get('content') for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)]
 
 
+def _procedimiento_conversado(history):
+    # El último procedimiento del que habló el paciente (para retomar la conversación)
+    for m in reversed(history or []):
+        if m.get('role') == 'user' and isinstance(m.get('content'), str):
+            c = clave_de(m['content'])
+            if c:
+                return _titulo(c)
+    return None
+
+
 def decidir_paso(history, texto):
     bots = _textos_bot(history)
     t = texto or ''
     if not bots:
         return {'paso': 'bienvenida'}
     ultimo = bots[-1]
+    todo = '\n'.join(bots)
+    datos_dados = bool(re.search(r'drgio440\.com|asesora ya tiene tus datos', todo, re.I))
+    datos_pedidos = bool(re.search(r'nombre completo', todo, re.I))
+    # Reclamo: "no me han escrito / contactado"
+    if re.search(r'no me (han|ha) (escrito|contactado|llamado|respondido|atendido)|nadie me (ha )?(escrito|contactado|llamado)|'
+                 r'sigo esperando|todav[ií]a no me|a[uú]n no me|cu[aá]ndo me (escriben|contactan|llaman)', t, re.I):
+        return {'paso': 'reclamo', 'datos_dados': datos_dados}
+    # Vuelve a escribir solo para saludar: se retoma la conversación (no se pregunta de nuevo el procedimiento)
+    if re.fullmatch(r'\s*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ola)[\s!.,😊💙👋]*', t, re.I):
+        return {'paso': 'regreso', 'datos_dados': datos_dados, 'datos_pedidos': datos_pedidos and not datos_dados,
+                'proc': _procedimiento_conversado(history)}
     if re.search(r'sociedad|certificad|rethus|verific|registrad|avalad|es (cirujano|especialista|pl[aá]stico)|t[ií]tulo|idoneidad|es real', t, re.I):
         return {'paso': 'verificar', 'datos_pendientes': bool(re.search(r'nombre completo', ultimo, re.I))
                 and not re.search(r'drgio440\.com', ultimo, re.I)}
@@ -286,6 +312,19 @@ def aplicar_paso(texto, paso, history, mensaje):
     p = paso.get('paso')
     if p == 'orientar':
         return ORIENTAR[paso['zona']]
+    if p == 'reclamo':
+        if paso.get('datos_dados'):
+            return DISCULPA_CONTACTO
+        return FALTAN_DATOS_CONTACTO + '\n' + RECORDAR_DATOS.split('\n', 1)[1]
+    if p == 'regreso':
+        proc = paso.get('proc')
+        if paso.get('datos_dados'):
+            return ("¡Hola de nuevo! 💙 Ya tenemos tus datos y *nuestra asesora te contactará por aquí* muy pronto"
+                    + (f" para hablar de tu *{proc}*" if proc else '') + ".\n\n¿Hay algo más en lo que te pueda ayudar mientras tanto? 😊")
+        saludo = "¡Hola de nuevo! 💙 " + (f"Seguimos con tu consulta sobre la *{proc}* 😊" if proc else "¿En qué más te puedo ayudar? 😊")
+        if paso.get('datos_pedidos'):
+            return saludo + '\n\n' + RECORDAR_DATOS
+        return saludo + '\n\n' + CIERRE_DUDAS
     if p == 'verificar':
         return VERIFICAR + '\n\n' + (RECORDAR_DATOS if paso.get('datos_pendientes') else CIERRE_DUDAS)
     if p == 'turismo':
