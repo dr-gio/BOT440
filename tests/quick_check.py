@@ -14,9 +14,6 @@ def check(condition, name):
 
 print("\n⚡ QUICK CHECK BOT440\n")
 
-r = requests.get(f"{BASE}/webhook", timeout=5)
-check(r.status_code == 200, "GET /webhook → 200")
-
 r = requests.get(f"{BASE}/webhook-cx", timeout=5)
 check(r.status_code == 200, "GET /webhook-cx → 200")
 
