@@ -674,6 +674,8 @@ IMPORTANTE: NO bloquear por:
 # Default headers including User-Agent (gate.whapi.cloud and supabase are
 # behind Cloudflare which blocks Python-urllib UA with HTTP 403 / error 1010)
 _BROWSER_UA = 'Mozilla/5.0 (compatible; BOT440/1.0; +https://440clinic.com)'
+# Supabase rechaza la clave secreta si el User-Agent parece de navegador: a la base va uno de servidor
+_SB_UA = 'BOT440/1.0 (servidor)'
 
 # Tools exposed to Claude for the agendamiento flow
 TOOLS = [
@@ -881,7 +883,7 @@ class Brain:
             'Authorization': f'Bearer {self.sb_key}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'User-Agent': _BROWSER_UA,
+            'User-Agent': _SB_UA,
         }
 
     def _load_history(self, sender_id, canal):

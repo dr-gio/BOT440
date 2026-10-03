@@ -96,7 +96,7 @@ def store_whapi_media(image_obj, token, prefix='wa'):
                 'apikey': sb_key,
                 'Content-Type': mime,
                 'x-upsert': 'true',
-                'User-Agent': _UA,
+                'User-Agent': 'BOT440/1.0 (servidor)',  # Supabase rechaza la clave secreta con UA de navegador
             })
         with urllib.request.urlopen(up, timeout=20) as r:
             if r.status not in (200, 201):

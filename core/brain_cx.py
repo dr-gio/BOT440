@@ -42,6 +42,8 @@ def _is_emoji_only_cx(s: str) -> bool:
     return any(ord(c) > 0x2000 for c in s)
 
 _BROWSER_UA = 'Mozilla/5.0 (compatible; BOT440-CX/1.0; +https://440clinic.com)'
+# Supabase rechaza la clave secreta si el User-Agent parece de navegador: a la base va uno de servidor
+_SB_UA = 'BOT440-CX/1.0 (servidor)'
 
 # ── MedFiles (nuevo destino de leads) ───────────────────────────────────────
 _MEDFILES_DEFAULT_URL = 'https://medfiles.drgiovannifuentes.com'
@@ -812,7 +814,7 @@ class BrainCX:
             'Authorization': f'Bearer {self.sb_key}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'User-Agent': _BROWSER_UA,
+            'User-Agent': _SB_UA,
         }
 
     def _check_paciente_recurrente(self, sender_id):
