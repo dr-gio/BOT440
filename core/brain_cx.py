@@ -663,7 +663,8 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
             texto = 'asesoría virtual · nombre completo · ciudad'
     # Ya se pidieron los datos y el paciente hace otra pregunta: se responde la pregunta y se recuerda en corto
     # (no se repite el pedido completo, que borraría la respuesta)
-    if re.search(r'nombre completo', previos, re.I) and not re.search(r'drgio440\.com', previos, re.I) and '<<<NOTIFY' not in texto:
+    _elige = (not _es_pregunta) and re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para)|cita con|asesor[ií]a)\b', mensaje_paciente or '', re.I)
+    if re.search(r'nombre completo', previos, re.I) and not re.search(r'drgio440\.com', previos, re.I) and '<<<NOTIFY' not in texto and not _elige:
         lineas_r = []
         for l in texto.split('\n'):
             if re.search(r'(d[eé]jame|nombre completo|tus datos|nuestra asesora te contactar|estás list[ao] para ser parte)', l, re.I):
@@ -678,11 +679,10 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
             respuesta = re.sub(r'[^.!\n]*\b(el )?dr\.? gio\b[^.!\n]*\b(defin|eval[uú]|confirm|determin|indic)\w*[^.!\n]*valoraci[oó]n[^.!\n]*[.!]?(\s*👨‍⚕️)?',
                                ' En tu *asesoría virtual gratuita* nuestra *asesora experta en cirugía plástica* te orienta según tu caso, y el Dr. Gio lo confirma en tu valoración 👨‍⚕️',
                                respuesta, count=1, flags=re.I).replace('  ', ' ').strip()
-        recordar = ("Cuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
-                    "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*")
+        # Sigue preguntando sin dejar los datos: misma estructura de siempre (¿alguna duda? + siguiente paso)
         if len(respuesta) <= 15 or re.search(r'nombre completo', respuesta, re.I):
-            return recordar
-        return re.sub(r'\n{3,}', '\n\n', respuesta + "\n\n" + recordar).strip()
+            return CIERRE_DUDAS
+        return re.sub(r'\n{3,}', '\n\n', respuesta + "\n\n" + CIERRE_DUDAS).strip()
     # Pedido de datos: texto fijo aprobado (#LAbelleza440 + "nuestra asesora te contactará" + correo sin "opcional")
     if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)

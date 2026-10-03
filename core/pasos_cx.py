@@ -322,11 +322,9 @@ def aplicar_paso(texto, paso, history, mensaje):
             return ("¡Hola de nuevo! 💙 Ya tenemos tus datos y *nuestra asesora te contactará por aquí* muy pronto"
                     + (f" para hablar de tu *{proc}*" if proc else '') + ".\n\n¿Hay algo más en lo que te pueda ayudar mientras tanto? 😊")
         saludo = "¡Hola de nuevo! 💙 " + (f"Seguimos con tu consulta sobre la *{proc}* 😊" if proc else "¿En qué más te puedo ayudar? 😊")
-        if paso.get('datos_pedidos'):
-            return saludo + '\n\n' + RECORDAR_DATOS
         return saludo + '\n\n' + CIERRE_DUDAS
     if p == 'verificar':
-        return VERIFICAR + '\n\n' + (RECORDAR_DATOS if paso.get('datos_pendientes') else CIERRE_DUDAS)
+        return VERIFICAR + '\n\n' + CIERRE_DUDAS
     if p == 'turismo':
         return TURISMO + '\n\n' + CIERRE_DUDAS
     if p == 'info_senos':
