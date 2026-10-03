@@ -180,7 +180,7 @@ def decidir_paso(history, texto):
         return {'paso': 'bienvenida'}
     ultimo = bots[-1]
     todo = '\n'.join(bots)
-    datos_dados = bool(re.search(r'drgio440\.com|asesora ya tiene tus datos', todo, re.I))
+    datos_dados = bool(re.search(r'ya eres parte de #labelleza440|<<<NOTIFY|asesora ya tiene tus datos', todo, re.I))
     datos_pedidos = bool(re.search(r'nombre completo', todo, re.I))
     # Reclamo: "no me han escrito / contactado"
     if re.search(r'no me (han|ha) (escrito|contactado|llamado|respondido|atendido)|nadie me (ha )?(escrito|contactado|llamado)|'
@@ -192,8 +192,8 @@ def decidir_paso(history, texto):
                 'proc': _procedimiento_conversado(history)}
     if re.search(r'sociedad|certificad|rethus|verific|registrad|avalad|es (cirujano|especialista|pl[aá]stico)|t[ií]tulo|idoneidad|es real', t, re.I):
         return {'paso': 'verificar', 'datos_pendientes': bool(re.search(r'nombre completo', ultimo, re.I))
-                and not re.search(r'drgio440\.com', ultimo, re.I)}
-    if re.search(r'nombre completo', ultimo, re.I) and not re.search(r'drgio440\.com', ultimo, re.I):
+                and not re.search(r'ya eres parte de #labelleza440|<<<NOTIFY', ultimo, re.I)}
+    if re.search(r'nombre completo', ultimo, re.I) and not re.search(r'ya eres parte de #labelleza440|<<<NOTIFY', ultimo, re.I):
         return {'paso': 'datos'}
     if _es_eleccion(t):
         return {'paso': 'elige'}
@@ -334,7 +334,7 @@ def aplicar_paso(texto, paso, history, mensaje):
     if p not in ('recomendar', 'procedimiento', 'duda'):
         return texto
     # Mensajes que tienen su propio cierre aprobado: no se tocan
-    if re.search(r'(nombre completo|<<<NOTIFY|drgio440\.com|urgencias|l[ií]nea de emergencia|asesora ya tiene tus datos)', texto, re.I):
+    if re.search(r'(nombre completo|<<<NOTIFY|ya eres parte de #labelleza440|urgencias|l[ií]nea de emergencia|asesora ya tiene tus datos)', texto, re.I):
         return texto
     tiene_ficha = 'Por lo general es ideal para ti si' in texto
     # Describió algo y la IA reconoció el procedimiento (ej. "tetillas" → ginecomastia): va la ficha aprobada

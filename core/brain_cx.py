@@ -664,7 +664,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     # Ya se pidieron los datos y el paciente hace otra pregunta: se responde la pregunta y se recuerda en corto
     # (no se repite el pedido completo, que borraría la respuesta)
     _elige = (not _es_pregunta) and re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para)|cita con|asesor[ií]a)\b', mensaje_paciente or '', re.I)
-    if re.search(r'nombre completo', previos, re.I) and not re.search(r'drgio440\.com', previos, re.I) and '<<<NOTIFY' not in texto and not _elige:
+    if re.search(r'nombre completo', previos, re.I) and not re.search(r'ya eres parte de #labelleza440|<<<NOTIFY', previos, re.I) and '<<<NOTIFY' not in texto and not _elige:
         lineas_r = []
         for l in texto.split('\n'):
             if re.search(r'(d[eé]jame|nombre completo|tus datos|nuestra asesora te contactar|estás list[ao] para ser parte)', l, re.I):
@@ -714,7 +714,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion and not modalidad else ""))
     # Si la IA escribió sus propias opciones o su propio cierre, se quitan: el bloque aprobado va una sola vez
     if re.search(r'asesor[ií]a virtual gratuita.*valoraci[oó]n con el dr', texto, re.I | re.S) \
-            and not re.search(r'nombre completo|<<<NOTIFY|drgio440\.com', texto, re.I):
+            and not re.search(r'nombre completo|<<<NOTIFY|ya eres parte de #labelleza440', texto, re.I):
         lineas_o = texto.split('\n')
         corte = next((i for i, l in enumerate(lineas_o) if re.search(
             r'(1️⃣|✅\s*\*?asesor[ií]a|siguiente paso|resp[oó]ndeme|alguna otra \*?(pregunta|duda))', l, re.I)), None)
@@ -741,7 +741,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     ultima = next((l for l in reversed(texto.strip().split('\n')) if l.strip()), '')
     orientando = '?' in ultima and not re.search(r'(duda|otra \*?pregunta|siguiente paso|agendar|te cuento)', ultima, re.I)
     # Respuesta a una duda: siempre cierra preguntando por más dudas y nombrando el siguiente paso
-    if hubo_bot and not ya_escogio and (forzar_cierre or not orientando) and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|drgio440\.com|'
+    if hubo_bot and not ya_escogio and (forzar_cierre or not orientando) and not re.search(r'(Tu siguiente paso puede ser|nombre completo|te gustar[ií]a agendar|ya eres parte|'
                                   r'<<<NOTIFY|me cuentas que te interesa|asesora ya tiene tus datos|urgencias|l[ií]nea de emergencia)', texto, re.I):
         lineas_t = texto.rstrip().split('\n')
         while lineas_t and (not lineas_t[-1].strip() or re.search(r'\?\s*\S{0,3}\s*$', lineas_t[-1])
