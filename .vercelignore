@@ -1,0 +1,6 @@
+# Nunca subir a Vercel: claves locales, respaldos y pruebas
+.env
+.env.*
+*.bak
+tests/
+api/test-*.py
