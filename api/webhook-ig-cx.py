@@ -12,7 +12,7 @@ Expected env vars:
 """
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import json, os, sys
+import json, os, sys, urllib.request
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.brain_cx import BrainCX
@@ -93,6 +93,28 @@ def _extract_event(payload):
     return out
 
 
+def _clave_valida(clave):
+    """MedFiles reenvía los DM con X-Clave; se valida contra la base (canal 'bot' o la clave del servidor)."""
+    if not clave:
+        return False
+    url = os.environ.get('SUPABASE_URL', '').rstrip('/')
+    key = os.environ.get('SUPABASE_ANON_KEY', '')
+    if not url or not key:
+        return False
+    try:
+        req = urllib.request.Request(
+            f'{url}/rest/v1/rpc/clave_valida',
+            data=json.dumps({'p_canal': 'bot', 'p_clave': clave}).encode(),
+            headers={'apikey': key, 'Authorization': f'Bearer {key}', 'Content-Type': 'application/json',
+                     'Content-Profile': 'consultorio', 'Accept-Profile': 'consultorio', 'User-Agent': 'BOT440/1.0'},
+            method='POST')
+        with urllib.request.urlopen(req, timeout=8) as r:
+            return json.loads(r.read()) is True
+    except Exception as e:
+        print(f"[WEBHOOK-IG-CX] clave check error: {e}", flush=True)
+        return False
+
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         print(f"[WEBHOOK-IG-CX] GET {self.path}", flush=True)
@@ -129,6 +151,14 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         print(f"[WEBHOOK-IG-CX] POST recibido", flush=True)
         try:
+            # Solo MedFiles (con su clave) puede pedir respuestas: recibe el DM, lo registra y envía lo que el bot conteste
+            if not _clave_valida(self.headers.get('X-Clave', '')):
+                print("[WEBHOOK-IG-CX] clave no válida", flush=True)
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"error":"no autorizado"}')
+                return
             length = int(self.headers.get('Content-Length', 0))
             payload = json.loads(self.rfile.read(length))
             if payload.get('object') and payload.get('object') != 'instagram':
@@ -142,7 +172,7 @@ class handler(BaseHTTPRequestHandler):
                     continue
                 cuenta = _PAGE_TO_CUENTA.get(ev['page_id'], 'drgiovannifuentes')
                 print(f"[WEBHOOK-IG-CX] igsid={ev['igsid']} page_id={ev['page_id']} cuenta={cuenta!r} text={ev['text'][:60]!r}", flush=True)
-                # send=False → BrainCX devuelve el texto, W20 se encarga de enviarlo via IG
+                # send=False → BrainCX devuelve el texto y MedFiles lo envía por Instagram (queda en la conversación)
                 reply_text = BrainCX().process(ev['igsid'], ev['from_name'], ev['text'], 'instagram_cx',
                                                cuenta_receptora=cuenta, send=False)
             print(f"[WEBHOOK-IG-CX] Procesado OK reply_len={len(reply_text)}", flush=True)

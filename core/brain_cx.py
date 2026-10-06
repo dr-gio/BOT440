@@ -2103,6 +2103,10 @@ class BrainCX:
             'pauta': pauta or None,
             'resumen': resumen,
         }
+        if self._es_canal_instagram(canal):
+            # Instagram: el lead queda en la misma persona que MedFiles creó con la conversación (IGSID)
+            body['chat_id'] = sender_id
+            body['canal'] = 'instagram'
         print(f"[CX] lead → MedFiles interes={interes} modalidad={modalidad} pauta={pauta!r} tel={telefono}", flush=True)
         _resp = self._push_medfiles_lead(body) or {}
         # WhatsApp de la asesora asignada (se configura en MedFiles → Configuración → Equipo);
