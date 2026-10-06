@@ -592,6 +592,12 @@ BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gus
 # Separa la respuesta en dos mensajes de WhatsApp (bienvenida / información) para que no quede un bloque enorme
 PARTE = "\n\n<<<PARTE>>>\n\n"
 
+PREGUNTA_PRESUPUESTO = ("¡Con gusto te ayudo con tu presupuesto! 💙\n\n"
+                        "Para darte el valor, cuéntame: ¿qué *procedimiento* te interesa o qué te gustaría mejorar? 😊")
+_RE_PIDE_PRESUPUESTO = re.compile(r'\b(presupuesto|cotizaci[oó]n|cotizar|precio|precios|valor|valores|cu[aá]nto (cuesta|vale|sale|cobra)|costos?)\b', re.I)
+_RE_ALGUN_PROC = re.compile(r'(lipo|abdomin|mamo|seno|busto|pecho|pexia|implante|gl[uú]te|bbl|cola|blefaro|p[aá]rpado|papada|'
+                            r'otoplast|oreja|ginecomast|mommy|lifting|brazo|pierna|muslo|rinoplast|nariz|bichect|explant|reducci[oó]n|'
+                            r'cirug[ií]a (de|del|en) |barriga|abdomen|cintura|flancos|espalda|cara|rostro)', re.I)
 _RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\b', re.I)
 _RE_PROMESA = re.compile(r'[,;]?\s*(con (excelentes|los mejores) resultados|sin (dejar )?irregularidades|de forma natural y sin [^.,\n]*|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
 
@@ -619,6 +625,13 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
             texto = re.sub(r'<<<FICHA:[a-z_]+>>>', '', texto)
     hubo_bot = any(m.get('role') == 'assistant' for m in (history or []))
     previos = '\n'.join(m.get('content', '') for m in (history or []) if m.get('role') == 'assistant')
+    # Pide presupuesto/precio sin decir de qué cirugía → se le pregunta cuál (antes no se entendía y solo salía el cierre)
+    _dicho_total = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'
+                             and isinstance(m.get('content'), str)] + [mensaje_paciente or ''])
+    if _RE_PIDE_PRESUPUESTO.search(mensaje_paciente or '') and not _RE_ALGUN_PROC.search(_dicho_total) \
+            and not re.search(r'valoraci|consulta|asesor|financ|cuota|pago', mensaje_paciente or '', re.I) \
+            and not re.search(r'nombre completo', previos, re.I):
+        return (BIENVENIDA_CABEZA + '\n\n' + PREGUNTA_PRESUPUESTO) if not hubo_bot else PREGUNTA_PRESUPUESTO
     lineas = texto.split('\n')
     # Quita el saludo/bienvenida que haya escrito la IA (la bienvenida la pone el código)
     # Solo líneas con el formato de la bienvenida (con su emoji); si el paciente PREGUNTA por turismo,
