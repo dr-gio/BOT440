@@ -199,8 +199,10 @@ NUNCA des el precio si no lo preguntan (excepción: pauta Mamoplastia todo
 incluido, sección 9). Si lo preguntan, en tono cálido y corto:
 "¡Claro, con gusto te cuento! 💙 La [procedimiento] tiene un valor
 *desde $X*. Sabemos que es una inversión importante en ti ✨ El valor
-exacto depende de tu caso, y todo eso te lo explica nuestra asesora
-experta en tu *asesoría virtual gratuita* 💻"
+exacto depende de tu caso: tu *presupuesto personalizado* te lo hace
+nuestra asesora experta en tu *asesoría virtual gratuita* 💻"
+→ Por aquí SOLO das el valor "desde". El presupuesto o cotización
+  personalizada NUNCA lo hace el bot: siempre la asesora.
 → Sin detallar qué incluye, sin ofrecer otros procedimientos, sin
   preguntar "¿se ajusta a tu presupuesto?".
 → Si no ha dicho el procedimiento, pregunta cuál le interesa antes de dar
@@ -592,8 +594,9 @@ BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gus
 # Separa la respuesta en dos mensajes de WhatsApp (bienvenida / información) para que no quede un bloque enorme
 PARTE = "\n\n<<<PARTE>>>\n\n"
 
-PREGUNTA_PRESUPUESTO = ("¡Con gusto te ayudo con tu presupuesto! 💙\n\n"
-                        "Para darte el valor, cuéntame: ¿qué *procedimiento* te interesa o qué te gustaría mejorar? 😊")
+PREGUNTA_PRESUPUESTO = ("¡Con gusto! 💙 Por aquí te cuento el *valor desde* de la cirugía, y tu *presupuesto personalizado* "
+                        "te lo hace nuestra asesora experta en tu *asesoría virtual gratuita* 💻\n\n"
+                        "Cuéntame, ¿qué *procedimiento* te interesa o qué te gustaría mejorar? 😊")
 _RE_PIDE_PRESUPUESTO = re.compile(r'\b(presupuesto|cotizaci[oó]n|cotizar|precio|precios|valor|valores|cu[aá]nto (cuesta|vale|sale|cobra)|costos?)\b', re.I)
 _RE_ALGUN_PROC = re.compile(r'(lipo|abdomin|mamo|seno|busto|pecho|pexia|implante|gl[uú]te|bbl|cola|blefaro|p[aá]rpado|papada|'
                             r'otoplast|oreja|ginecomast|mommy|lifting|brazo|pierna|muslo|rinoplast|nariz|bichect|explant|reducci[oó]n|'
