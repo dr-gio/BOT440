@@ -1016,6 +1016,21 @@ class BrainCX:
         except Exception as e:
             print(f"[CX] set_bloqueado error: {e}", flush=True)
 
+    def _hay_entrante_mas_nuevo(self, sender_id, canal, texto):
+        """True si el último mensaje entrante guardado de esta persona no es este (llegó otro después)."""
+        if not self.sb_url or not self.sb_key:
+            return False
+        params = (f'contacto_telefono=eq.{urllib.parse.quote(sender_id)}&canal=eq.{urllib.parse.quote(canal)}'
+                  f'&direccion=eq.entrante&select=mensaje&order=created_at.desc&limit=1')
+        try:
+            req = urllib.request.Request(f'{self.sb_url}/rest/v1/conversaciones_440?{params}', headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=6) as r:
+                filas = json.loads(r.read()) or []
+            return bool(filas) and (filas[0].get('mensaje') or '').strip() != (texto or '').strip()
+        except Exception as e:
+            print(f"[CX] check entrante nuevo error (sigue): {e}", flush=True)
+            return False
+
     def _load_history(self, sender_id, canal='cirugia'):
         if not self.sb_url or not self.sb_key:
             return []
@@ -1050,8 +1065,11 @@ class BrainCX:
             remitente = (row.get('remitente') or '').lower()
             role = 'assistant' if (direccion == 'saliente' or remitente in ('bot', 'asistente', 'sistema')) else 'user'
             messages.append({'role': role, 'content': content})
-        while messages and messages[0]['role'] != 'user':
-            messages.pop(0)
+        # La IA necesita que el historial empiece con el paciente. Si el primer mensaje fue nuestro
+        # (conversación iniciada por el equipo o por el bot), se conserva y se antepone un marcador,
+        # así el bot sabe que ya escribió y no repite la bienvenida.
+        if messages and messages[0]['role'] != 'user':
+            messages.insert(0, {'role': 'user', 'content': '(El Centro de Atención le escribió primero a esta persona.)'})
         collapsed = []
         for m in messages:
             if collapsed and collapsed[-1]['role'] == m['role']:
@@ -2870,6 +2888,20 @@ class BrainCX:
         history.append({'role': 'user', 'content': user_content})
 
         self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+
+        # Mensajes seguidos ("Hola" + "quiero info" en segundos): se espera un momento y responde
+        # SOLO el último, con todo el historial (antes salían dos bienvenidas o respuestas repetidas).
+        if send and not self._es_canal_instagram(canal):
+            time.sleep(4)
+            if self._hay_entrante_mas_nuevo(sender_id, canal, text):
+                print(f"[CX] {sender_id}: llegó otro mensaje después de este — responde ese", flush=True)
+                return ''
+            _prefijo = user_content[:user_content.index(']:') + 2] if ']:' in user_content else ''
+            history = self._load_history(sender_id, canal=canal)
+            if history and history[-1]['role'] == 'user':
+                history[-1]['content'] = f"{_prefijo} {history[-1]['content']}".strip()
+            else:
+                history.append({'role': 'user', 'content': user_content})
 
         # Guardar / actualizar paciente. nombre se extrae de la conversación
         # cuando el bot acaba de pedirlo; sender_name (WhatsApp profile) solo
