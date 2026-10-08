@@ -18,6 +18,10 @@
     {
       "src": "/webhook-ig-cx-simple",
       "dest": "/api/webhook-ig-cx-simple.py"
+    },
+    {
+      "src": "/iniciar-cx",
+      "dest": "/api/iniciar-cx.py"
     }
   ]
 }
