@@ -2114,6 +2114,20 @@ class BrainCX:
         low = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', primero or ''))
         return _PAUTA_MAMO_LABEL if any(k in low for k in _PAUTA_MAMO_KW) else None
 
+    def _medfiles_idioma(self, telefono, idioma):
+        """Avisa a MedFiles el idioma de la persona (etiqueta EN en el pipeline). Si falla, no pasa nada."""
+        base, clave = self._medfiles_cfg()
+        if not clave:
+            return
+        try:
+            req = urllib.request.Request(f"{base}/api/entrada/bot", method='POST',
+                                         data=json.dumps({'accion': 'idioma', 'telefono': telefono, 'idioma': idioma}).encode(),
+                                         headers={'Content-Type': 'application/json', 'X-Clave': clave, 'User-Agent': 'BOT440/1.0'})
+            with urllib.request.urlopen(req, timeout=6) as r:
+                print(f"[CX] medfiles idioma={idioma} → {r.read()[:80]!r}", flush=True)
+        except Exception as e:
+            print(f"[CX] medfiles idioma error: {e}", flush=True)
+
     def _push_medfiles_lead(self, body):
         """POST /api/entrada/bot. Devuelve el JSON de respuesta o None."""
         base, clave = self._medfiles_cfg()
@@ -3322,6 +3336,8 @@ class BrainCX:
         self._idioma = 'en' if (_en_inicio and not _es_ahora) else 'es'
         if self._idioma == 'en':
             print(f"[CX] {sender_id}: conversación en INGLÉS", flush=True)
+            if send and not self._es_canal_instagram(canal) and sum(1 for m in history if m.get('role') == 'assistant') <= 1:
+                self._medfiles_idioma(sender_id, 'en')
             paciente_ctx += ("\n\n[Esta persona escribe en INGLÉS. Responde en ESPAÑOL siguiendo el guion de siempre: "
                              "tu respuesta se traduce automáticamente al inglés antes de enviarla. Entiende lo que escribe en inglés.]")
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
