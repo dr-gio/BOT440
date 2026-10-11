@@ -609,7 +609,8 @@ _RE_PROMESA = re.compile(r'[,;]?\s*(con (excelentes|los mejores) resultados|sin 
 
 # ── Pacientes que escriben en inglés ────────────────────────────────────────
 _EN = re.compile(r"\b(hi|hello|hey|i'?m|i am|i'd|i would|interested|how much|price|cost|surgery|would|like|want|thanks|thank you|please|"
-                 r"the|my|what|is|are|do|you|can|tummy tuck|breast|lift|implants|information|info|about|appointment|consultation)\b", re.I)
+                 r"the|my|what|is|are|do|you|can|tummy tuck|breast|lift|implants|information|info|about|appointment|consultation|"
+                 r"medical|tourism|turism|package|travel|yes|ok|okay|good|great|where|when|which|thank|help|need|have)\b", re.I)
 _ES = re.compile(r"\b(hola|buenas|buenos|quiero|quisiera|cu[aá]nto|precio|me|gustar[ií]a|cirug[ií]a|informaci[oó]n|gracias|por favor|"
                  r"el|la|que|de|es|los|las|para|con|una|estoy|interesad[ao]|tengo|soy|vale|cuesta)\b", re.I)
 
@@ -3312,8 +3313,13 @@ class BrainCX:
         if _paso.get('paso') == 'reclamo' and _paso.get('datos_dados') and not self._es_canal_instagram(canal):
             self._recordar_asesora(sender_id, text)
 
-        _textos_usuario = [m.get('content') for m in history if m.get('role') == 'user'] + [text]
-        self._idioma = 'en' if es_ingles(_textos_usuario) else 'es'
+        # Idioma de la conversación: lo marca el primer mensaje de la persona y se mantiene,
+        # salvo que después escriba claramente en español.
+        _textos_usuario = [m.get('content') for m in history if m.get('role') == 'user'
+                           and not str(m.get('content', '')).startswith('(El Centro de Atención')] + [text]
+        _en_inicio = es_ingles(_textos_usuario[:1]) or es_ingles(_textos_usuario)
+        _es_ahora = len(_ES.findall(text or '')) >= 2 and not es_ingles([text])
+        self._idioma = 'en' if (_en_inicio and not _es_ahora) else 'es'
         if self._idioma == 'en':
             print(f"[CX] {sender_id}: conversación en INGLÉS", flush=True)
             paciente_ctx += ("\n\n[Esta persona escribe en INGLÉS. Responde en ESPAÑOL siguiendo el guion de siempre: "

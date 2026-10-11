@@ -103,6 +103,7 @@ ESCENARIOS = {
         ('Hi', [tiene('Welcome', 'RETHUS'), no_tiene('Bienvenida(o)', 'Cuéntame', 'medical tourism')]),
         ('Tummy tuck', [tiene('next step'), no_tiene('Tu siguiente paso')]),
         ('How much does it cost?', [tiene('COP', 'US$'), no_tiene('¿Tienes alguna', 'Tu siguiente paso')]),
+        ('MEDICAL turism?', [tiene('touris'), no_tiene('turismo', '¡Claro')]),
         ('I would like the free virtual consultation', [tiene('name'), no_tiene('Nombre completo')]),
     ],
     'lipo_directo': [
