@@ -1378,7 +1378,7 @@ class BrainCX:
         """Traduce al inglés la respuesta ya armada en español (misma estructura, emojis y formato).
         El turismo médico solo se menciona si la persona preguntó por él. Los precios llevan su valor en dólares."""
         dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'] + [mensaje_paciente or ''])
-        if not re.search(r'tour|travel|package|all.?inclusive|hotel|recovery house|stay|lodging|accommodation|turismo|todo incluido', dicho, re.I):
+        if not re.search(r'tour|turis|travel|trip|package|all.?inclusive|hotel|recovery house|stay|lodging|accommodation|turismo|todo incluido', dicho, re.I):
             texto = '\n'.join(l for l in texto.split('\n') if not re.search(r'turismo m[eé]dico', l, re.I))
             texto = re.sub(r'\n*Como nos escribes desde [^\n]*', '', texto)
         partes = texto.split('<<<PARTE>>>')
