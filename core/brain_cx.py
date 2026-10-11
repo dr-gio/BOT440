@@ -1373,6 +1373,43 @@ class BrainCX:
         r'https?://meet\.google\.com/[a-z0-9]{3,4}-[a-z0-9]{3,4}-[a-z0-9]{3,4}',
         re.IGNORECASE)
 
+    def _traducir_en(self, texto, mensaje_paciente='', history=None):
+        """Traduce al inglés la respuesta ya armada en español (misma estructura, emojis y formato).
+        El turismo médico solo se menciona si la persona preguntó por él. Los precios llevan su valor en dólares."""
+        dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'] + [mensaje_paciente or ''])
+        if not re.search(r'tour|travel|package|all.?inclusive|hotel|recovery house|stay|lodging|accommodation|turismo|todo incluido', dicho, re.I):
+            texto = '\n'.join(l for l in texto.split('\n') if not re.search(r'turismo m[eé]dico', l, re.I))
+            texto = re.sub(r'\n*Como nos escribes desde [^\n]*', '', texto)
+        partes = texto.split('<<<PARTE>>>')
+        salida = []
+        for parte in partes:
+            if not parte.strip():
+                continue
+            try:
+                payload = json.dumps({
+                    "model": "claude-haiku-4-5-20251001", "max_tokens": 1200,
+                    "system": ("Translate this WhatsApp message from Spanish into natural, warm, professional US English for a "
+                               "plastic surgery patient. Keep EXACTLY the same structure, line breaks, emojis and WhatsApp formatting "
+                               "(*bold*, _italic_). Keep names, @handles, URLs, RETHUS and #LAbelleza440 unchanged. "
+                               "Prices: keep the same COP amounts written as 'COP 17,000,000'. Terms: 'asesoría virtual gratuita' = "
+                               "'free virtual consultation'; 'asesora experta' = 'expert advisor'; 'valoración con el Dr. Gio' = "
+                               "'consultation with Dr. Gio'; 'Centro de Atención' = 'Patient Care Center'; 'Nombre completo' = 'Full name'; "
+                               "'Ciudad' = 'City and country'; 'Correo electrónico' = 'Email'; 'Procedimiento de interés' = 'Procedure of interest'. "
+                               "Output ONLY the translated message."),
+                    "messages": [{"role": "user", "content": parte.strip()}],
+                }).encode()
+                req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=payload, method="POST", headers={
+                    "x-api-key": self.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json",
+                    "user-agent": _BROWSER_UA})
+                with urllib.request.urlopen(req, timeout=25) as r:
+                    data = json.loads(r.read())
+                traducido = ''.join(b.get('text', '') for b in data.get('content', []) if b.get('type') == 'text').strip()
+                salida.append(ajustar_respuesta_en(traducido or parte.strip()))
+            except Exception as e:
+                print(f"[CX] traducción error (se envía en español): {e}", flush=True)
+                salida.append(parte.strip())
+        return '\n\n<<<PARTE>>>\n\n'.join(salida) if salida else texto
+
     def _call_claude(self, messages, sender_id='', sender_name='', forced_slots=None,
                      paciente_ctx=''):
         """Llama a Claude con soporte para tool use (check_slots_cx, create_event_cx).
@@ -3279,7 +3316,8 @@ class BrainCX:
         self._idioma = 'en' if es_ingles(_textos_usuario) else 'es'
         if self._idioma == 'en':
             print(f"[CX] {sender_id}: conversación en INGLÉS", flush=True)
-            paciente_ctx += instrucciones_ingles(not any(m.get('role') == 'assistant' for m in history))
+            paciente_ctx += ("\n\n[Esta persona escribe en INGLÉS. Responde en ESPAÑOL siguiendo el guion de siempre: "
+                             "tu respuesta se traduce automáticamente al inglés antes de enviarla. Entiende lo que escribe en inglés.]")
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
@@ -3315,11 +3353,9 @@ class BrainCX:
         user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', full_response, flags=re.DOTALL)
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
-        _en = getattr(self, '_idioma', 'es') == 'en'
-        if not _en:   # los ajustes del guion están en español; en inglés responde la IA con el guion traducido
-            user_facing = ajustar_respuesta_cx(user_facing, history, text)
-        else:
-            user_facing = ajustar_respuesta_en(user_facing)
+        _en = False   # el guion se arma en español; si la persona escribe en inglés se traduce al final (misma estructura)
+        _ingles = getattr(self, '_idioma', 'es') == 'en'
+        user_facing = ajustar_respuesta_cx(user_facing, history, text)
         if not match and not _en:
             try:
                 user_facing = aplicar_paso(user_facing, _paso, history, text)
@@ -3380,16 +3416,19 @@ class BrainCX:
             _lead_asg = self._check_lead_crm(sender_id)
             tiene_asesora = bool(_lead_asg and (_lead_asg.get('asesora_asignada') or '').strip())
 
+        _visible = user_facing
+        if user_facing and _ingles:
+            _visible = self._traducir_en(user_facing, text, history)
         if user_facing:
             if send:
-                print(f"[CX] sending reply len={len(user_facing)} via canal={canal} to={sender_id}", flush=True)
+                print(f"[CX] sending reply len={len(_visible)} via canal={canal} to={sender_id}", flush=True)
                 client = self.instagram if canal.startswith('instagram') else self.whapi
-                partes = [x.strip() for x in user_facing.split('<<<PARTE>>>') if x.strip()]
+                partes = [x.strip() for x in _visible.split('<<<PARTE>>>') if x.strip()]
                 for _k, _parte in enumerate(partes[:-1]):
                     try: client.send_text(sender_id, _parte)
                     except Exception as e: print(f"[CX] parte send err: {e}", flush=True)
                     time.sleep(1.2)
-                r = client.send_text(sender_id, partes[-1] if partes else user_facing)
+                r = client.send_text(sender_id, partes[-1] if partes else _visible)
                 if isinstance(r, dict) and 'error' in r:
                     print(f"[CX] ❌ SEND ERROR canal={canal} error={r.get('error')!r} body={r.get('body','')!r}", flush=True)
                 else:
@@ -3415,7 +3454,7 @@ class BrainCX:
                 self._notify_lead(fields, sender_id, canal=canal,
                                   history=history, ultimo_bot=user_facing)
 
-        return re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', user_facing)
+        return re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', _visible)
 
 
 def _now_iso():
