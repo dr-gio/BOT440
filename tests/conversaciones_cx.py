@@ -41,6 +41,8 @@ def _falso(req, *a, **k):
             return _R(b'{"pausado": false}')
         LEADS.append(json.loads(req.data.decode()))
         return _R(b'{"ok": true, "nuevo": true, "asesora": null}')
+    if 'datos.gov.co' in url:   # TRM fija para las pruebas
+        return _R(b'[{"valor": "3200.00"}]')
     if 'whapi.sim' in url:
         return _R(b'{"sent": true, "message": {"id": "sim"}}')
     return _R(b'[]')
@@ -97,6 +99,11 @@ def con_ficha(): return ('trae la ficha aprobada', lambda r: FICHA in r)
 def pide_datos(): return ('pide nombre, ciudad, correo y procedimiento', lambda r: all(x in r for x in ('Nombre completo', 'Ciudad', 'Correo electrónico', 'Procedimiento de interés')))
 
 ESCENARIOS = {
+    'ingles': [
+        ('Hi! I am interested in a tummy tuck', [tiene('Welcome', 'RETHUS'), no_tiene('Bienvenida(o)', 'Cuéntame')]),
+        ('How much does it cost?', [tiene('COP', 'US$'), no_tiene('¿Tienes alguna', 'Tu siguiente paso')]),
+        ('I would like the free virtual consultation', [tiene('name'), no_tiene('Nombre completo')]),
+    ],
     'lipo_directo': [
         ('Hola', [tiene('Bienvenida(o)', 'RETHUS'), sin_cierre()]),
         ('Quiero una lipo', [con_ficha(), tiene('Lipoescultura'), con_cierre()]),

@@ -607,6 +607,90 @@ _RE_TECNO = re.compile(r'\b(vaser|micro\s?aire|retraction|j\s?plasma|arg[oó]n)\
 _RE_PROMESA = re.compile(r'[,;]?\s*(con (excelentes|los mejores) resultados|sin (dejar )?irregularidades|de forma natural y sin [^.,\n]*|resultados? garantizad[oa]s?|garantizad[oa]s?|te garantizamos[^.!\n]*)', re.I)
 
 
+# ── Pacientes que escriben en inglés ────────────────────────────────────────
+_EN = re.compile(r"\b(hi|hello|hey|i'?m|i am|i'd|i would|interested|how much|price|cost|surgery|would|like|want|thanks|thank you|please|"
+                 r"the|my|what|is|are|do|you|can|tummy tuck|breast|lift|implants|information|info|about|appointment|consultation)\b", re.I)
+_ES = re.compile(r"\b(hola|buenas|buenos|quiero|quisiera|cu[aá]nto|precio|me|gustar[ií]a|cirug[ií]a|informaci[oó]n|gracias|por favor|"
+                 r"el|la|que|de|es|los|las|para|con|una|estoy|interesad[ao]|tengo|soy|vale|cuesta)\b", re.I)
+
+
+def es_ingles(textos):
+    """True si la persona escribe en inglés (cuenta palabras típicas de cada idioma en todo lo que ha escrito)."""
+    t = ' '.join(x for x in textos if isinstance(x, str))
+    t = re.sub(r'\[[^\]]*\]:', ' ', t)   # quita el prefijo [teléfono|nombre]:
+    en, es = len(_EN.findall(t)), len(_ES.findall(t))
+    if en >= 1 and es == 0 and len(t.split()) <= 4:   # saludo corto: "Hello", "Hi there"
+        return True
+    return en >= 2 and en > es * 1.5
+
+
+_TRM_CACHE = {'valor': 0.0, 'hasta': 0.0}
+
+
+def trm_hoy():
+    """TRM del día (datos abiertos de la Superfinanciera), con caché de 6 horas. 0 si no se pudo consultar."""
+    if _TRM_CACHE['valor'] and _TRM_CACHE['hasta'] > time.time():
+        return _TRM_CACHE['valor']
+    try:
+        req = urllib.request.Request('https://www.datos.gov.co/resource/32sa-8pi3.json?$order=vigenciadesde%20DESC&$limit=1',
+                                     headers={'User-Agent': 'BOT440/1.0'})
+        with urllib.request.urlopen(req, timeout=6) as r:
+            v = float(json.loads(r.read())[0]['valor'])
+        _TRM_CACHE.update(valor=v, hasta=time.time() + 6 * 3600)
+        return v
+    except Exception as e:
+        print(f"[CX] TRM error: {e}", flush=True)
+        return _TRM_CACHE['valor'] or 0.0
+
+
+def instrucciones_ingles(primer_mensaje):
+    trm = trm_hoy()
+    trm_txt = (f"Today's exchange rate (TRM) is COP {trm:,.0f} per US dollar. Give every price in COP and its approximate US dollar "
+               f"value, e.g. \"from COP 17,000,000 (about US$ {17_000_000 / trm:,.0f})\". Round the dollar value to the nearest hundred and "
+               "always say it is approximate and depends on the exchange rate on the day of payment.") if trm else \
+              "Give prices in COP and say the US dollar value depends on the exchange rate on the day of payment."
+    bienvenida = ("For THIS first reply, start with exactly this welcome (then continue normally):\n"
+                  "\"Hi! 💙 Welcome to the *Patient Care Center of Dr. Giovanni Fuentes*.\n\n"
+                  "👨‍⚕️ *Board-certified Plastic, Aesthetic and Reconstructive Surgeon* · RETHUS CMC2017-222322\n"
+                  "🏅 *Member of the Colombian Society of Plastic Surgery*\n"
+                  "⭐ *Over 10 years of experience*\n\n"
+                  "✨ *#LAbelleza440* · _The perfect harmony of your body_ ✨\n\n"
+                  "You're chatting with *Dr. Gio's virtual assistant* 🤖. I'm here to guide you before your next step.\"\n"
+                  "If they have not said which procedure they want, ask: \"Tell me, which procedure are you interested in, or what would you like to improve? 😊\"\n\n") \
+        if primer_mensaje else ''
+    return (
+        "\n\n━━━━ IMPORTANT: THIS PERSON WRITES IN ENGLISH ━━━━\n"
+        "Reply ENTIRELY in natural, warm, professional English (all the rules above still apply; translate the approved Spanish texts). "
+        "Keep the <<<NOTIFY>>> block and its field names exactly as specified (in Spanish).\n"
+        + bienvenida +
+        f"PRICES: {trm_txt} The personalized quote is delivered after the free virtual consultation with our advisor or the "
+        "consultation with Dr. Gio — the bot only gives the \"from\" price.\n"
+        "NEXT STEPS (use this wording when you offer them):\n"
+        "\"Your next step can be:\n\n✅ *Free virtual consultation* 💻\nWith our expert advisor, by video call and with no commitment.\n\n"
+        "✅ *Consultation with Dr. Gio* 👨‍⚕️\nIn person *COP 260,000* · Virtual *COP 160,000*. The doctor *evaluates your case* personally.\"\n"
+        "To book, ask for: 👤 *Full name* · 📍 *City and country* · 📧 *Email* · ✨ *Procedure of interest*.\n"
+        "MEDICAL TOURISM: do NOT mention all-inclusive packages, recovery houses or travel unless they ask about it.\n"
+    )
+
+
+def ajustar_respuesta_en(texto):
+    """Respuesta en inglés: formato de WhatsApp y cada precio en COP con su valor aproximado en dólares."""
+    texto = re.sub(r'\*\*([^*\n]+)\*\*', r'*\1*', texto)
+    texto = re.sub(r'^\s*[-—_*]{3,}\s*$', '', texto, flags=re.M)
+    trm = trm_hoy()
+    if trm:
+        def _usd(m):
+            valor = float(re.sub(r'[^\d]', '', m.group(2)) or 0)
+            if valor < 100_000 or re.match(r'\s*\(?\s*(about|approx|≈|~)?\s*US\$', texto[m.end():m.end() + 25], re.I):
+                return m.group(0)
+            paso = 100 if valor >= 10_000_000 else 10
+            usd = round(valor / trm / paso) * paso
+            return f"{m.group(0)} (about US$ {usd:,.0f})"
+        texto = re.sub(r'(COP\s*\$?\s*|\$\s*)(\d{1,3}(?:[.,]\d{3}){1,})(\*?)', lambda m: _usd(m) if not m.group(3) else
+                       _usd(re.match(r'(COP\s*\$?\s*|\$\s*)(\d{1,3}(?:[.,]\d{3}){1,})', m.group(0))) + m.group(3), texto)
+    return re.sub(r'\n{3,}', '\n\n', texto).strip()
+
+
 def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     """Aplica las reglas del guion que no deben depender de la IA:
     - no repetir la bienvenida si ya hubo conversación;
@@ -2139,6 +2223,9 @@ class BrainCX:
             'pauta': pauta or None,
             'resumen': resumen,
         }
+        if getattr(self, '_idioma', 'es') == 'en':
+            body['idioma'] = 'en'
+            body['resumen'] = '🇺🇸 HABLA INGLÉS — atenderlo en inglés\n\n' + (body.get('resumen') or '')
         if self._es_canal_instagram(canal):
             # Instagram: el lead queda en la misma persona que MedFiles creó con la conversación (IGSID)
             body['chat_id'] = sender_id
@@ -2162,6 +2249,7 @@ class BrainCX:
             _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
             msg = "\n".join(x for x in [
                 "🆕 *Nuevo lead del asistente*",
+                "🇺🇸 *HABLA INGLÉS* — atenderlo en inglés" if getattr(self, '_idioma', 'es') == 'en' else None,
                 f"👤 *{nombre}*",
                 f"📱 {_tel_txt}",
                 f"📧 {email or 'sin correo'}",
@@ -3187,6 +3275,11 @@ class BrainCX:
         if _paso.get('paso') == 'reclamo' and _paso.get('datos_dados') and not self._es_canal_instagram(canal):
             self._recordar_asesora(sender_id, text)
 
+        _textos_usuario = [m.get('content') for m in history if m.get('role') == 'user'] + [text]
+        self._idioma = 'en' if es_ingles(_textos_usuario) else 'es'
+        if self._idioma == 'en':
+            print(f"[CX] {sender_id}: conversación en INGLÉS", flush=True)
+            paciente_ctx += instrucciones_ingles(not any(m.get('role') == 'assistant' for m in history))
         full_response = self._call_claude(history, sender_id=sender_id, sender_name=sender_name or '',
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
@@ -3222,8 +3315,12 @@ class BrainCX:
         user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', full_response, flags=re.DOTALL)
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
-        user_facing = ajustar_respuesta_cx(user_facing, history, text)
-        if not match:
+        _en = getattr(self, '_idioma', 'es') == 'en'
+        if not _en:   # los ajustes del guion están en español; en inglés responde la IA con el guion traducido
+            user_facing = ajustar_respuesta_cx(user_facing, history, text)
+        else:
+            user_facing = ajustar_respuesta_en(user_facing)
+        if not match and not _en:
             try:
                 user_facing = aplicar_paso(user_facing, _paso, history, text)
             except Exception as _e:
@@ -3235,7 +3332,13 @@ class BrainCX:
             except Exception:
                 _f = {}
             _int = (_f.get('interes') or '').strip().lower()
-            if _int in ('asesoria', 'asesoría', 'valoracion', 'valoración'):
+            if _int in ('asesoria', 'asesoría', 'valoracion', 'valoración') and _en:
+                _nom = ((_f.get('nombre') or '').strip().split() or [''])[0].capitalize()
+                _que = ('*free virtual consultation*' if _int.startswith('asesor') else '*consultation with Dr. Gio*')
+                user_facing = (f"All set{', ' + _nom if _nom else ''}! 💙 Our advisor will *contact you here* very soon to schedule your {_que} 😊\n\n"
+                               "Meanwhile, see *real results and testimonials* from Dr. Gio:\n"
+                               "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n*You're now part of #LAbelleza440* ✨")
+            elif _int in ('asesoria', 'asesoría', 'valoracion', 'valoración'):
                 _nom = ((_f.get('nombre') or '').strip().split() or [''])[0].capitalize()
                 _ciu = (_f.get('ciudad') or '').strip()
                 _mod = (_f.get('modalidad') or '').strip().lower()
@@ -3252,7 +3355,9 @@ class BrainCX:
 
         # FALLBACK: si se emitió un NOTIFY pero el texto visible quedó vacío/corto
         # (Haiku a veces manda solo el bloque NOTIFY), garantizar el cierre al lead.
-        if match and len(user_facing) < 20:
+        if match and len(user_facing) < 20 and _en:
+            user_facing = "All set! 💙 Our advisor will *contact you here* very soon 😊\n*You're now part of #LAbelleza440* ✨"
+        elif match and len(user_facing) < 20:
             user_facing = ("¡Listo! 💙 En cuanto nuestra asesora esté disponible, "
                            "*te contactará por aquí* 😊\n*Ya eres parte de #LAbelleza440* ✨")
             print("[CX] FALLBACK cierre inyectado (NOTIFY sin texto visible)", flush=True)
