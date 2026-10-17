@@ -2312,11 +2312,19 @@ class BrainCX:
                 "",
                 f"Atiéndelo desde MedFiles 👉 {_link}",
             ] if x is not None)
-            try:
-                r = self.whapi.send_text(asesora_tel, msg)
-                print(f"[CX] aviso asesora MedFiles → {r if isinstance(r, dict) and 'error' in r else 'OK'}", flush=True)
-            except Exception as e:
-                print(f"[CX] aviso asesora MedFiles err: {e}", flush=True)
+            # La asesora y, en copia, el médico/admin (MedFiles → copias) para que esté pendiente
+            _destinos = [asesora_tel] + [c for c in (_resp.get('copias') or []) if c]
+            _vistos = set()
+            for _tel in _destinos:
+                _tel = re.sub(r'[^\d]', '', str(_tel))
+                if not _tel or _tel[-10:] in _vistos:
+                    continue
+                _vistos.add(_tel[-10:])
+                try:
+                    r = self.whapi.send_text(_tel, msg)
+                    print(f"[CX] aviso lead MedFiles → {_tel[-4:]} {r if isinstance(r, dict) and 'error' in r else 'OK'}", flush=True)
+                except Exception as e:
+                    print(f"[CX] aviso lead MedFiles err: {e}", flush=True)
         else:
             print("[CX] asesora sin WhatsApp (ni en MedFiles ni ASESORA_MEDFILES_TEL) — sin aviso", flush=True)
 
