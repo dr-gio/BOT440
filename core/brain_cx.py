@@ -3438,6 +3438,13 @@ class BrainCX:
             _lead_asg = self._check_lead_crm(sender_id)
             tiene_asesora = bool(_lead_asg and (_lead_asg.get('asesora_asignada') or '').strip())
 
+        # Mientras se escribía esta respuesta pudo llegar otro mensaje (ej. "Buenos días" y a los 10 s
+        # "quiero información"): no se envía nada; responde la del último mensaje, con todo junto.
+        # Sin esto salían dos respuestas seguidas y la segunda no tenía sentido.
+        if send and user_facing and not self._es_canal_instagram(canal) and self._hay_entrante_mas_nuevo(sender_id, canal, text):
+            print(f"[CX] {sender_id}: llegó otro mensaje mientras se respondía — se descarta esta respuesta", flush=True)
+            return ''
+
         _visible = user_facing
         if user_facing and _ingles:
             _visible = self._traducir_en(user_facing, text, history)
