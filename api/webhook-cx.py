@@ -42,7 +42,11 @@ class handler(BaseHTTPRequestHandler):
                 _vid = msg.get('video', {}) or {}
                 _media_caption = _vid.get('caption') or None
                 _media_url = store_whapi_media(_vid, _tok, prefix='cx')
-            elif _tipo in ('sticker', 'reaction'):
+            elif _tipo in ('reaction', 'unknown', 'action', 'system', 'revoked', 'edited', 'ephemeral', 'call', 'e2e_notification'):
+                # Reacciones, ediciones y avisos del sistema: no son un mensaje de la paciente (no se contestan)
+                text = ''
+                print(f"[WEBHOOK-CX] tipo {_tipo!r} ignorado", flush=True)
+            elif _tipo == 'sticker':
                 text = '[STICKER]'
                 _stk = msg.get('sticker', {}) or {}
                 _media_url = store_whapi_media(_stk, _tok, prefix='cx')

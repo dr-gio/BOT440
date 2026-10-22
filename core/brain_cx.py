@@ -761,8 +761,10 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     # El paciente pide directamente la valoración/consulta o la asesoría → directo al pedido de datos, sin más preguntas
     _msg = mensaje_paciente or ''
     _es_pregunta = '?' in _msg or re.search(r'\b(cu[aá]nto|precio|valor|qu[eé] es|c[oó]mo es|incluye)\b', _msg, re.I)
-    if hubo_bot and not _es_pregunta and '<<<NOTIFY' not in texto and not re.search(r'nombre completo', texto, re.I):
-        if re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para)|cita con (el )?(dr|doctor))', _msg, re.I):
+    # También en el primer mensaje ("Buenos días, quisiera agendar una cita de consulta en Bogotá, virtual o presencial")
+    if not _es_pregunta and '<<<NOTIFY' not in texto and not re.search(r'nombre completo', texto, re.I):
+        if re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para|presencial|virtual|en)|cita (con|de consulta|de valoraci|presencial|virtual)'
+                     r'|(agendar|pedir|sacar|solicitar|quiero|quisiera|necesito)[^.?!\n]{0,30}\b(cita|consulta)\b)', _msg, re.I):
             texto = 'valoración · nombre completo · ciudad'
         elif re.search(r'asesor[ií]a', _msg, re.I):
             texto = 'asesoría virtual · nombre completo · ciudad'

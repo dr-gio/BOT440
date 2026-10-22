@@ -99,6 +99,11 @@ def con_ficha(): return ('trae la ficha aprobada', lambda r: FICHA in r)
 def pide_datos(): return ('pide nombre, ciudad, correo y procedimiento', lambda r: all(x in r for x in ('Nombre completo', 'Ciudad', 'Correo electrónico', 'Procedimiento de interés')))
 
 ESCENARIOS = {
+    # 22-oct: pidió la consulta en el PRIMER mensaje; el bot dio precios pero no pidió los datos
+    'consulta_primer_mensaje': [
+        ('Buenos Días, quisiera agendar una cita de consulta en Bogota.\nVirtual o Presencial.',
+         [tiene('Bienvenida(o)', 'Nombre completo', 'presencial', 'virtual'), no_tiene('Asesoría virtual gratuita* 💻\nCon nuestra')]),
+    ],
     'ingles': [
         ('Hi', [tiene('Welcome', 'RETHUS'), no_tiene('Bienvenida(o)', 'Cuéntame', 'medical tourism')]),
         ('Tummy tuck', [tiene('next step'), no_tiene('Tu siguiente paso')]),
