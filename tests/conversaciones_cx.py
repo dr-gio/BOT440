@@ -120,7 +120,7 @@ ESCENARIOS = {
         ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta virtual* con el doctor.', [tiene('Bienvenida(o)', '160.000'), pide_datos()]),
     ],
     'web_consulta_presencial': [
-        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta presencial* con el doctor.', [tiene('Bienvenida(o)', '260.000'), pide_datos()]),
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta presencial* con el doctor.', [tiene('Bienvenida(o)', '250.000'), pide_datos()]),
     ],
     'web_procedimiento': [
         ('¡Hola! Vengo de la página del Dr. Gio y quiero información sobre *abdominoplastia*.', [tiene('Bienvenida(o)')]),

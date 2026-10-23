@@ -229,7 +229,7 @@ Valores de referencia (SIEMPRE "desde"):
 • Otoplastia: desde $7.000.000
 • Abdominoplastia inversa: SIN valor de referencia → no des cifra;
   remite a la asesoría virtual gratuita.
-Consulta (valoración) con el Dr. Gio: presencial $260.000 · virtual $160.000.
+Consulta (valoración) con el Dr. Gio: presencial $250.000 · virtual $160.000.
 La consulta es independiente del valor de la cirugía.
 
 Financiación: SOLO si preguntan → "Sí, tenemos planes de financiación 💙
@@ -252,7 +252,7 @@ asesoría o valoración. NO asumas la opción: que el paciente escoja.
 Con nuestra asesora experta en cirugía plástica, por videollamada, desde donde estés y *sin ningún compromiso*.
 
 2️⃣ *Valoración con el Dr. Gio* 👨‍⚕️
-Consulta médica *presencial ($260.000)* o *virtual ($160.000)* para evaluar tu caso.
+Consulta médica *presencial ($250.000)* o *virtual ($160.000)* para evaluar tu caso.
 
 Respóndeme *1* o *2* 😊"
 
@@ -273,7 +273,7 @@ Y confírmame: ¿te interesa la [procedimiento] o algún otro procedimiento? �
 
 OPCIÓN 2 — VALORACIÓN CON EL DR. GIO:
 "¡Perfecto! 💙 En tu *valoración* el Dr. Gio evalúa tu caso personalmente, te indica la técnica ideal, resuelve tus dudas médicas y te entrega tu plan quirúrgico con cotización personalizada 👨‍⚕️
-💰 Presencial *$260.000* · Virtual *$160.000*
+💰 Presencial *$250.000* · Virtual *$160.000*
 📍 Presencial en: *Barranquilla* (Carrera 47 #79-191), *Bogotá* (Clínica Intercirugías) o *Medellín* (Clínica AC Quirófanos). La virtual, desde donde estés 💻
 Para que nuestra asesora te la agende, déjame:
 👤 Nombre completo · 📍 Ciudad · 📧 Correo · ¿*presencial* o *virtual*?"
@@ -575,7 +575,7 @@ BLOQUE_SIGUIENTE_PASO = (
     "✅ *Asesoría virtual gratuita* 💻\n"
     "Con nuestra asesora experta, por videollamada y sin compromiso. *Ampliamos la información* y resolvemos todas tus dudas.\n\n"
     "✅ *Valoración con el Dr. Gio* 👨‍⚕️\n"
-    "Presencial *$260.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente."
+    "Presencial *$250.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente."
 )
 # Bienvenida completa (primer contacto). Texto fijo aprobado por el Dr.
 BIENVENIDA_CABEZA = (
@@ -668,7 +668,7 @@ def instrucciones_ingles(primer_mensaje):
         "consultation with Dr. Gio — the bot only gives the \"from\" price.\n"
         "NEXT STEPS (use this wording when you offer them):\n"
         "\"Your next step can be:\n\n✅ *Free virtual consultation* 💻\nWith our expert advisor, by video call and with no commitment.\n\n"
-        "✅ *Consultation with Dr. Gio* 👨‍⚕️\nIn person *COP 260,000* · Virtual *COP 160,000*. The doctor *evaluates your case* personally.\"\n"
+        "✅ *Consultation with Dr. Gio* 👨‍⚕️\nIn person *COP 250,000* · Virtual *COP 160,000*. The doctor *evaluates your case* personally.\"\n"
         "To book, ask for: 👤 *Full name* · 📍 *City and country* · 📧 *Email* · ✨ *Procedure of interest*.\n"
         "MEDICAL TOURISM: do NOT mention all-inclusive packages, recovery houses or travel unless they ask about it.\n"
     )
@@ -816,7 +816,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                        "✅ Te indica la *técnica ideal* para ti\n"
                        "✅ Resuelve *todas tus dudas médicas*\n"
                        "✅ Te entrega tu *plan quirúrgico y cotización* personalizada\n\n"
-                       "💰 *Presencial:* $260.000 · 💻 *Virtual:* $160.000\n"
+                       "💰 *Presencial:* $250.000 · 💻 *Virtual:* $160.000\n"
                        "📍 *Consulta presencial:* Barranquilla (Carrera 47 #79-191) · Bogotá (Clínica Intercirugías) · Medellín (Clínica AC Quirófanos)\n\n")
         texto = (("¡Excelente decisión! 💙\n\n" + explica) if explica else "¡Listo! 💙 ") + (f"*¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
                  "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
@@ -1859,7 +1859,7 @@ class BrainCX:
             'valoracion virtual', 'valoración virtual',
             'valoracion presencial', 'valoración presencial',
             'presencial con dr', 'virtual con dr',
-            '$160', '$260', '160.000', '260.000',
+            '$160', '$250', '$260', '160.000', '250.000', '260.000',
         ]
         if any(s in all_user for s in direct_user):
             return True
@@ -1947,7 +1947,7 @@ class BrainCX:
         # Detectar opción específica del último mensaje del paciente
         u = (text or '').strip().lower()
         if 'presencial' in u or '260' in u:
-            opcion_label = 'Valoración presencial $260.000'
+            opcion_label = 'Valoración presencial $250.000'
         elif 'virtual' in u or '160' in u:
             opcion_label = 'Valoración virtual $160.000'
         else:
@@ -2744,7 +2744,7 @@ class BrainCX:
                         "✅ *Asesoría virtual gratuita* 💻\n"
                         "Con nuestra asesora experta, por videollamada y sin compromiso.\n\n"
                         "✅ *Valoración con el Dr. Gio* 👨‍⚕️\n"
-                        "Presencial *$260.000* · Virtual *$160.000*.\n\n"
+                        "Presencial *$250.000* · Virtual *$160.000*.\n\n"
                         "¿Cuál te gustaría? 😊"
                     )
                 if send:
@@ -2785,7 +2785,7 @@ class BrainCX:
                     "Con nuestra asesora experta, por videollamada y sin compromiso. "
                     "*Ampliamos la información* y resolvemos todas tus dudas.\n\n"
                     "✅ *Valoración con el Dr. Gio* 👨‍⚕️\n"
-                    "Presencial *$260.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente.\n\n"
+                    "Presencial *$250.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente.\n\n"
                     "✨ *#LAbelleza440* · _La perfecta armonía de tu cuerpo_ ✨"
                 )
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
