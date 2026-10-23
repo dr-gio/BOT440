@@ -104,6 +104,14 @@ ESCENARIOS = {
         ('Buenos Días, quisiera agendar una cita de consulta en Bogota.\nVirtual o Presencial.',
          [tiene('Bienvenida(o)', 'Nombre completo', 'presencial', 'virtual'), no_tiene('Asesoría virtual gratuita* 💻\nCon nuestra')]),
     ],
+    # 23-oct (Alejandra): preguntó el precio de la lipo 360 al nombrarla; la ficha tapaba el precio y se fue
+    'precio_con_procedimiento': [
+        ('¡Hola! Vengo desde la página web del *Dr Gio 440* y quisiera más información.', [tiene('Bienvenida(o)')]),
+        ('Hola soy Alejandra, Quisiera saber un aproximado en precios de la lipo 360', [tiene('17.000.000', 'Por lo general'), con_cierre()]),
+    ],
+    'precio_primer_mensaje': [
+        ('Hola cuanto cuesta la abdominoplastia?', [tiene('Bienvenida(o)', '22.000.000')]),
+    ],
     'ingles': [
         ('Hi', [tiene('Welcome', 'RETHUS'), no_tiene('Bienvenida(o)', 'Cuéntame', 'medical tourism')]),
         ('Tummy tuck', [tiene('next step'), no_tiene('Tu siguiente paso')]),

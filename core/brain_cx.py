@@ -24,7 +24,7 @@ import os, json, re, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
 from core.instagram import InstagramClient
-from core.fichas_cx import FICHAS, expandir_fichas
+from core.fichas_cx import FICHAS, expandir_fichas, bloque_precio, pide_precio
 from core.pasos_cx import decidir_paso, instruccion_paso, aplicar_paso
 
 # Detección de mensajes "solo emojis" (👍😊🙏❤️✅, etc.).
@@ -701,6 +701,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     if not texto:
         return texto
     # Fichas fijas de procedimientos (formato ✅ aprobado)
+    precio = ''
     if '<<<FICHA:' in texto:
         # Saludo corto de la IA (si lo hay) + fichas en orden + la pregunta aprobada; lo demás que escriba la IA se descarta
         intro = texto.split('<<<FICHA:', 1)[0].strip()
@@ -708,6 +709,10 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         intro = re.sub(r'[:,]?\s*(te cuento|aqu[ií] (va|tienes)|esta es)[^.!\n]*[:.]?\s*$', '', intro, flags=re.I).strip()
         fichas = [m.group(0) for m in re.finditer(r'<<<FICHA:[a-z_]+>>>', texto)]
         cuerpo, hubo_ficha = expandir_fichas('\n\n'.join(fichas))
+        # Si en este mensaje pregunta el precio, se responde primero (antes la ficha lo tapaba y el paciente se iba)
+        precio = bloque_precio(re.findall(r'<<<FICHA:([a-z_]+)>>>', texto)) if pide_precio(mensaje_paciente) else ''
+        if precio:
+            intro = precio + '\n\nTe cuento un poco más de la cirugía:'
         if hubo_ficha:
             texto = ((intro + '\n\n') if intro else '') + cuerpo + \
                 '\n\n¿Tienes alguna *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊'
@@ -864,7 +869,14 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         if len(resto) > 40:
             m = re.search(r'\*([^*\n]{4,60})\*', resto)   # primer término en negrita = el procedimiento
             proc = m.group(1).strip() if m and not re.search(r'pregunta|duda|asesor|valoraci|dr\.? gio', m.group(1), re.I) else None
-        if proc:
+        if proc and not precio and pide_precio(mensaje_paciente):
+            from core.pasos_cx import clave_de
+            precio = bloque_precio([clave_de(mensaje_paciente)])
+        if proc and precio:
+            # Primer mensaje con la pregunta del precio: se responde el valor de una vez
+            texto = (BIENVENIDA_CABEZA + '\n\n' + precio +
+                     '\n\n¿Te cuento cómo es la cirugía y qué opciones tienes para dar el siguiente paso? 😊')
+        elif proc:
             texto = (BIENVENIDA_CABEZA + '\n\n'
                      f"Me cuentas que te interesa la *{proc}* 😊 ¿Te cuento cómo es y qué opciones tienes para dar el siguiente paso?")
         else:

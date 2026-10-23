@@ -12,7 +12,7 @@ Pasos:
   datos        responde al pedido de datos → flujo de NOTIFY de siempre
 """
 import re
-from core.fichas_cx import FICHAS, expandir_fichas
+from core.fichas_cx import FICHAS, expandir_fichas, bloque_precio, pide_precio
 
 MARCA_ORIENTAR = 'Para orientarte mejor sobre el procedimiento ideal para ti'
 
@@ -349,6 +349,9 @@ def aplicar_paso(texto, paso, history, mensaje):
             intro = _quitar_cierres(texto)
             if (p == 'procedimiento' and not paso.get('intro_ia')) or len(intro) > 400:
                 intro = '¡Excelente! 💙'
+            # Preguntó el precio al nombrar la cirugía: primero el valor "desde", luego la ficha (antes se perdía)
+            if pide_precio(mensaje) and bloque_precio([clave]):
+                intro = bloque_precio([clave]) + '\n\nTe cuento un poco más de la cirugía:'
             texto = intro + '\n\n' + ficha
     cuerpo = _quitar_cierres(texto)
     if p == 'recomendar' and 'asesora' not in cuerpo.lower():

@@ -175,3 +175,47 @@ def expandir_fichas(texto):
         return ''
     texto = re.sub(r'<<<FICHA:([a-z_]+)>>>', _rep, texto)
     return texto, hubo
+
+
+# Valor "desde" de cada ficha (mismos valores de la sección 5 del guion). Si el paciente pregunta el precio
+# en el mismo mensaje en que sale la ficha, el código lo responde ANTES de la ficha (la ficha borra lo que escriba la IA).
+PRECIOS_DESDE = {
+    'lipoescultura': ('la *lipoescultura 360*', 'un valor *desde $17.000.000*'),
+    'abdominoplastia': ('la *abdominoplastia*', 'un valor *desde $22.000.000*'),
+    'lipoabdominoplastia': ('la *lipoabdominoplastia*', 'un valor *desde $25.000.000*'),
+    'mamoplastia_aumento': ('la *mamoplastia de aumento*', 'un valor de *$18.000.000 todo incluido*'),
+    'pexia': ('la *pexia mamaria con implantes*', 'un valor *desde $18.000.000*'),
+    'reduccion': ('la *mamoplastia de reducción*', 'un valor *desde $20.000.000*'),
+    'explantacion': ('la *explantación mamaria*', 'un valor *desde $22.000.000*'),
+    'mommy_makeover': ('el *Mommy Makeover*', 'un valor *desde $30.000.000* (según los procedimientos que se combinen)'),
+    'lipotransferencia': ('la *lipotransferencia glútea*', 'un valor *desde $3.000.000* adicionales a la lipoescultura o lipoabdominoplastia'),
+    'gluteoplastia_implante': ('la *gluteoplastia con implantes*', 'un valor *desde $22.000.000*'),
+    'lifting_extremidades': ('el *lifting de brazos o piernas*', 'un valor *desde $14.000.000*'),
+    'lifting_facial': ('el *lifting facial*', 'un valor *desde $25.000.000*'),
+    'ginecomastia': ('la *ginecomastia*', 'un valor *desde $4.000.000* (con aspiración) o *desde $6.000.000* (si se retira la glándula)'),
+    'blefaroplastia': ('la *blefaroplastia*', 'un valor *desde $4.500.000* (párpados superiores) o *desde $7.000.000* (superiores e inferiores)'),
+    'papada': ('la *lipo de papada*', 'un valor *desde $2.500.000* (con Retraction *desde $3.500.000*)'),
+    'otoplastia': ('la *otoplastia*', 'un valor *desde $7.000.000*'),
+}
+
+
+def pide_precio(mensaje):
+    """¿El paciente pregunta el precio en este mensaje?"""
+    import re
+    return bool(re.search(r'\b(presupuesto|cotizaci[oó]n|cotizar|precios?|valor(es)?|costos?|aproximado|cu[aá]nto (me )?(cuesta|vale|sale|cobra))\b',
+                          mensaje or '', re.I))
+
+
+def bloque_precio(claves):
+    """Respuesta corta al precio para las fichas pedidas (las que tienen valor de referencia)."""
+    partes = [PRECIOS_DESDE[c] for c in claves if c in PRECIOS_DESDE]
+    if not partes:
+        return ''
+    if len(partes) == 1:
+        nombre, valor = partes[0]
+        frase = f"{nombre[0].upper() + nombre[1:]} tiene {valor}."
+    else:
+        frase = ' · '.join(f"{n[0].upper() + n[1:]}: {v.replace('un valor ', '')}" for n, v in partes)
+    return ("¡Claro, con gusto te cuento! 💙 " + frase + " Sabemos que es una inversión importante en ti ✨ "
+            "El valor exacto depende de tu caso: tu *presupuesto personalizado* se entrega en tu "
+            "*asesoría virtual gratuita* 💻 o en tu *valoración con el Dr. Gio* 👨‍⚕️")
