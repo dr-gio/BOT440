@@ -869,13 +869,17 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         if len(resto) > 40:
             m = re.search(r'\*([^*\n]{4,60})\*', resto)   # primer término en negrita = el procedimiento
             proc = m.group(1).strip() if m and not re.search(r'pregunta|duda|asesor|valoraci|dr\.? gio', m.group(1), re.I) else None
-        if proc and not precio and pide_precio(mensaje_paciente):
+        _clave_precio = None
+        if proc and pide_precio(mensaje_paciente):
             from core.pasos_cx import clave_de
-            precio = bloque_precio([clave_de(mensaje_paciente)])
+            _clave_precio = clave_de(mensaje_paciente)
+            precio = precio or bloque_precio([_clave_precio])
         if proc and precio:
-            # Primer mensaje con la pregunta del precio: se responde el valor de una vez
+            # Primer mensaje con la pregunta del precio: el valor de una vez + la ficha aprobada de esa cirugía + el cierre
+            _ficha_txt = FICHAS.get(_clave_precio or '') or ''
             texto = (BIENVENIDA_CABEZA + '\n\n' + precio +
-                     '\n\n¿Te cuento cómo es la cirugía y qué opciones tienes para dar el siguiente paso? 😊')
+                     (('\n\nTe cuento un poco más de la cirugía:\n\n' + _ficha_txt + '\n\n' + CIERRE_DUDAS) if _ficha_txt
+                      else '\n\n¿Te cuento cómo es la cirugía y qué opciones tienes para dar el siguiente paso? 😊'))
         elif proc:
             texto = (BIENVENIDA_CABEZA + '\n\n'
                      f"Me cuentas que te interesa la *{proc}* 😊 ¿Te cuento cómo es y qué opciones tienes para dar el siguiente paso?")

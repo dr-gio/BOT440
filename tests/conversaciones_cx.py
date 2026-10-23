@@ -110,7 +110,7 @@ ESCENARIOS = {
         ('Hola soy Alejandra, Quisiera saber un aproximado en precios de la lipo 360', [tiene('17.000.000', 'Por lo general'), con_cierre()]),
     ],
     'precio_primer_mensaje': [
-        ('Hola cuanto cuesta la abdominoplastia?', [tiene('Bienvenida(o)', '22.000.000')]),
+        ('Hola cuanto cuesta la abdominoplastia?', [tiene('Bienvenida(o)', '22.000.000', 'Por lo general'), con_cierre()]),
     ],
     'ingles': [
         ('Hi', [tiene('Welcome', 'RETHUS'), no_tiene('Bienvenida(o)', 'Cuéntame', 'medical tourism')]),
