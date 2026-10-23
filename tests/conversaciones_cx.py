@@ -112,6 +112,19 @@ ESCENARIOS = {
     'precio_primer_mensaje': [
         ('Hola cuanto cuesta la abdominoplastia?', [tiene('Bienvenida(o)', '22.000.000', 'Por lo general'), con_cierre()]),
     ],
+    # Botones de la página web (www.drgiovannifuentes.com): llegan con el mensaje escrito
+    'web_asesoria': [
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *asesoría virtual gratuita*.', [tiene('Bienvenida(o)'), pide_datos()]),
+    ],
+    'web_consulta_virtual': [
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta virtual* con el doctor.', [tiene('Bienvenida(o)', '160.000'), pide_datos()]),
+    ],
+    'web_consulta_presencial': [
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta presencial* con el doctor.', [tiene('Bienvenida(o)', '260.000'), pide_datos()]),
+    ],
+    'web_procedimiento': [
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero información sobre *abdominoplastia*.', [tiene('Bienvenida(o)')]),
+    ],
     'ingles': [
         ('Hi', [tiene('Welcome', 'RETHUS'), no_tiene('Bienvenida(o)', 'Cuéntame', 'medical tourism')]),
         ('Tummy tuck', [tiene('next step'), no_tiene('Tu siguiente paso')]),
