@@ -71,6 +71,7 @@ class handler(BaseHTTPRequestHandler):
             if text and sender_id:
                 _media_tipo_map = {'image':'image','video':'video','sticker':'image','document':'document','audio':'audio','voice':'audio','ptt':'audio'}
                 BrainCX().process(sender_id, name, text, 'cirugia',
+                                  chat_id=msg.get('chat_id') or '',   # "…@lid" = WhatsApp ocultó el número
                                   media_url=_media_url,
                                   media_tipo=_media_tipo_map.get(_tipo, 'image') if _media_url else None,
                                   media_caption=_media_caption if _media_url else None)

@@ -24,6 +24,32 @@ class WhapiClient:
         to = to.replace('+','').replace(' ','')
         return self._post('/messages/image', {'to':to,'media':url,'caption':caption})
 
+    def numero_de_lid(self, lid):
+        """Número real de un contacto que WhatsApp identifica con "LID" (número oculto, ej. 147484932362413@lid).
+        Solo funciona si WhatsApp ya lo compartió con este número; si no, devuelve ''."""
+        import re, urllib.parse
+        lid = str(lid or '')
+        if not lid:
+            return ''
+        if '@' not in lid:
+            lid += '@lid'
+        try:
+            req = urllib.request.Request(f"{self.base}/contacts/ids/{urllib.parse.quote(lid, safe='')}", headers=self.headers, method='GET')
+            with urllib.request.urlopen(req, timeout=6) as r:
+                data = json.loads(r.read() or b'{}')
+        except Exception as e:
+            print(f"[WHAPI] LID {lid} sin número: {e}", flush=True)
+            return ''
+        propio = re.sub(r'\D', '', lid.split('@')[0])
+        for v in (data.get('phone'), data.get('id'), (data.get('contact') or {}).get('id') if isinstance(data.get('contact'), dict) else None):
+            v = str(v or '')
+            if v.endswith('@lid'):
+                continue
+            d = re.sub(r'\D', '', v.split('@')[0])
+            if 10 <= len(d) <= 15 and d != propio:
+                return d
+        return ''
+
     def _post(self, endpoint, payload):
         url = f'{self.base}{endpoint}'
         print(f"[WHAPI] POST {url} to={payload.get('to')} body_len={len(str(payload.get('body','')))}", flush=True)

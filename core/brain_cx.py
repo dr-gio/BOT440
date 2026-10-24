@@ -742,7 +742,7 @@ def _es_hombre(history, mensaje):
     return nombre in _NOMBRES_HOMBRE or (nombre.endswith('o') and nombre not in _NOMBRES_MUJER_EN_O)
 
 
-def ajustar_respuesta_cx(texto, history, mensaje_paciente):
+def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
     """Aplica las reglas del guion que no deben depender de la IA:
     - no repetir la bienvenida si ya hubo conversación;
     - no prometer resultados;
@@ -880,7 +880,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         texto = (("¡Excelente decisión! 💙\n\n" + explica) if explica else "¡Listo! 💙 ") + (f"*¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
                  "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
                  + ((f"*valoración {modalidad} con el Dr. Gio*" if modalidad else "*valoración con el Dr. Gio*") if valoracion else "*asesoría virtual gratuita*") + ":\n"
-                 "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                 "👤 *Nombre completo*\n📍 *Ciudad*\n" + ("📱 *Número de celular*\n" if pedir_celular else "") + "📧 *Correo electrónico*"
                  + "\n✨ *Procedimiento de interés*"
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion and not modalidad else ""))
     # Si la IA escribió sus propias opciones o su propio cierre, se quitan: el bloque aprobado va una sola vez
@@ -2205,6 +2205,67 @@ class BrainCX:
         except Exception as e:
             print(f"[CX] medfiles idioma error: {e}", flush=True)
 
+    _RE_CEL = re.compile(r'(?<!\d)(?:\+?\s?57[\s.-]?)?(3\d{2})[\s.-]?(\d{3})[\s.-]?(\d{4})(?!\d)')
+    _RE_INTL = re.compile(r'\+\s?(\d[\d\s.-]{8,17}\d)')
+
+    def _numero_lid(self, history, text=''):
+        """Número real de quien escribe con número oculto (LID): el que WhatsApp ya compartió (WHAPI)
+        o el que la persona escribió en el chat. '' si aún no se sabe."""
+        if not getattr(self, '_es_lid', False):
+            return ''
+        if getattr(self, '_tel_lid', None) is None:
+            tel = self.whapi.numero_de_lid(self._chat_id) if self._chat_id else ''
+            if not tel:
+                textos = [m.get('content') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str)] + [text or '']
+                for t in reversed(textos):
+                    t = re.sub(r'^\[[^\]]*\]:\s*', '', t)   # quita el prefijo [código|nombre]:
+                    m = self._RE_CEL.search(t)
+                    if m:
+                        tel = '57' + ''.join(m.groups()); break
+                    m = self._RE_INTL.search(t)
+                    if m:
+                        tel = re.sub(r'\D', '', m.group(1)); break
+            self._tel_lid = tel or ''
+        return self._tel_lid
+
+    def _completar_lead(self, sender_id, history, text, canal):
+        """Lo que la persona escribe DESPUÉS de crearse su lead (ciudad, correo, número real) se agrega en MedFiles.
+        Si llega su número (estaba oculto) se le avisa a la asesora."""
+        if self._es_canal_instagram(canal):
+            return
+        _limpio = re.sub(r'^\[[^\]]*\]:\s*', '', text or '')
+        email = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', _limpio)
+        tel = self._numero_lid(history, text) if getattr(self, '_es_lid', False) and (self._RE_CEL.search(_limpio) or self._RE_INTL.search(_limpio)) else ''
+        ciudad = self._ciudad_from_history([{'role': 'user', 'content': _limpio}])
+        if not (email or tel or ciudad):
+            return
+        base, clave = self._medfiles_cfg()
+        if not clave:
+            return
+        body = {'accion': 'completar', 'canal': 'whatsapp', 'chat_id': self._chat_id or None, 'telefono_chat': str(sender_id),
+                'telefono': tel or None, 'email': email.group(0) if email else None, 'ciudad': ciudad or None}
+        try:
+            req = urllib.request.Request(f"{base}/api/entrada/bot", data=json.dumps(body, ensure_ascii=False).encode(),
+                                         headers={'X-Clave': clave, 'Content-Type': 'application/json', 'Accept': 'application/json',
+                                                  'User-Agent': _BROWSER_UA}, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                data = json.loads(r.read() or b'{}')
+        except Exception as e:
+            print(f"[CX] completar lead err: {e}", flush=True)
+            return
+        cambios = data.get('cambios') or []
+        print(f"[CX] completar lead → {cambios}", flush=True)
+        asesora_tel = re.sub(r'[^\d]', '', str(((data.get('asesora') or {}).get('whatsapp')) or os.environ.get('ASESORA_MEDFILES_TEL', '')))
+        if tel and any(c.startswith('celular') for c in cambios) and asesora_tel:
+            base_mf, _ = self._medfiles_cfg()
+            link = f"{base_mf}/crm/whatsapp?persona={data['persona']}" if data.get('persona') else f"{base_mf}/crm"
+            try:
+                self.whapi.send_text(asesora_tel, "\n".join([
+                    "📱 *Ya tenemos el número*", f"👤 {data.get('nombre') or 'Paciente'}: +{tel}",
+                    "(WhatsApp lo tenía oculto)", "📝 " + ' · '.join(cambios), "", f"Atiéndelo desde MedFiles 👉 {link}"]))
+            except Exception as e:
+                print(f"[CX] aviso número err: {e}", flush=True)
+
     def _push_medfiles_lead(self, body):
         """POST /api/entrada/bot. Devuelve el JSON de respuesta o None."""
         base, clave = self._medfiles_cfg()
@@ -2340,6 +2401,11 @@ class BrainCX:
             if not telefono:
                 print("[CX] Instagram sin número de WhatsApp del paciente — lead NO enviado a MedFiles", flush=True)
                 return 'SIN_TELEFONO'
+        elif getattr(self, '_es_lid', False):
+            # Número oculto por WhatsApp: el sender_id es un código; va el número real si ya se sabe
+            telefono = self._numero_lid(history) or self._tel_valido(fields.get('telefono'))
+            if telefono and len(telefono) > 13:
+                telefono = ''
         else:
             telefono = self._tel_valido(sender_id) or self._tel_valido(fields.get('telefono'))
 
@@ -2372,6 +2438,10 @@ class BrainCX:
             # Instagram: el lead queda en la misma persona que MedFiles creó con la conversación (IGSID)
             body['chat_id'] = sender_id
             body['canal'] = 'instagram'
+        elif getattr(self, '_es_lid', False) and self._chat_id:
+            # Número oculto (LID): MedFiles encuentra a la persona por el chat, no por el teléfono
+            body['chat_id'] = self._chat_id
+            body['canal'] = 'whatsapp'
         print(f"[CX] lead → MedFiles interes={interes} modalidad={modalidad} pauta={pauta!r} tel={telefono}", flush=True)
         _resp = self._push_medfiles_lead(body) or {}
         # WhatsApp de la asesora asignada (se configura en MedFiles → Configuración → Equipo);
@@ -2386,7 +2456,8 @@ class BrainCX:
                 tipo_txt = 'Valoración con el Dr.' + (f' ({modalidad})' if modalidad else '')
             else:
                 tipo_txt = 'Asesoría virtual gratuita'
-            _tel_txt = f"+{telefono}" if telefono else 'sin dato'
+            _tel_txt = f"+{telefono}" if telefono else ('oculto por WhatsApp — pídeselo' if getattr(self, '_es_lid', False) else 'sin dato')
+            _asesora_nom = ((_resp.get('asesora') or {}).get('nombre') or '').strip()
             _base_mf, _ = self._medfiles_cfg()
             _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
             msg = "\n".join(x for x in [
@@ -2399,6 +2470,7 @@ class BrainCX:
                 f"✨ {proc}",
                 f"💬 Quiere: *{tipo_txt}*",
                 f"📣 Pauta: {pauta}" if pauta else None,
+                f"👩‍💼 Asesora: *{_asesora_nom}*" if _asesora_nom else "👩‍💼 Asesora: *sin asignar*",
                 "",
                 f"Atiéndelo desde MedFiles 👉 {_link}",
             ] if x is not None)
@@ -2679,7 +2751,7 @@ class BrainCX:
     # Flujo principal
     # ------------------------------------------------------------------
     def process(self, sender_id, sender_name, text, canal='cirugia', cuenta_receptora=None, send=True,
-                media_url=None, media_tipo=None, media_caption=None):
+                media_url=None, media_tipo=None, media_caption=None, chat_id=''):
         """Procesa el mensaje entrante.
 
         Args:
@@ -2708,6 +2780,11 @@ class BrainCX:
             _ig_account = self._ig_accounts.get(cuenta_receptora, '')
             if _ig_token and _ig_account:
                 self.instagram = InstagramClient(token=_ig_token, account_id=_ig_account)
+
+        # WhatsApp con "LID" (…@lid): WhatsApp ocultó el número; el sender_id es un código, no un teléfono
+        self._chat_id = str(chat_id or '')
+        self._es_lid = self._chat_id.endswith('@lid') or len(re.sub(r'\D', '', str(sender_id))) > 13 and not self._es_canal_instagram(canal)
+        self._tel_lid = None
 
         # ── PAUSA MEDFILES: un humano ya tomó la conversación ───────────
         # Si alguien del equipo ya le escribió desde MedFiles, el bot se calla
@@ -3475,7 +3552,9 @@ class BrainCX:
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
         _en = False   # el guion se arma en español; si la persona escribe en inglés se traduce al final (misma estructura)
         _ingles = getattr(self, '_idioma', 'es') == 'en'
-        user_facing = ajustar_respuesta_cx(user_facing, history, text)
+        # Número oculto por WhatsApp (LID) y aún no lo sabemos: el pedido de datos también pide el celular
+        _pedir_cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text))
+        user_facing = ajustar_respuesta_cx(user_facing, history, text, pedir_celular=_pedir_cel)
         if not match and not _en:
             try:
                 user_facing = aplicar_paso(user_facing, _paso, history, text)
@@ -3580,6 +3659,14 @@ class BrainCX:
             else:
                 self._notify_lead(fields, sender_id, canal=canal,
                                   history=history, ultimo_bot=user_facing)
+
+        # El lead ya se creó en un mensaje anterior: lo nuevo (ciudad, correo, número real) se agrega en MedFiles
+        if not notify and any(m.get('role') == 'assistant' and isinstance(m.get('content'), str) and '<<<NOTIFY>>>' in m['content']
+                              and not re.search(r'urgencia|otro_tema', m['content'], re.I) for m in (history or [])):
+            try:
+                self._completar_lead(sender_id, history, text, canal)
+            except Exception as _e:
+                print(f"[CX] completar lead err: {_e}", flush=True)
 
         return re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', _visible)
 

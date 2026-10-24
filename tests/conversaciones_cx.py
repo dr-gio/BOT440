@@ -270,6 +270,18 @@ ESCENARIOS = {
         ('Hola', []),
         ('Quiero una consulta virtual', [pide_datos(), tiene('160.000'), no_tiene('Respóndeme *1* o *2*')]),
     ],
+    # 24-oct (Rafael): WhatsApp ocultó su número (LID); pedir el celular y que el lead lleve el número real
+    'numero_oculto': [
+        ('Hola, quiero una valoración presencial con el doctor', [pide_datos(), tiene('Número de celular')]),
+        ('Rafael Oñate\nBarranquilla\n314 586 4387\nrafa@gmail.com\nblefaroplastia',
+         [('lead con el número real y el chat', lambda r: any(l.get('telefono') == '573145864387' and (l.get('chat_id') or '').endswith('@lid') for l in LEADS))]),
+    ],
+    # Después de crearse el lead, la ciudad que manda se agrega (antes se perdía)
+    'completar_lead': [
+        ('Quiero una valoración presencial con el doctor', [pide_datos()]),
+        ('Laura Gómez\nlaura@gmail.com\nlipo', []),
+        ('Soy de Barranquilla', [('agrega la ciudad al lead', lambda r: any(l.get('accion') == 'completar' and l.get('ciudad') == 'Barranquilla' for l in LEADS))]),
+    ],
     # 24-oct (Rafael): tres audios seguidos → tres veces el bloque completo
     'audios_seguidos': [
         ('Hola', []),
@@ -291,17 +303,19 @@ ESCENARIOS = {
 }
 
 
-NOMBRES = {'hombre_por_nombre': 'Rafael Gómez'}   # nombre del perfil de WhatsApp (por defecto "Paciente Prueba")
+NOMBRES = {'hombre_por_nombre': 'Rafael Gómez', 'numero_oculto': 'Rafael Oñate'}   # nombre del perfil (por defecto "Paciente Prueba")
+CHATS = {'numero_oculto': ('147484932362413', '147484932362413@lid')}   # (sender, chat_id) cuando WhatsApp oculta el número
 
 
 def correr(nombre, turnos):
     FILAS.clear(); LEADS.clear()
     bot = bx.BrainCX()
     perfil = NOMBRES.get(nombre, 'Paciente Prueba')
+    sender, chat = CHATS.get(nombre, ('573009998877', '573009998877@s.whatsapp.net'))
     fallas = []
     for i, (msg, checks) in enumerate(turnos, 1):
         try:
-            r = bot.process('573009998877', perfil, msg, canal='cirugia', send=False) or ''
+            r = bot.process(sender, perfil, msg, canal='cirugia', send=False, chat_id=chat) or ''
         except Exception as e:
             fallas.append(f'turno {i} "{msg[:30]}": ERROR {e}')
             continue
