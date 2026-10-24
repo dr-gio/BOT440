@@ -279,6 +279,11 @@ Para que nuestra asesora te la agende, déjame:
 👤 Nombre completo · 📍 Ciudad · 📧 Correo · ¿*presencial* o *virtual*?"
 → Si pide directamente una valoración o consulta con el Dr., ve directo a
   la opción 2 (no ofrezcas la asesoría gratuita).
+→ QUÉ PIDE (regla del Dr.): "consulta", "consulta virtual" o "videollamada con
+  el doctor / el médico" = VALORACIÓN con el Dr. Gio (virtual $160.000).
+  "Asesoría", "asesoría virtual" o "videollamada con la asesora" = ASESORÍA
+  VIRTUAL GRATUITA. Solo "videollamada" sin decir con quién = pregúntale cuál
+  de las dos opciones quiere (no asumas).
 
 DATOS:
 → Nombre completo y ciudad son necesarios. El correo es deseable: si no lo
@@ -384,9 +389,10 @@ la usa poco, en casos puntuales. La combinación ideal la define el Dr. en la va
 El valor de la tecnología lo explica la asesora (no des precios de tecnologías).
 
 CLÍNICAS DONDE OPERA (solo si preguntan):
-• Barranquilla: Clínica del Caribe, Clínica Diamante, Doral Medical, Iberoamericana
-• Bogotá: Centro Colombiano de Cirugía Plástica, Clínica Riviere
+• Barranquilla: Clínica Iberoamérica, Clínica del Caribe, Clínica Doral Medical, Mediclínica, Diamanti Clínica Boutique, Belleza Luxury
+• Bogotá: Intercirugías, Centro Colombiano de Cirugía Plástica, Clínica Riviere
 • Medellín: AC Quirófanos, Quirófanos 2 Sur
+(Misma lista de MedFiles → Herramientas de ventas → Clínicas; si cambia allá, actualizar aquí.)
 "En todas las ciudades contamos con sedes de recuperación."
 
 CONSULTA PRESENCIAL (dónde): Barranquilla: Carrera 47 #79-191 (solo la
@@ -440,6 +446,21 @@ nombre: [nombre si lo sabes]
 telefono: [número del prefijo]
 interes: urgencia
 mensaje: [descripción corta]
+<<<END>>>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+12B. OTROS TEMAS (no es una paciente buscando cirugía)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Si escribe por algo que NO es información de cirugía ni una cita (comprar o vender
+equipos —por ejemplo la cámara hiperbárica—, proveedores, empleo, alianzas, publicidad,
+un pago o trámite de una paciente ya operada, algo personal para el doctor):
+"¡Gracias por escribirnos! 💙 Le paso tu mensaje a nuestro equipo y *te contactarán por aquí* muy pronto 😊"
+y emite (no pidas datos ni ofrezcas asesoría):
+<<<NOTIFY>>>
+nombre: [nombre si lo sabes]
+telefono: [número del prefijo]
+interes: otro_tema
+mensaje: [qué necesita, en una frase]
 <<<END>>>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -692,6 +713,35 @@ def ajustar_respuesta_en(texto):
     return re.sub(r'\n{3,}', '\n\n', texto).strip()
 
 
+# "Videollamada con el doctor/médico" es la valoración virtual; "videollamada con la asesora" es la asesoría.
+# Solo "videollamada" (sin decir con quién) se pregunta: menú 1 o 2.
+VIDEO_DOCTOR = r'\bvide?o ?llamada\b[^.?!\n]{0,25}\b(dr\.?|doc|doctor|m[eé]dico|cirujano|gio)\b'
+VIDEO_ASESORA = r'\bvide?o ?llamada\b[^.?!\n]{0,25}\basesora\b'
+
+# Nombres de hombre comunes que no terminan en "o" (los que terminan en "o" ya cuentan, salvo estos de mujer)
+_NOMBRES_HOMBRE = set('''jose luis juan carlos andres miguel angel jesus daniel david rafael manuel jorge oscar
+cesar victor hector edgar edwin fabian sebastian julian adrian ruben esteban felipe nicolas samuel gabriel isaac abel
+joel ismael nestor william wilson jhon john jair yair james kevin brayan bryan steven stiven michael cristian christian
+elkin heiner jaime jonathan jhonatan eduar edgardo dairo wilmer alexander alex omar walter hernan german ivan leonel
+moises noel raul saul tomas joaquin martin agustin sergio'''.split())
+_NOMBRES_MUJER_EN_O = {'rosario', 'consuelo', 'amparo', 'socorro', 'rocio', 'rocío', 'pilar', 'carmen'}
+
+
+def _es_hombre(history, mensaje):
+    """Hombre si lo dice ("soy hombre") o si su nombre (perfil de WhatsApp) es de hombre."""
+    dicho = ' '.join(m.get('content', '') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str))
+    dicho += ' ' + (mensaje or '')
+    if re.search(r'\b(soy (un )?hombre|soy masculino|soy var[oó]n|ginecomastia)\b', dicho, re.I):
+        return True
+    if re.search(r'\b(soy mujer|embarazad|lactando|mis senos|mamoplastia|pexia)\b', dicho, re.I):
+        return False
+    m = re.search(r'\[\d+\|([^\]]+)\]', dicho)
+    nombre = _sin_tildes(((m.group(1) if m else '').strip().split() or [''])[0].lower())
+    if not nombre:
+        return False
+    return nombre in _NOMBRES_HOMBRE or (nombre.endswith('o') and nombre not in _NOMBRES_MUJER_EN_O)
+
+
 def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     """Aplica las reglas del guion que no deben depender de la IA:
     - no repetir la bienvenida si ya hubo conversación;
@@ -768,8 +818,11 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     _es_pregunta = '?' in _msg or re.search(r'\b(cu[aá]nto|precio|valor|qu[eé] es|c[oó]mo es|incluye)\b', _msg, re.I)
     # También en el primer mensaje ("Buenos días, quisiera agendar una cita de consulta en Bogotá, virtual o presencial")
     if not _es_pregunta and '<<<NOTIFY' not in texto and not re.search(r'nombre completo', texto, re.I):
-        if re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para|presencial|virtual|en)|cita (con|de consulta|de valoraci|presencial|virtual)'
-                     r'|(agendar|pedir|sacar|solicitar|quiero|quisiera|necesito)[^.?!\n]{0,30}\b(cita|consulta)\b)', _msg, re.I):
+        if re.search(VIDEO_ASESORA, _msg, re.I):
+            texto = 'asesoría virtual · nombre completo · ciudad'
+        elif re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para|presencial|virtual|en)|cita (con|de consulta|de valoraci|presencial|virtual)'
+                     r'|(agendar|pedir|sacar|solicitar|quiero|quisiera|necesito)[^.?!\n]{0,30}\b(cita|consulta)\b)', _msg, re.I) \
+                or re.search(VIDEO_DOCTOR, _msg, re.I):
             texto = 'valoración · nombre completo · ciudad'
         elif re.search(r'asesor[ií]a', _msg, re.I):
             texto = 'asesoría virtual · nombre completo · ciudad'
@@ -798,9 +851,15 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
     # Pedido de datos: texto fijo aprobado (#LAbelleza440 + "nuestra asesora te contactará" + correo sin "opcional")
     if re.search(r'nombre completo', texto, re.I) and re.search(r'ciudad', texto, re.I) and '<<<NOTIFY' not in texto:
         valoracion = bool(re.search(r'valoraci[oó]n', texto, re.I)) and not re.search(r'asesor[ií]a virtual', texto, re.I)
+        # Lo que pidió la paciente manda (la IA a veces lo dice en la bienvenida, que se reemplaza por la aprobada):
+        # "consulta" / "videollamada con el doctor" = valoración; "asesoría" / "videollamada con la asesora" = asesoría
+        if re.search(r'\b(valoraci[oó]n|consulta)\b', _msg, re.I) or re.search(VIDEO_DOCTOR, _msg, re.I):
+            valoracion = not (re.search(r'asesor[ií]a', _msg, re.I) or re.search(VIDEO_ASESORA, _msg, re.I))
+        elif re.search(r'asesor[ií]a', _msg, re.I) or re.search(VIDEO_ASESORA, _msg, re.I):
+            valoracion = False
         dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'] + [mensaje_paciente or ''])
-        modalidad = 'virtual' if re.search(r'\bvirtual\b', dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else ''
-        listo = 'listo' if re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I) else 'lista'
+        modalidad = 'virtual' if re.search(r'\bvirtual\b', dicho, re.I) or re.search(VIDEO_DOCTOR, dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else ''
+        listo = 'listo' if (_es_hombre(history, mensaje_paciente) or re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I)) else 'lista'
         explica = ''
         if not valoracion:
             explica = ("En tu *asesoría virtual gratuita* 💻, nuestra *asesora experta en cirugía plástica* te atiende por videollamada, "
@@ -809,7 +868,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
                        "✅ Te orienta sobre el *procedimiento ideal* para ti\n"
                        "✅ Te explica el *valor*, las *formas de pago* y la *financiación*\n"
                        "✅ Te cuenta cómo sería *tu proceso paso a paso*\n"
-                       "✅ Te ayuda a *agendar tu valoración* con el Dr. Gio cuando estés lista\n\n")
+                       f"✅ Te ayuda a *agendar tu valoración* con el Dr. Gio cuando estés {listo}\n\n")
         else:
             explica = ("En tu *valoración con el Dr. Gio* 👨‍⚕️, el Dr. *evalúa tu caso personalmente*:\n"
                        "✅ Revisa tu cuerpo y tus expectativas\n"
@@ -868,7 +927,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente):
         proc = None
         if len(resto) > 40:
             m = re.search(r'\*([^*\n]{4,60})\*', resto)   # primer término en negrita = el procedimiento
-            proc = m.group(1).strip() if m and not re.search(r'pregunta|duda|asesor|valoraci|dr\.? gio', m.group(1), re.I) else None
+            proc = m.group(1).strip() if m and not re.search(r'pregunta|duda|asesor|valoraci|dr\.? gio|contactar|equipo|mensaje|gracias', m.group(1), re.I) else None
         _clave_precio = None
         if proc and pide_precio(mensaje_paciente):
             from core.pasos_cx import clave_de
@@ -2238,6 +2297,19 @@ class BrainCX:
             print("[CX] NOTIFY urgencia — aviso a asesora (sin lead MedFiles)", flush=True)
             return 'URGENCIA'
 
+        # ── Otro tema (no es una paciente de cirugía): aviso a la asesora, sin lead ──
+        if 'otro_tema' in interes_raw or 'otro tema' in interes_raw:
+            tel_o = re.sub(r'[^\d]', '', str(sender_id if not self._es_canal_instagram(canal) else (fields.get('telefono') or sender_id)))
+            if asesora_tel:
+                try:
+                    self.whapi.send_text(asesora_tel,
+                        f"💬 *Mensaje para el equipo* (no es de cirugía)\n👤 {nombre} · 📱 +{tel_o}\n"
+                        f"{(fields.get('mensaje') or '').strip()[:300]}")
+                except Exception as e:
+                    print(f"[CX] aviso otro_tema err: {e}", flush=True)
+            print("[CX] NOTIFY otro_tema — aviso a asesora (sin lead MedFiles)", flush=True)
+            return 'OTRO_TEMA'
+
         interes = 'valoracion' if 'valor' in interes_raw or 'consulta' in interes_raw else 'asesoria'
         mod_raw = _sin_tildes(fields.get('modalidad', '') + ' ' + fields.get('opcion_elegida', ''))
         modalidad = ('presencial' if 'presencial' in mod_raw else
@@ -3005,7 +3077,7 @@ class BrainCX:
             if not _nombre_p or not any(c.isalpha() for c in _nombre_p):
                 _nombre_p = ''
             _ya_lead = any(m.get('role') == 'assistant' and isinstance(m.get('content'), str)
-                           and '<<<NOTIFY>>>' in m['content'] and 'urgencia' not in m['content'].lower()
+                           and '<<<NOTIFY>>>' in m['content'] and 'urgencia' not in m['content'].lower() and 'otro_tema' not in m['content'].lower()
                            for m in history)
             # Retoma la conversación (procedimiento del que hablaron, datos pendientes o ya dados)
             try:
@@ -3115,7 +3187,7 @@ class BrainCX:
 
         # ── Lead ya enviado a la asesora (NOTIFY previo en el historial) ──
         if any(m.get('role') == 'assistant' and isinstance(m.get('content'), str)
-               and '<<<NOTIFY>>>' in m['content'] and 'urgencia' not in m['content'].lower()
+               and '<<<NOTIFY>>>' in m['content'] and 'urgencia' not in m['content'].lower() and 'otro_tema' not in m['content'].lower()
                for m in history[:-1]):
             paciente_ctx += (
                 "\n\n[SISTEMA — LEAD YA ENVIADO A LA ASESORA]\n"

@@ -306,6 +306,54 @@ def _clave_recomendada(texto_ia, mensaje, zona):
     return None
 
 
+# Menú para escoger (cuando pide el siguiente paso o una videollamada sin decir cuál)
+MENU_OPCIONES = ("*¿Cómo te gustaría dar el siguiente paso?* 😊\n\n"
+                 "1️⃣ *Asesoría virtual gratuita* 💻\n"
+                 "Con nuestra asesora experta en cirugía plástica, por videollamada, desde donde estés y *sin ningún compromiso*.\n\n"
+                 "2️⃣ *Valoración con el Dr. Gio* 👨‍⚕️\n"
+                 "Consulta médica *presencial ($250.000)* o *virtual ($160.000)* para evaluar tu caso.\n\n"
+                 "Respóndeme *1* o *2* 😊")
+# Tras un audio/foto, si el último mensaje del bot ya traía las opciones, no se repite el bloque completo
+CIERRE_CORTO = ("¿Te puedo ayudar con algo más? 😊 Cuando quieras damos el siguiente paso: "
+                "*asesoría virtual gratuita* 💻 o *valoración con el Dr. Gio* 👨‍⚕️")
+
+
+def _pide_siguiente_paso(m):
+    """Pide avanzar sin decir cuál opción: "una videollamada", "cómo agendo", "siguiente paso"."""
+    m = m or ''
+    if re.search(r'\b(asesor[ií]a|asesora|valoraci[oó]n|consulta|presencial|dr\.?|doc|doctor|m[eé]dico|cirujano)\b', m, re.I):
+        return False   # ya dijo cuál: eso lo maneja el pedido de datos
+    return bool(re.search(r'\bvide?o ?llamada\b|\bsiguiente paso\b|\bc[oó]mo (agendo|puedo agendar|hago para agendar|me agendo|separo)\b|\bquiero agendar\b', m, re.I))
+
+
+def _cierre(cuerpo, history, mensaje):
+    """Cierre del mensaje: menú si pide avanzar, corto si el bloque acaba de salir, completo si no."""
+    from core.brain_cx import CIERRE_DUDAS
+    if cuerpo.rstrip().endswith(':') or _pide_siguiente_paso(mensaje):
+        return MENU_OPCIONES
+    # Mandó un audio, foto o video y el bloque acaba de salir: cierre corto (a Rafael le salió 3 veces seguidas)
+    previos = _textos_bot(history)
+    if re.fullmatch(r'\s*\[(AUDIO|MEDIA|IMAGEN|VIDEO|DOCUMENTO|STICKER)\]\s*', mensaje or '') and previos \
+            and ('Tu siguiente paso puede ser' in previos[-1] or 'Respóndeme *1* o *2*' in previos[-1]):
+        return CIERRE_CORTO
+    return CIERRE_DUDAS
+
+
+def _sin_anuncio(cuerpo):
+    """Quita la última línea si anuncia opciones ("Te ofrezco dos opciones:") y el menú va a ir después."""
+    lineas = cuerpo.rstrip().split('\n')
+    if lineas and lineas[-1].rstrip().endswith(':'):
+        lineas.pop()
+    return '\n'.join(lineas).rstrip()
+
+
+def _con_cierre(cuerpo, history, mensaje):
+    cierre = _cierre(cuerpo, history, mensaje)
+    if cierre is MENU_OPCIONES:
+        cuerpo = _sin_anuncio(cuerpo)
+    return ((cuerpo + '\n\n') if cuerpo.strip() else '') + cierre
+
+
 def aplicar_paso(texto, paso, history, mensaje):
     """Marco final del mensaje según el paso que decidió el código."""
     from core.brain_cx import CIERRE_DUDAS
@@ -322,15 +370,15 @@ def aplicar_paso(texto, paso, history, mensaje):
             return ("¡Hola de nuevo! 💙 Ya tenemos tus datos y *nuestra asesora te contactará por aquí* muy pronto"
                     + (f" para hablar de tu *{proc}*" if proc else '') + ".\n\n¿Hay algo más en lo que te pueda ayudar mientras tanto? 😊")
         saludo = "¡Hola de nuevo! 💙 " + (f"Seguimos con tu consulta sobre la *{proc}* 😊" if proc else "¿En qué más te puedo ayudar? 😊")
-        return saludo + '\n\n' + CIERRE_DUDAS
+        return _con_cierre(saludo, history, mensaje)
     if p == 'verificar':
-        return VERIFICAR + '\n\n' + CIERRE_DUDAS
+        return _con_cierre(VERIFICAR, history, mensaje)
     if p == 'turismo':
-        return TURISMO + '\n\n' + CIERRE_DUDAS
+        return _con_cierre(TURISMO, history, mensaje)
     if p == 'info_senos':
         temas = paso['temas']
         partes = [CICATRICES_SENOS.replace('¡Claro! 💙 ', '') if x == 'cicatrices' else SENOS_TEMAS[x] for x in temas]
-        return '¡Claro! 💙\n\n' + '\n'.join(partes) + '\n\n' + CIERRE_DUDAS
+        return _con_cierre('¡Claro! 💙\n\n' + '\n'.join(partes), history, mensaje)
     if p not in ('recomendar', 'procedimiento', 'duda'):
         return texto
     # Mensajes que tienen su propio cierre aprobado: no se tocan
@@ -356,4 +404,4 @@ def aplicar_paso(texto, paso, history, mensaje):
     cuerpo = _quitar_cierres(texto)
     if p == 'recomendar' and 'asesora' not in cuerpo.lower():
         cuerpo += '\n\n' + FRASE_ASESORA
-    return (cuerpo + '\n\n' + CIERRE_DUDAS).strip()
+    return _con_cierre(cuerpo, history, mensaje).strip()

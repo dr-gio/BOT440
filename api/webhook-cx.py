@@ -32,6 +32,9 @@ class handler(BaseHTTPRequestHandler):
             _tok = os.environ.get('WHAPI_TOKEN_CX') or os.environ.get('WHAPI_TOKEN', '')
             if _tipo == 'text':
                 text = msg.get('text', {}).get('body', '')
+            elif _tipo == 'link_preview':
+                # Un texto con un enlace (WhatsApp lo manda con vista previa): es un mensaje normal, no una imagen
+                text = (msg.get('link_preview', {}) or {}).get('body', '') or (msg.get('text', {}) or {}).get('body', '')
             elif _tipo == 'image':
                 text = '[IMAGEN]'
                 _img = msg.get('image', {}) or {}
@@ -42,7 +45,9 @@ class handler(BaseHTTPRequestHandler):
                 _vid = msg.get('video', {}) or {}
                 _media_caption = _vid.get('caption') or None
                 _media_url = store_whapi_media(_vid, _tok, prefix='cx')
-            elif _tipo in ('reaction', 'unknown', 'action', 'system', 'revoked', 'edited', 'ephemeral', 'call', 'e2e_notification'):
+            elif _tipo in ('reaction', 'unknown', 'action', 'system', 'revoked', 'edited', 'ephemeral', 'call', 'e2e_notification',
+                           # Plantillas y botones de empresas (publicidad automática, ej. agencias de viajes): no son pacientes
+                           'hsm', 'buttons', 'list', 'interactive', 'template', 'poll', 'order', 'product', 'catalog'):
                 # Reacciones, ediciones y avisos del sistema: no son un mensaje de la paciente (no se contestan)
                 text = ''
                 print(f"[WEBHOOK-CX] tipo {_tipo!r} ignorado", flush=True)

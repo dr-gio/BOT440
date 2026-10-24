@@ -79,7 +79,8 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I): fallas.append('opciones numeradas escritas por la IA')
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r:
+        fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
     if re.search(r'^\s*[-—_]{3,}\s*$', r, re.M): fallas.append('separador ---')
@@ -95,6 +96,9 @@ def tiene(*t): return ('contiene ' + ' / '.join(t), lambda r: all(x.lower() in r
 def no_tiene(*t): return ('NO contiene ' + ' / '.join(t), lambda r: not any(x.lower() in r.lower() for x in t))
 def con_cierre(): return ('termina con el bloque aprobado', lambda r: r.rstrip().endswith('personalmente.') and CIERRE in r)
 def sin_cierre(): return ('sin bloque de siguiente paso', lambda r: CIERRE not in r)
+def cierre_corto(): return ('cierre corto (no repite el bloque)', lambda r: CIERRE not in r and 'algo más' in r)
+def menu(): return ('menú para escoger 1 o 2, sin "¿alguna duda?"', lambda r: 'Respóndeme *1* o *2*' in r and 'pregunta o duda' not in r
+                    and not re.search(r':\s*\n+\*¿Cómo te gustaría', r))
 def con_ficha(): return ('trae la ficha aprobada', lambda r: FICHA in r)
 def pide_datos(): return ('pide nombre, ciudad, correo y procedimiento', lambda r: all(x in r for x in ('Nombre completo', 'Ciudad', 'Correo electrónico', 'Procedimiento de interés')))
 
@@ -247,16 +251,57 @@ ESCENARIOS = {
         ('y donde opera el doctor?', [con_cierre()]),
         ('tienen financiacion?', [con_cierre()]),
     ],
+    # 24-oct (Rafael): "Por favor una video llamada" → salía "Te ofrezco dos opciones:" + "¿alguna otra duda?"
+    'pide_videollamada': [
+        ('Hola', []),
+        ('Me interesa la blefaroplastia', [con_ficha()]),
+        ('Por favor una video llamada.', [menu()]),
+    ],
+    # Regla del Dr.: videollamada con el doctor = valoración virtual; con la asesora = asesoría
+    'video_con_doctor': [
+        ('Hola', []),
+        ('Quiero una videollamada con el doctor', [pide_datos(), tiene('160.000', 'virtual'), no_tiene('Respóndeme *1* o *2*')]),
+    ],
+    'video_con_asesora': [
+        ('Hola', []),
+        ('Quiero una videollamada con la asesora', [pide_datos(), tiene('asesoría virtual gratuita'), no_tiene('Respóndeme *1* o *2*')]),
+    ],
+    'consulta_virtual': [
+        ('Hola', []),
+        ('Quiero una consulta virtual', [pide_datos(), tiene('160.000'), no_tiene('Respóndeme *1* o *2*')]),
+    ],
+    # 24-oct (Rafael): tres audios seguidos → tres veces el bloque completo
+    'audios_seguidos': [
+        ('Hola', []),
+        ('[AUDIO]', []),
+        ('[AUDIO]', [cierre_corto()]),
+    ],
+    # 24-oct: a Rafael le dijo "¿Estás lista…?"
+    'hombre_por_nombre': [
+        ('Hola, quiero una valoración presencial con el doctor', [pide_datos(), tiene('listo'), no_tiene('Estás lista')]),
+    ],
+    # 21-oct: preguntaron por la cámara hiperbárica en venta → solo bienvenida
+    'otro_tema': [
+        ('Holaa buenas tardes, en una publicación vi que el Dr estaba vendiendo una cámara hiperbarica', [tiene('equipo'), no_tiene('Nombre completo')]),
+    ],
+    'clinicas': [
+        ('Hola', []),
+        ('¿En qué clínicas operan en Barranquilla?', [tiene('Diamanti'), no_tiene('Diamante')]),
+    ],
 }
+
+
+NOMBRES = {'hombre_por_nombre': 'Rafael Gómez'}   # nombre del perfil de WhatsApp (por defecto "Paciente Prueba")
 
 
 def correr(nombre, turnos):
     FILAS.clear(); LEADS.clear()
     bot = bx.BrainCX()
+    perfil = NOMBRES.get(nombre, 'Paciente Prueba')
     fallas = []
     for i, (msg, checks) in enumerate(turnos, 1):
         try:
-            r = bot.process('573009998877', 'Paciente Prueba', msg, canal='cirugia', send=False) or ''
+            r = bot.process('573009998877', perfil, msg, canal='cirugia', send=False) or ''
         except Exception as e:
             fallas.append(f'turno {i} "{msg[:30]}": ERROR {e}')
             continue
