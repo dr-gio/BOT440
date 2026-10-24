@@ -63,8 +63,8 @@ def _cargar(self, sender_id, canal='cirugia'):
             msgs[-1]['content'] += '\n' + f[1]
         else:
             msgs.append({'role': rol, 'content': f[1]})
-    while msgs and msgs[0]['role'] != 'user':
-        msgs.pop(0)
+    if msgs and msgs[0]['role'] != 'user':   # igual que el bot real: el centro escribió primero
+        msgs.insert(0, {'role': 'user', 'content': '(El Centro de Atención le escribió primero a esta persona.)'})
     return msgs
 def _guardar(self, sender_id, sender_name, mensaje, direccion, remitente, canal='cirugia', cuenta_receptora=None):
     if mensaje:
@@ -328,6 +328,12 @@ ESCENARIOS = {
         ('Mejor quiero la valoración presencial con el doctor', [tiene('Le aviso a nuestra asesora', 'valoración presencial'), no_tiene('Nombre completo'),
          ('nota de cambio al lead', lambda r: any(l.get('accion') == 'completar' and l.get('interes') == 'valoracion' and l.get('modalidad') == 'presencial' for l in LEADS))]),
     ],
+    # Lead de Instagram: MedFiles le escribió por WhatsApp ("Recibimos tus datos…"); al responder, nada de bienvenida ni opciones
+    'lead_de_instagram': [
+        ('Hola', [no_tiene('Bienvenida(o)', 'Cuéntame', 'Nombre completo'), sin_cierre(), tiene('datos')]),
+        ('Gracias', [tiene('Con gusto, Paola'), sin_cierre()]),
+        ('¿Cuánto cuesta la lipo?', [tiene('17.000.000', 'ya tiene tus datos'), sin_cierre(), no_tiene('Nombre completo')]),
+    ],
     # 24-oct (Rafael): tres audios seguidos → tres veces el bloque completo
     'audios_seguidos': [
         ('Hola', []),
@@ -353,8 +359,16 @@ NOMBRES = {'hombre_por_nombre': 'Rafael Gómez', 'numero_oculto': 'Rafael Oñate
 CHATS = {'numero_oculto': ('147484932362413', '147484932362413@lid')}   # (sender, chat_id) cuando WhatsApp oculta el número
 
 
+PREVIOS = {   # conversación que ya existía antes de la prueba (direccion, texto)
+    'lead_de_instagram': [('saliente', '¡Hola, Paola! 💙 Te escribimos del *Centro de Atención del Dr. Giovanni Fuentes*. Recibimos tus datos por Instagram '
+                           'para tu *lipoescultura* ✨\n\nMuy pronto *nuestra asesora te contactará por aquí*…\n\n<<<NOTIFY>>>\nnombre: Paola Bañuelos\n'
+                           'telefono: 523329703337\nemail: p@gmail.com\nciudad: \nprocedimiento: lipoescultura\ninteres: asesoria\nmodalidad: \n<<<END>>>')],
+}
+
+
 def correr(nombre, turnos):
     FILAS.clear(); LEADS.clear()
+    FILAS.extend(PREVIOS.get(nombre, []))
     bot = bx.BrainCX()
     perfil = NOMBRES.get(nombre, 'Paciente Prueba')
     sender, chat = CHATS.get(nombre, ('573009998877', '573009998877@s.whatsapp.net'))

@@ -33,7 +33,9 @@ class handler(BaseHTTPRequestHandler):
                     r = brain.whapi.send_text(tel, e['texto'])
                     ok = bool(isinstance(r, dict) and r.get('sent'))
                     if ok:
-                        brain._save_message(tel, e.get('nombre') or None, e['texto'], 'saliente', 'bot', canal='cirugia')
+                        # marca_bot: nota interna (ej. <<<NOTIFY>>> de un lead de redes) para que el bot sepa que ya dejó sus datos
+                        guardado = e['texto'] + (('\n\n' + e['marca_bot']) if e.get('marca_bot') else '')
+                        brain._save_message(tel, e.get('nombre') or None, guardado, 'saliente', 'bot', canal='cirugia')
                     _rpc('bot_envio_marcar', {'p_id': e['id'], 'p_ok': ok, 'p_error': None if ok else str(r)[:300]})
                     resultado.append({'telefono': tel, 'ok': ok})
                     print(f"[INICIAR-CX] {tel} ok={ok}", flush=True)
