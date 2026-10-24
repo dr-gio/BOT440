@@ -2401,6 +2401,39 @@ class BrainCX:
         except Exception:
             return False
 
+    def _cambio_opcion(self, sender_id, history, text, canal):
+        """Ya dejó sus datos y ahora escoge otra opción (ej. de asesoría a valoración presencial):
+        se actualiza el lead en MedFiles y se le avisa a la asesora."""
+        from core.pasos_cx import _datos_lead, eleccion_post
+        nombre, interes, modalidad = _datos_lead(history)
+        nuevo, mod = eleccion_post(text, interes)
+        if nuevo[:5] == interes[:5] and (not mod or mod == modalidad):
+            return
+        base, clave = self._medfiles_cfg()
+        if not clave or self._es_canal_instagram(canal):
+            return
+        que = 'asesoría virtual gratuita' if nuevo.startswith('asesor') else f"valoración con el Dr.{' (' + mod + ')' if mod else ''}"
+        _limpio = re.sub(r'^\[[^\]]*\]:\s*', '', text or '')
+        body = {'accion': 'completar', 'canal': 'whatsapp', 'chat_id': getattr(self, '_chat_id', '') or None, 'telefono_chat': str(sender_id),
+                'interes': nuevo, 'modalidad': mod or None, 'nota': 'Escribió: "' + _limpio[:150] + '"'}
+        try:
+            req = urllib.request.Request(f"{base}/api/entrada/bot", data=json.dumps(body, ensure_ascii=False).encode(),
+                                         headers={'X-Clave': clave, 'Content-Type': 'application/json', 'Accept': 'application/json',
+                                                  'User-Agent': _BROWSER_UA}, method='POST')
+            with urllib.request.urlopen(req, timeout=8) as r:
+                data = json.loads(r.read() or b'{}')
+        except Exception as e:
+            print(f"[CX] cambio de opción err: {e}", flush=True)
+            return
+        asesora_tel = re.sub(r'[^\d]', '', str(((data.get('asesora') or {}).get('whatsapp')) or os.environ.get('ASESORA_MEDFILES_TEL', '')))
+        if asesora_tel:
+            base_mf, _ = self._medfiles_cfg()
+            link = f"{base_mf}/crm/whatsapp?persona={data['persona']}" if data.get('persona') else f"{base_mf}/crm"
+            try:
+                self.whapi.send_text(asesora_tel, f"🔄 *{data.get('nombre') or nombre or 'Paciente'}* ahora prefiere *{que}*\nAtiéndelo desde MedFiles 👉 {link}")
+            except Exception as e:
+                print(f"[CX] aviso cambio err: {e}", flush=True)
+
     def _completar_lead(self, sender_id, history, text, canal):
         """Lo que la persona escribe DESPUÉS de crearse su lead (ciudad, correo, número real) se agrega en MedFiles.
         Si llega su número (estaba oculto) se le avisa a la asesora."""
@@ -3752,6 +3785,8 @@ class BrainCX:
         if not match and not _en:
             try:
                 user_facing = aplicar_paso(user_facing, _paso, history, text)
+                if _paso.get('paso') == 'post_elige':
+                    self._cambio_opcion(sender_id, history, text, canal)
             except Exception as _e:
                 print(f"[CX] aplicar_paso err: {_e}", flush=True)
         _pendiente_blk = None

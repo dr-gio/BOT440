@@ -318,6 +318,16 @@ ESCENARIOS = {
         ('Quiero agendar una consulta presencial con el doctor para abdominoplastia', [tiene('asistente virtual del Dr. Giovanni Fuentes', 'Revisa tu cuerpo', '250.000', 'Nombre completo'),
                                                                                     no_tiene('RETHUS', 'Dime cuál prefieres')]),
     ],
+    # 24-oct (Jose Ruiz): después de crearse el lead, "Gracias" recibía otra vez las opciones y al escoger le pedía de nuevo los datos
+    'despues_del_lead': [
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *asesoría virtual gratuita*.', [pide_datos()]),
+        ('Jose Ruiz\nOrlando Florida\nJoseruizal29@gmail.com\nGinecomastia', [tiene('Listo, Jose')]),
+        ('Gracias', [tiene('Con gusto, Jose', 'asesora'), sin_cierre(), no_tiene('Nombre completo', 'pregunta o duda')]),
+        ('Asesoría virtual gratuita', [tiene('Ya tengo tus datos'), sin_cierre(), no_tiene('Nombre completo')]),
+        ('¿Cuánto dura la recuperación?', [tiene('ya tiene tus datos'), sin_cierre(), no_tiene('Nombre completo')]),
+        ('Mejor quiero la valoración presencial con el doctor', [tiene('Le aviso a nuestra asesora', 'valoración presencial'), no_tiene('Nombre completo'),
+         ('nota de cambio al lead', lambda r: any(l.get('accion') == 'completar' and l.get('interes') == 'valoracion' and l.get('modalidad') == 'presencial' for l in LEADS))]),
+    ],
     # 24-oct (Rafael): tres audios seguidos → tres veces el bloque completo
     'audios_seguidos': [
         ('Hola', []),

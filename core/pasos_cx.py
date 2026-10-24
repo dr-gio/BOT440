@@ -180,6 +180,41 @@ RE_AGENDAR = re.compile(r'\b(agendar(me)?|ag[eé]nd(a|e)me|separar|apartar|reser
                         r'|\b(quiero|quisiera)\s+operarme\b|\bme\s+quiero\s+operar\b', re.I)
 
 
+# Ya dejó sus datos (lead creado): agradecimientos y vuelta a escoger no reciben otra vez las opciones ni el pedido de datos
+RE_GRACIAS = re.compile(r'^\s*(muchas\s+|mil\s+)?(gracias|grax|ok|okey|okay|oki|listo|perfecto|dale|vale|bueno|bien|genial|excelente|s[uú]per|'
+                        r'de acuerdo|entendido|entiendo|quedo atent[oa]|quedo pendiente|esperar[eé]|espero|claro)\b[^?]{0,40}$|^\s*[👍🙏❤️💙😊🙌👌✨]+\s*$', re.I)
+CIERRE_POST = "Recuerda que *nuestra asesora ya tiene tus datos* y te escribirá muy pronto por aquí 😊"
+
+
+def _datos_lead(history):
+    """Lo que quedó en el lead (del bloque NOTIFY guardado): nombre e interés."""
+    todo = '\n'.join(_textos_bot(history))
+    bloques = re.findall(r'<<<NOTIFY>>>(.*?)<<<END>>>', todo, re.S)
+    b = bloques[-1] if bloques else ''
+    nom = (re.search(r'nombre:\s*([^\n]+)', b) or [None, ''])[1].strip().split()
+    interes = (re.search(r'interes:\s*([^\n]*)', b) or [None, ''])[1].strip().lower()
+    modalidad = (re.search(r'modalidad:\s*([^\n]*)', b) or [None, ''])[1].strip().lower()
+    nombre = nom[0].capitalize() if nom and nom[0].lower() not in ('paciente', 'sin') else ''
+    return nombre, interes, modalidad
+
+
+def eleccion_post(m, actual=''):
+    """Qué escoge al volver a responder después de dejar sus datos → (interes, modalidad)."""
+    m = m or ''
+    doctor = re.search(r'valoraci|consulta|doctor|\bdr\b|m[eé]dico|presencial', m, re.I)
+    if re.search(r'asesor', m, re.I) and not re.search(r'doctor|\bdr\b|m[eé]dico', m, re.I):
+        return 'asesoria', ''
+    if doctor or re.search(r'\bvirtual\b', m, re.I):
+        if not doctor and (actual or '').startswith('asesor'):
+            return 'asesoria', ''   # "virtual" a secas con asesoría registrada: la asesoría ya es virtual
+        return 'valoracion', ('presencial' if re.search(r'presencial', m, re.I) else 'virtual' if re.search(r'\bvirtual\b', m, re.I) else '')
+    if re.search(r'^\s*1\b|1️⃣|la primera', m, re.I):
+        return 'asesoria', ''
+    if re.search(r'^\s*2\b|2️⃣|la segunda', m, re.I):
+        return 'valoracion', ''
+    return (actual or 'asesoria'), ''
+
+
 def quiere_agendar(t):
     return bool(RE_AGENDAR.search(t or '')) and not _es_pregunta(t or '')
 
@@ -201,6 +236,11 @@ def decidir_paso(history, texto):
     if re.fullmatch(r'\s*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ola)[\s!.,😊💙👋]*', t, re.I):
         return {'paso': 'regreso', 'datos_dados': datos_dados, 'datos_pedidos': datos_pedidos and not datos_dados,
                 'proc': _procedimiento_conversado(history)}
+    if datos_dados and RE_GRACIAS.search(t or ''):
+        return {'paso': 'post_gracias'}
+    if datos_dados and not _es_pregunta(t) and (_es_eleccion(t) or quiere_agendar(t)
+                                                or re.search(r'\b(asesor[ií]a|valoraci[oó]n|consulta|presencial|virtual)\b', t, re.I)):
+        return {'paso': 'post_elige'}
     if re.search(r'sociedad|certificad|rethus|verific|registrad|avalad|es (cirujano|especialista|pl[aá]stico)|t[ií]tulo|idoneidad|es real', t, re.I):
         return {'paso': 'verificar', 'datos_pendientes': bool(re.search(r'nombre completo', ultimo, re.I))
                 and not re.search(r'ya eres parte de #labelleza440|<<<NOTIFY', ultimo, re.I)}
@@ -342,6 +382,9 @@ def _pide_siguiente_paso(m):
 def _cierre(cuerpo, history, mensaje):
     """Cierre del mensaje: menú si pide avanzar, corto si el bloque acaba de salir, completo si no."""
     from core.brain_cx import CIERRE_DUDAS
+    # Ya dejó sus datos: no se le vuelven a ofrecer las opciones
+    if re.search(r'<<<NOTIFY|ya eres parte de #labelleza440|asesora ya tiene tus datos', '\n'.join(_textos_bot(history)), re.I):
+        return CIERRE_POST
     if cuerpo.rstrip().endswith(':') or _pide_siguiente_paso(mensaje):
         return MENU_OPCIONES
     # Mandó un audio, foto o video y el bloque acaba de salir: cierre corto (a Rafael le salió 3 veces seguidas)
@@ -373,6 +416,17 @@ def aplicar_paso(texto, paso, history, mensaje):
     p = paso.get('paso')
     if p == 'agendar':
         return texto
+    if p in ('post_gracias', 'post_elige'):
+        nombre, interes, modalidad = _datos_lead(history)
+        coma = f", {nombre}" if nombre else ''
+        if p == 'post_gracias':
+            return f"¡Con gusto{coma}! 💙 Nuestra asesora te escribirá muy pronto por aquí 😊"
+        nuevo_int, nueva_mod = eleccion_post(mensaje, interes)
+        que = ('tu *asesoría virtual gratuita*' if nuevo_int.startswith('asesor')
+               else f"tu *valoración {nueva_mod + ' ' if nueva_mod else ''}con el Dr. Gio*")
+        if nuevo_int[:5] != interes[:5] or (nueva_mod and nueva_mod != modalidad):
+            return f"¡Perfecto{coma}! 💙 Le aviso a nuestra asesora que prefieres {que} ✅ Te escribirá muy pronto por aquí para agendarla 😊"
+        return f"¡Ya tengo tus datos{coma}! ✅ Nuestra asesora te contactará muy pronto por aquí para agendar {que} 😊"
     if p == 'orientar':
         return ORIENTAR[paso['zona']]
     if p == 'reclamo':
