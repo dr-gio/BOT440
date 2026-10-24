@@ -83,7 +83,7 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r:
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r:
         fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
@@ -110,7 +110,7 @@ ESCENARIOS = {
     # 22-oct: pidió la consulta en el PRIMER mensaje; el bot dio precios pero no pidió los datos
     'consulta_primer_mensaje': [
         ('Buenos Días, quisiera agendar una cita de consulta en Bogota.\nVirtual o Presencial.',
-         [tiene('Bienvenida(o)', 'Nombre completo', 'presencial', 'virtual'), no_tiene('Asesoría virtual gratuita* 💻\nCon nuestra')]),
+         [tiene('asistente virtual del Dr. Giovanni Fuentes', 'Nombre completo', 'presencial', 'virtual'), no_tiene('Asesoría virtual gratuita* 💻\nCon nuestra')]),
     ],
     # 23-oct (Alejandra): preguntó el precio de la lipo 360 al nombrarla; la ficha tapaba el precio y se fue
     'precio_con_procedimiento': [
@@ -120,15 +120,15 @@ ESCENARIOS = {
     'precio_primer_mensaje': [
         ('Hola cuanto cuesta la abdominoplastia?', [tiene('Bienvenida(o)', '22.000.000', 'Por lo general'), con_cierre()]),
     ],
-    # Botones de la página web (www.drgiovannifuentes.com): llegan con el mensaje escrito
+    # Botones de la página web: llegan con el mensaje escrito (lead caliente → bienvenida corta)
     'web_asesoria': [
-        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *asesoría virtual gratuita*.', [tiene('Bienvenida(o)'), pide_datos()]),
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *asesoría virtual gratuita*.', [tiene('asistente virtual del Dr. Giovanni Fuentes'), pide_datos()]),
     ],
     'web_consulta_virtual': [
-        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta virtual* con el doctor.', [tiene('Bienvenida(o)', '160.000'), pide_datos()]),
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta virtual* con el doctor.', [tiene('asistente virtual del Dr. Giovanni Fuentes', '160.000'), pide_datos()]),
     ],
     'web_consulta_presencial': [
-        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta presencial* con el doctor.', [tiene('Bienvenida(o)', '250.000'), pide_datos()]),
+        ('¡Hola! Vengo de la página del Dr. Gio y quiero agendar una *consulta presencial* con el doctor.', [tiene('asistente virtual del Dr. Giovanni Fuentes', '250.000'), pide_datos()]),
     ],
     'web_procedimiento': [
         ('¡Hola! Vengo de la página del Dr. Gio y quiero información sobre *abdominoplastia*.', [tiene('Bienvenida(o)')]),
@@ -300,6 +300,23 @@ ESCENARIOS = {
     'cron_datos_incompletos': [
         ('Quiero una asesoría virtual', [pide_datos()]),
         ('Ana Ruiz', [tiene('solo me falta', 'ciudad'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
+    ],
+    # Lead caliente: llega directo a agendar → bienvenida corta + escoger + datos, sin ficha
+    'caliente_con_cirugia': [
+        ('Hola, quiero agendar para una lipo 360', [tiene('asistente virtual del Dr. Giovanni Fuentes', 'Lipoescultura', 'Dime cuál prefieres', 'Nombre completo'),
+                                                    no_tiene('Por lo general', 'RETHUS', 'Te cuento')]),
+        ('2, presencial. Carlos Díaz, Barranquilla', [('lead de valoración presencial', lambda r: any(l.get('interes') == 'valoracion' and l.get('modalidad') == 'presencial' for l in LEADS))]),
+    ],
+    'caliente_sin_cirugia': [
+        ('Buenas, quiero agendar una cita', [tiene('Dime cuál prefieres', 'Nombre completo'), no_tiene('RETHUS', 'Revisa tu cuerpo')]),
+    ],
+    'caliente_despues_de_saludar': [
+        ('Hola', []),
+        ('Quiero agendar para mamoplastia de aumento', [tiene('Dime cuál prefieres', 'Nombre completo'), no_tiene('Por lo general')]),
+    ],
+    'caliente_ya_dijo_cual': [
+        ('Quiero agendar una consulta presencial con el doctor para abdominoplastia', [tiene('asistente virtual del Dr. Giovanni Fuentes', 'Revisa tu cuerpo', '250.000', 'Nombre completo'),
+                                                                                    no_tiene('RETHUS', 'Dime cuál prefieres')]),
     ],
     # 24-oct (Rafael): tres audios seguidos → tres veces el bloque completo
     'audios_seguidos': [

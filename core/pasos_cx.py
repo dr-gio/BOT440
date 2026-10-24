@@ -173,6 +173,17 @@ def _procedimiento_conversado(history):
     return None
 
 
+# Llega decidido a agendar ("quiero agendar para lipo", "quiero una cita", "quiero operarme"): lead caliente.
+# No se le manda ficha ni preguntas de orientación: de una se le piden los datos.
+RE_AGENDAR = re.compile(r'\b(agendar(me)?|ag[eé]nd(a|e)me|separar|apartar|reservar|programar)\b'
+                        r'|\b(sacar|pedir|tener|quiero|quisiera|necesito)\s+(una\s+)?cita\b'
+                        r'|\b(quiero|quisiera)\s+operarme\b|\bme\s+quiero\s+operar\b', re.I)
+
+
+def quiere_agendar(t):
+    return bool(RE_AGENDAR.search(t or '')) and not _es_pregunta(t or '')
+
+
 def decidir_paso(history, texto):
     bots = _textos_bot(history)
     t = texto or ''
@@ -195,6 +206,8 @@ def decidir_paso(history, texto):
                 and not re.search(r'ya eres parte de #labelleza440|<<<NOTIFY', ultimo, re.I)}
     if re.search(r'nombre completo', ultimo, re.I) and not re.search(r'ya eres parte de #labelleza440|<<<NOTIFY', ultimo, re.I):
         return {'paso': 'datos'}
+    if quiere_agendar(t) and not datos_dados:
+        return {'paso': 'agendar'}   # el pedido de datos lo arma ajustar_respuesta_cx
     if _es_eleccion(t):
         return {'paso': 'elige'}
     if re.search(r'turismo|hospedaje|alojamiento|recovery|hotel|d[oó]nde me (quedo|hospedo)|vengo de (otra|otro|fuera)', t, re.I):
@@ -358,6 +371,8 @@ def aplicar_paso(texto, paso, history, mensaje):
     """Marco final del mensaje según el paso que decidió el código."""
     from core.brain_cx import CIERRE_DUDAS
     p = paso.get('paso')
+    if p == 'agendar':
+        return texto
     if p == 'orientar':
         return ORIENTAR[paso['zona']]
     if p == 'reclamo':

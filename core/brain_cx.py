@@ -610,6 +610,23 @@ BIENVENIDA_CABEZA = (
     "✈️ *Planes de turismo médico todo incluido*\n\n"
     "Te está atendiendo *el asistente virtual del Dr. Gio* 🤖. Estoy aquí para orientarte antes de dar el siguiente paso."
 )
+# Lead caliente (llega directo a agendar): bienvenida de una línea y de una el pedido de datos
+BIENVENIDA_CORTA = ("¡Hola! 💙 Te atiende el *asistente virtual del Dr. Giovanni Fuentes*, "
+                    "cirujano plástico estético y reconstructivo certificado 🤖")
+
+
+def mensaje_agendar(mensaje, pedir_celular=False):
+    """Quiere agendar y no ha dicho si asesoría o valoración: escoge y deja los datos en el mismo mensaje."""
+    from core.pasos_cx import clave_de, _titulo
+    c = clave_de(mensaje or '')
+    proc = _titulo(c) if c else ''
+    return (f"¡Con gusto te agendamos{' para tu *' + proc + '*' if proc else ''}! ✨ Dime cuál prefieres:\n\n"
+            "1️⃣ *Asesoría virtual gratuita* 💻 con nuestra asesora experta en cirugía plástica, por videollamada y sin compromiso\n"
+            "2️⃣ *Valoración con el Dr. Gio* 👨‍⚕️: presencial *$250.000* o virtual *$160.000*\n\n"
+            "Y déjame tus datos para que *nuestra asesora te contacte por aquí*:\n"
+            "👤 *Nombre completo*\n📍 *Ciudad*\n" + ("📱 *Número de celular*\n" if pedir_celular else "") + "📧 *Correo electrónico*")
+
+
 CIERRE_DUDAS = ("¿Tienes alguna otra *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\n"
                 + BLOQUE_SIGUIENTE_PASO)
 BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
@@ -821,11 +838,17 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
         if re.search(VIDEO_ASESORA, _msg, re.I):
             texto = 'asesoría virtual · nombre completo · ciudad'
         elif re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para|presencial|virtual|en)|cita (con|de consulta|de valoraci|presencial|virtual)'
-                     r'|(agendar|pedir|sacar|solicitar|quiero|quisiera|necesito)[^.?!\n]{0,30}\b(cita|consulta)\b)', _msg, re.I) \
+                     r'|(agendar|pedir|sacar|solicitar|quiero|quisiera|necesito)[^.?!\n]{0,30}\bconsulta\b)', _msg, re.I) \
                 or re.search(VIDEO_DOCTOR, _msg, re.I):
             texto = 'valoración · nombre completo · ciudad'
         elif re.search(r'asesor[ií]a', _msg, re.I):
             texto = 'asesoría virtual · nombre completo · ciudad'
+    # Lead caliente sin decir cuál: escoge asesoría o valoración y deja los datos en el mismo mensaje
+    from core.pasos_cx import quiere_agendar
+    _caliente = quiere_agendar(_msg)
+    if _caliente and '<<<NOTIFY' not in texto and not re.search(r'nombre completo', previos, re.I) \
+            and not re.search(r'nombre completo', texto, re.I) and not re.search(r'asesor[ií]a|valoraci|consulta', texto[:30], re.I):
+        texto = 'agendar · elegir'
     # Ya se pidieron los datos y el paciente hace otra pregunta: se responde la pregunta y se recuerda en corto
     # (no se repite el pedido completo, que borraría la respuesta)
     _elige = (not _es_pregunta) and re.search(r'\b(valoraci[oó]n|consulta(r)? (con|del|para)|cita con|asesor[ií]a)\b', mensaje_paciente or '', re.I)
@@ -859,6 +882,8 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
             valoracion = False
         dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'] + [mensaje_paciente or ''])
         modalidad = 'virtual' if re.search(r'\bvirtual\b', dicho, re.I) or re.search(VIDEO_DOCTOR, dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else ''
+        if re.search(r'\bvirtual\b[^.\n]{0,15}\bo\b[^.\n]{0,15}\bpresencial\b|\bpresencial\b[^.\n]{0,15}\bo\b[^.\n]{0,15}\bvirtual\b', mensaje_paciente or '', re.I):
+            modalidad = ''   # "virtual o presencial": aún no decide → se le pregunta
         listo = 'listo' if (_es_hombre(history, mensaje_paciente) or re.search(r'\b(listo para|el pr[oó]ximo|bienvenido)\b', texto, re.I)) else 'lista'
         explica = ''
         if not valoracion:
@@ -919,6 +944,12 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
                             and re.search(r'(duda|pregunta|algo m[aá]s|ayudar|siguiente paso)', lineas_t[-1], re.I)):
             lineas_t.pop()
         texto = '\n'.join(lineas_t).rstrip() + '\n\n' + CIERRE_DUDAS
+    if texto == 'agendar · elegir':
+        texto = mensaje_agendar(mensaje_paciente, pedir_celular)
+        return (BIENVENIDA_CORTA + '\n\n' + texto) if not hubo_bot else texto
+    if not hubo_bot and _caliente and re.search(r'nombre completo', texto, re.I):
+        # Primer mensaje y ya pidió agendar (asesoría o valoración): bienvenida corta y de una el pedido de datos
+        return re.sub(r'\n{3,}', '\n\n', BIENVENIDA_CORTA + '\n\n' + texto).strip()
     if not hubo_bot:
         # Primer contacto: bienvenida completa siempre. Si la IA solo preguntaba qué le interesa, va la pregunta aprobada.
         resto = re.sub(r'^.*(qu[eé] procedimiento te interesa|qu[eé] te gustar[ií]a mejorar).*$', '', texto, flags=re.I | re.M).strip()
@@ -2332,6 +2363,19 @@ class BrainCX:
         return any(self._RE_NOMBRE.match(l) and not re.search(r'\b(quiero|tengo|hola|gracias|buen[oa]s?|cirug|lipo|abdomen|senos)\b', l, re.I)
                    for l in t.split('\n'))
 
+    @staticmethod
+    def _interes_elegido(hist, pedido):
+        """Qué quiere: lo dice el pedido de datos; si era el de "escoge 1 o 2", lo que respondió después."""
+        if 'Dime cuál prefieres' not in (pedido or ''):
+            return 'valoracion' if re.search(r'agendar tu \*valoraci', pedido or '', re.I) else 'asesoria'
+        ult = ' '.join(m.get('content') or '' for m in (hist or [])[-6:] if m.get('role') == 'user')
+        ult = re.sub(r'\[[^\]]*\]:', ' ', ult)
+        if re.search(r'asesor|gratis|gratuita|\b1\b|1️⃣|la primera', ult, re.I):
+            return 'asesoria'
+        if re.search(r'valoraci|consulta|doctor|\bdr\b|presencial|virtual|\b2\b|2️⃣|la segunda', ult, re.I) or re.search(VIDEO_DOCTOR, ult, re.I):
+            return 'valoracion'
+        return 'asesoria'
+
     def _campos_desde_pedido(self, hist, pedido, nombre_perfil=''):
         """Lo que ya se sabe para el lead cuando se le pidieron los datos: qué quiere (por el pedido), modalidad,
         procedimiento y nombre (lo que escribió o su perfil). Ciudad, correo y número los completa _validate/_notify."""
@@ -2339,7 +2383,7 @@ class BrainCX:
         dicho = ' '.join(m.get('content') or '' for m in (hist or []) if m.get('role') == 'user')
         return {
             'nombre': self._extract_name_from_history(hist, nombre_perfil) or nombre_perfil or '',
-            'interes': 'valoracion' if re.search(r'agendar tu \*valoraci', pedido or '', re.I) else 'asesoria',
+            'interes': self._interes_elegido(hist, pedido),
             'modalidad': 'virtual' if (re.search(r'\bvirtual\b', dicho, re.I) and not re.search(r'asesor[ií]a virtual', dicho, re.I))
                          or re.search(VIDEO_DOCTOR, dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else '',
             'procedimiento': _procedimiento_conversado(hist) or '',
