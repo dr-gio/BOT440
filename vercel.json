@@ -22,6 +22,16 @@
     {
       "src": "/iniciar-cx",
       "dest": "/api/iniciar-cx.py"
+    },
+    {
+      "src": "/cron-pendientes",
+      "dest": "/api/cron-pendientes.py"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/cron-pendientes",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

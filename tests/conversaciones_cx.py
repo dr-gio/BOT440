@@ -41,6 +41,10 @@ def _falso(req, *a, **k):
             return _R(b'{"pausado": false}')
         LEADS.append(json.loads(req.data.decode()))
         return _R(b'{"ok": true, "nuevo": true, "asesora": null}')
+    if 'conversaciones_440' in url and 'or=(' in url:   # cron de pendientes: el último pedido de datos de la prueba
+        pedidos = [f[1] for f in FILAS if f[0] == 'saliente' and ('Nombre completo' in f[1] or 'PENDIENTE' in f[1])]
+        filas = [{'contacto_telefono': '573009998877', 'contacto_nombre': 'Ana Ruiz', 'mensaje': pedidos[-1], 'created_at': ''}] if pedidos else []
+        return _R(json.dumps(filas).encode())
     if 'datos.gov.co' in url:   # TRM fija para las pruebas
         return _R(b'[{"valor": "3200.00"}]')
     if 'whapi.sim' in url:
@@ -280,7 +284,22 @@ ESCENARIOS = {
     'completar_lead': [
         ('Quiero una valoración presencial con el doctor', [pide_datos()]),
         ('Laura Gómez\nlaura@gmail.com\nlipo', []),
-        ('Soy de Barranquilla', [('agrega la ciudad al lead', lambda r: any(l.get('accion') == 'completar' and l.get('ciudad') == 'Barranquilla' for l in LEADS))]),
+        ('Soy de Barranquilla', [('el lead lleva la ciudad', lambda r: any(l.get('ciudad') == 'Barranquilla' for l in LEADS))]),
+    ],
+    # 24-oct (Rafael): dio los datos regados — "Presencial, el martes" sin ciudad → se pide SOLO lo que falta, una vez;
+    # con lo siguiente que escriba se crea el lead (con la ciudad)
+    'datos_regados': [
+        ('Hola', []),
+        ('Lo central es apartar una cita de valoración para una blefaroplastia', [pide_datos()]),
+        ('Presencial. En lo posible para el día martes. Quedo atento.',
+         [tiene('solo me falta', 'ciudad'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
+        ('En la ciudad de Barranquilla.',
+         [tiene('asesora'), ('lead creado con la ciudad', lambda r: any(l.get('interes') == 'valoracion' and l.get('ciudad') == 'Barranquilla' for l in LEADS))]),
+    ],
+    # Pidió la asesoría, dio solo el nombre y se fue: a los 30 min el cron crea el lead marcado "datos incompletos"
+    'cron_datos_incompletos': [
+        ('Quiero una asesoría virtual', [pide_datos()]),
+        ('Ana Ruiz', [tiene('solo me falta', 'ciudad'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
     ],
     # 24-oct (Rafael): tres audios seguidos → tres veces el bloque completo
     'audios_seguidos': [
@@ -326,6 +345,18 @@ def correr(nombre, turnos):
                 fallas.append(f'turno {i} "{msg[:30]}": falta → {desc}')
         if os.environ.get('VER'):
             print(f'\n--- [{nombre}] PACIENTE: {msg}\n{r}')
+    if nombre.startswith('cron_'):   # pasaron 30 min sin respuesta: corre el cron
+        bot._quieta = lambda tel, minutos: True
+        bot._already_notified_cx = lambda tel, canal, hours=24: False
+        bot._medfiles_pausado = lambda tel: False
+        hechos = bot.crear_leads_pendientes(minutos=30)
+        lead = next((l for l in LEADS if l.get('interes')), None)
+        if not hechos or not lead:
+            fallas.append('cron: no creó el lead')
+        elif 'INCOMPLETOS' not in (lead.get('resumen') or ''):
+            fallas.append('cron: el lead no dice DATOS INCOMPLETOS')
+        if os.environ.get('VER'):
+            print(f'\n--- [{nombre}] CRON: {hechos}\n{json.dumps(lead, ensure_ascii=False)[:400] if lead else "sin lead"}')
     return fallas
 
 

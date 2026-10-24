@@ -2228,6 +2228,135 @@ class BrainCX:
             self._tel_lid = tel or ''
         return self._tel_lid
 
+    def _datos_faltantes(self, f, history, text=''):
+        """Datos obligatorios que faltan para crear el lead: ciudad, y celular si WhatsApp lo ocultó.
+        (El nombre sale del perfil de WhatsApp; el correo se pide pero no es obligatorio.)"""
+        faltan = []
+        ciudad = (f.get('ciudad') or '').strip().lower()
+        if (not ciudad or ciudad in ('desconocida', '-', '—', 'no especificada', 'no especificado')) \
+                and not self._ciudad_from_history((history or []) + [{'role': 'user', 'content': text or ''}]):
+            faltan.append('ciudad')
+        if getattr(self, '_es_lid', False):
+            tf = self._tel_valido(f.get('telefono'))
+            if not self._numero_lid(history, text) and not (tf and len(tf) <= 13):
+                faltan.append('celular')
+        return faltan
+
+    def _mensaje_faltan(self, f, faltan, interes, history):
+        """Pide en un mensaje corto solo lo que falta (una sola vez)."""
+        nom = ((f.get('nombre') or '').strip().split() or [''])[0].capitalize()
+        if nom.lower() in ('paciente', 'sin', ''):
+            nom = ''
+        mod = (f.get('modalidad') or '').strip().lower()
+        que = ('tu *asesoría virtual gratuita*' if interes.startswith('asesor')
+               else f"tu *valoración {mod + ' ' if mod in ('presencial', 'virtual') else ''}con el Dr. Gio*")
+        proc = (f.get('procedimiento') or '').strip()
+        if proc.lower() in ('consulta general', 'no especificado', '-', ''):
+            proc = ''
+        lineas = [f"¡Perfecto{', ' + nom if nom else ''}! 💙 Ya tengo {que}" + (f" de *{proc}*" if proc else '') + " ✅",
+                  "", "Para que nuestra asesora te agende solo me falta:"]
+        if 'ciudad' in faltan:
+            lineas.append("📍 ¿En qué *ciudad* vives?")
+        if 'celular' in faltan:
+            lineas.append("📱 Tu número de *celular*")
+        return '\n'.join(lineas)
+
+    def crear_leads_pendientes(self, minutos=30):
+        """Cada 10 min (cron): quien pidió agendar y no terminó de dar sus datos en `minutos` → se crea el lead
+        con lo que haya, marcado ⚠️ datos incompletos, y se avisa a la asesora. Así nadie se pierde."""
+        if not self.sb_url or not self.sb_key:
+            return []
+        ahora = _dt.now(_tz.utc)
+        desde, hasta = (ahora - _td(hours=24)).isoformat(), (ahora - _td(minutes=minutos)).isoformat()
+        params = (f"canal=eq.cirugia&direccion=eq.saliente"
+                  f"&or=(mensaje.ilike.*PENDIENTE*,mensaje.ilike.*Nombre%20completo*)"
+                  f"&created_at=gte.{urllib.parse.quote(desde)}&created_at=lte.{urllib.parse.quote(hasta)}"
+                  f"&select=contacto_telefono,contacto_nombre,mensaje,created_at&order=created_at.desc&limit=200")
+        try:
+            req = urllib.request.Request(f"{self.sb_url}/rest/v1/conversaciones_440?{params}", headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=10) as r:
+                filas = json.loads(r.read()) or []
+        except Exception as e:
+            print(f"[CX-PEND] consulta err: {e}", flush=True)
+            return []
+        hechos, vistos = [], set()
+        for fila in filas:
+            tel = str(fila.get('contacto_telefono') or '')
+            if not tel or tel in vistos:
+                continue
+            vistos.add(tel)
+            try:
+                hist = self._load_history(tel, canal='cirugia')
+                # Solo si después del pedido no hubo lead y la conversación lleva quieta `minutos`
+                ult_bot = [m.get('content') or '' for m in hist if m.get('role') == 'assistant']
+                idx = max((i for i, c in enumerate(ult_bot) if '<<<PENDIENTE>>>' in c or 'Nombre completo' in c), default=-1)
+                if idx < 0 or any('<<<NOTIFY>>>' in c for c in ult_bot[idx:]) or self._already_notified_cx(tel, 'cirugia'):
+                    continue
+                if not self._quieta(tel, minutos) or self._medfiles_pausado(tel):
+                    continue   # sigue conversando, o alguien del equipo ya le escribió desde MedFiles
+                pedido = ult_bot[idx]
+                self._chat_id = tel + '@lid' if len(re.sub(r'\D', '', tel)) > 13 else ''
+                self._es_lid, self._tel_lid, self._idioma = bool(self._chat_id), None, 'es'
+                pend = re.search(r'<<<PENDIENTE>>>(.*?)<<<END_PENDIENTE>>>', pedido, re.S)
+                if pend:
+                    fields = self._parse_notify(pend.group(1)) or {}
+                else:
+                    fields = self._campos_desde_pedido(hist, pedido, fila.get('contacto_nombre') or '')
+                self._validate_notify_fields(fields, hist, fila.get('contacto_nombre') or '', tel)
+                falt = self._datos_faltantes(fields, hist)
+                fields['incompleto'] = ', '.join(falt) if falt else 'no terminó de responder el pedido de datos'
+                res = self._notify_lead(fields, tel, canal='cirugia', history=hist, ultimo_bot=pedido)
+                bloque = '\n'.join(f"{k}: {v}" for k, v in fields.items() if k != 'incompleto')
+                # Nota interna en el historial del bot (la persona no la ve): evita crear el lead dos veces
+                self._save_message(tel, fila.get('contacto_nombre') or None,
+                                   '(Nota interna: lead creado automáticamente porque no terminó de dar sus datos)\n\n<<<NOTIFY>>>\n' + bloque + '\n<<<END>>>',
+                                   'saliente', 'bot', canal='cirugia')
+                hechos.append({'telefono': tel[-4:], 'resultado': str(res)[:40], 'falta': fields['incompleto']})
+                print(f"[CX-PEND] lead creado {tel[-4:]} falta={fields['incompleto']}", flush=True)
+            except Exception as e:
+                print(f"[CX-PEND] {tel[-4:]} err: {e}", flush=True)
+        return hechos
+
+    _RE_NOMBRE = re.compile(r'^\s*[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(\s+[A-ZÁÉÍÓÚÑa-záéíóúñ][a-záéíóúñ]+){1,3}\s*[.,]?\s*$')
+
+    def _trae_datos(self, text):
+        """¿El mensaje trae algún dato de los que se pidieron? (nombre, ciudad, correo, número o presencial/virtual).
+        Una aclaración como "no quiero implantes, quiero la reducción" no cuenta."""
+        t = re.sub(r'^\[[^\]]*\]:\s*', '', text or '')
+        if re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', t) or self._RE_CEL.search(t) or self._RE_INTL.search(t):
+            return True
+        if re.search(r'\b(presencial|virtual)\b', t, re.I) and len(t) < 120:
+            return True
+        if self._ciudad_from_history([{'role': 'user', 'content': t}]):
+            return True
+        return any(self._RE_NOMBRE.match(l) and not re.search(r'\b(quiero|tengo|hola|gracias|buen[oa]s?|cirug|lipo|abdomen|senos)\b', l, re.I)
+                   for l in t.split('\n'))
+
+    def _campos_desde_pedido(self, hist, pedido, nombre_perfil=''):
+        """Lo que ya se sabe para el lead cuando se le pidieron los datos: qué quiere (por el pedido), modalidad,
+        procedimiento y nombre (lo que escribió o su perfil). Ciudad, correo y número los completa _validate/_notify."""
+        from core.pasos_cx import _procedimiento_conversado
+        dicho = ' '.join(m.get('content') or '' for m in (hist or []) if m.get('role') == 'user')
+        return {
+            'nombre': self._extract_name_from_history(hist, nombre_perfil) or nombre_perfil or '',
+            'interes': 'valoracion' if re.search(r'agendar tu \*valoraci', pedido or '', re.I) else 'asesoria',
+            'modalidad': 'virtual' if (re.search(r'\bvirtual\b', dicho, re.I) and not re.search(r'asesor[ií]a virtual', dicho, re.I))
+                         or re.search(VIDEO_DOCTOR, dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else '',
+            'procedimiento': _procedimiento_conversado(hist) or '',
+        }
+
+    def _quieta(self, tel, minutos):
+        """True si la persona y el bot no se han escrito en los últimos `minutos`."""
+        desde = (_dt.now(_tz.utc) - _td(minutes=minutos)).isoformat()
+        params = (f"contacto_telefono=eq.{urllib.parse.quote(tel)}&canal=eq.cirugia"
+                  f"&created_at=gte.{urllib.parse.quote(desde)}&select=created_at&limit=1")
+        try:
+            req = urllib.request.Request(f"{self.sb_url}/rest/v1/conversaciones_440?{params}", headers=self._sb_headers(), method='GET')
+            with urllib.request.urlopen(req, timeout=6) as r:
+                return not json.loads(r.read())
+        except Exception:
+            return False
+
     def _completar_lead(self, sender_id, history, text, canal):
         """Lo que la persona escribe DESPUÉS de crearse su lead (ciudad, correo, número real) se agrega en MedFiles.
         Si llega su número (estaba oculto) se le avisa a la asesora."""
@@ -2416,6 +2545,8 @@ class BrainCX:
             notas.append("Interesado en financiación")
         if self._es_canal_instagram(canal):
             notas.append("Canal: Instagram")
+        if fields.get('incompleto'):
+            notas.append(f"⚠️ DATOS INCOMPLETOS — falta: {fields['incompleto']} (pídeselos)")
         resumen = self._resumen_conversacion(history, ultimo_bot)
         if notas:
             resumen = "Notas del bot: " + ' · '.join(notas) + "\n\n" + resumen
@@ -2471,6 +2602,7 @@ class BrainCX:
                 f"💬 Quiere: *{tipo_txt}*",
                 f"📣 Pauta: {pauta}" if pauta else None,
                 f"👩‍💼 Asesora: *{_asesora_nom}*" if _asesora_nom else "👩‍💼 Asesora: *sin asignar*",
+                f"⚠️ *Datos incompletos* — falta: {fields['incompleto']}. Pídeselos." if fields.get('incompleto') else None,
                 "",
                 f"Atiéndelo desde MedFiles 👉 {_link}",
             ] if x is not None)
@@ -3519,6 +3651,23 @@ class BrainCX:
                                          forced_slots=_forced_slots, paciente_ctx=paciente_ctx)
         print(f"[CX] Claude len={len(full_response)} preview={full_response[:80]!r}", flush=True)
 
+        # ── Datos pendientes: ya se le pidió UNA vez lo que faltaba → ahora el lead se crea con lo que haya ──
+        _forzado = False
+        _ult_bot = next((m.get('content') for m in reversed(history or []) if m.get('role') == 'assistant'
+                         and isinstance(m.get('content'), str)), '') or ''
+        _pend = re.search(r'<<<PENDIENTE>>>(.*?)<<<END_PENDIENTE>>>', _ult_bot, re.S)
+        if _pend and '<<<NOTIFY>>>' not in full_response and '<<<BLOQUEAR>>>' not in full_response:
+            full_response = full_response.rstrip() + '\n\n<<<NOTIFY>>>' + _pend.group(1) + '<<<END>>>'
+            _forzado = True
+            print(f"[CX] {sender_id}: datos pendientes — se crea el lead con lo que haya", flush=True)
+        elif (not _pend and 'Nombre completo' in _ult_bot and '<<<NOTIFY>>>' not in full_response
+              and '<<<BLOQUEAR>>>' not in full_response and '?' not in (text or '') and self._trae_datos(text)):
+            # Respondió al pedido de datos (aunque sea a medias) y la IA no armó el lead: se arma aquí con lo que se sabe;
+            # abajo se pide lo que falte (una vez) o se crea el lead si ya está completo
+            _c = self._campos_desde_pedido(history, _ult_bot, sender_name or '')
+            full_response = full_response.rstrip() + '\n\n<<<NOTIFY>>>\n' + '\n'.join(f"{k}: {v}" for k, v in _c.items()) + '\n<<<END>>>'
+            print(f"[CX] {sender_id}: respondió al pedido de datos — lista de chequeo {_c}", flush=True)
+
         # ── INTERCEPTAR <<<BLOQUEAR>>>: spam/abuso detectado por Claude ──
         if '<<<BLOQUEAR>>>' in full_response:
             print(f"[CX] <<<BLOQUEAR>>> detectado para {sender_id} — despedida + bloqueo 24h", flush=True)
@@ -3549,6 +3698,7 @@ class BrainCX:
         # (<<<SLOTS>>> se queda en full_response que se guarda en Supabase)
         user_facing = re.sub(r'<<<NOTIFY>>>.*?<<<END>>>', '', full_response, flags=re.DOTALL)
         user_facing = re.sub(r'<<<SLOTS>>>.*?<<<END_SLOTS>>>', '', user_facing, flags=re.DOTALL)
+        user_facing = re.sub(r'<<<PENDIENTE>>>.*?<<<END_PENDIENTE>>>', '', user_facing, flags=re.DOTALL)
         user_facing = re.sub(r'\n{3,}', '\n\n', user_facing).strip()
         _en = False   # el guion se arma en español; si la persona escribe en inglés se traduce al final (misma estructura)
         _ingles = getattr(self, '_idioma', 'es') == 'en'
@@ -3560,6 +3710,19 @@ class BrainCX:
                 user_facing = aplicar_paso(user_facing, _paso, history, text)
             except Exception as _e:
                 print(f"[CX] aplicar_paso err: {_e}", flush=True)
+        _pendiente_blk = None
+        if match and not _forzado:
+            _f0 = self._parse_notify(match.group(1)) or {}
+            _int0 = _sin_tildes((_f0.get('interes') or '').strip().lower())
+            if _int0.startswith('asesor') or _int0.startswith('valor'):
+                _faltan = self._datos_faltantes(_f0, history, text)
+                if _faltan:
+                    print(f"[CX] {sender_id}: faltan {_faltan} — se piden antes de crear el lead", flush=True)
+                    _pendiente_blk = match.group(1)
+                    user_facing = self._mensaje_faltan(_f0, _faltan, _int0, history)
+                    match = None
+                    notify = None
+
         # Despedida fija cuando deja sus datos (texto aprobado por el Dr.)
         if match:
             try:
@@ -3575,6 +3738,8 @@ class BrainCX:
                                "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n*You're now part of #LAbelleza440* ✨")
             elif _int in ('asesoria', 'asesoría', 'valoracion', 'valoración'):
                 _nom = ((_f.get('nombre') or '').strip().split() or [''])[0].capitalize()
+                if _nom.lower() in ('paciente', 'sin', 'usuario', 'cliente'):
+                    _nom = ''
                 _ciu = (_f.get('ciudad') or '').strip()
                 _mod = (_f.get('modalidad') or '').strip().lower()
                 _que = ('*asesoría virtual gratuita*' if _int.startswith('asesor')
@@ -3587,6 +3752,13 @@ class BrainCX:
                 user_facing += ("\n\nMientras tanto, conoce *resultados reales y testimonios* del Dr. Gio:\n"
                                 "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n"
                                 "*Ya eres parte de #LAbelleza440* ✨")
+                # Lead creado por datos pendientes y la persona hizo una pregunta: se responde y se avisa en una línea
+                if _forzado and '?' in (text or ''):
+                    from core.pasos_cx import _quitar_cierres
+                    _resp_ia = _quitar_cierres(re.sub(r'<<<NOTIFY>>>.*', '', full_response, flags=re.S).strip())
+                    if len(_resp_ia) > 20:
+                        user_facing = (_resp_ia + "\n\n✅ Ya le pasé tus datos a nuestra asesora: "
+                                       "*te contactará por aquí* muy pronto 😊")
 
         # FALLBACK: si se emitió un NOTIFY pero el texto visible quedó vacío/corto
         # (Haiku a veces manda solo el bloque NOTIFY), garantizar el cierre al lead.
@@ -3646,11 +3818,16 @@ class BrainCX:
             _guardado = re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', user_facing)
             if match:
                 _guardado += '\n\n<<<NOTIFY>>>' + match.group(1) + '<<<END>>>'
+            if _pendiente_blk:
+                _guardado += '\n\n<<<PENDIENTE>>>' + _pendiente_blk + '<<<END_PENDIENTE>>>'
             self._save_message(sender_id, sender_name, _guardado, 'saliente', 'bot', canal=canal)
 
         if notify:
             fields = self._parse_notify(notify)
             self._validate_notify_fields(fields, history, sender_name, sender_id)
+            _falt = self._datos_faltantes(fields, history, text) if _sin_tildes((fields.get('interes') or '').lower())[:5] in ('aseso', 'valor') else []
+            if _falt:
+                fields['incompleto'] = ', '.join(_falt)
             print(f"[CX] NOTIFY fields={fields}", flush=True)
             if already_notified:
                 print(f"[CX] NOTIFY duplicado para {sender_id} — skip (ya notificado <24h)", flush=True)
