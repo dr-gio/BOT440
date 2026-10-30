@@ -2429,10 +2429,7 @@ class BrainCX:
         if asesora_tel:
             base_mf, _ = self._medfiles_cfg()
             link = f"{base_mf}/crm/whatsapp?persona={data['persona']}" if data.get('persona') else f"{base_mf}/crm"
-            try:
-                self.whapi.send_text(asesora_tel, f"🔄 *{data.get('nombre') or nombre or 'Paciente'}* ahora prefiere *{que}*\nAtiéndelo desde MedFiles 👉 {link}")
-            except Exception as e:
-                print(f"[CX] aviso cambio err: {e}", flush=True)
+            self._avisar_asesora_y_dr(asesora_tel, data.get('copias'), f"🔄 *{data.get('nombre') or nombre or 'Paciente'}* ahora prefiere *{que}*\nAtiéndelo desde MedFiles 👉 {link}", 'aviso cambio')
 
     def _completar_lead(self, sender_id, history, text, canal):
         """Lo que la persona escribe DESPUÉS de crearse su lead (ciudad, correo, número real) se agrega en MedFiles.
@@ -2465,12 +2462,9 @@ class BrainCX:
         if tel and any(c.startswith('celular') for c in cambios) and asesora_tel:
             base_mf, _ = self._medfiles_cfg()
             link = f"{base_mf}/crm/whatsapp?persona={data['persona']}" if data.get('persona') else f"{base_mf}/crm"
-            try:
-                self.whapi.send_text(asesora_tel, "\n".join([
-                    "📱 *Ya tenemos el número*", f"👤 {data.get('nombre') or 'Paciente'}: +{tel}",
-                    "(WhatsApp lo tenía oculto)", "📝 " + ' · '.join(cambios), "", f"Atiéndelo desde MedFiles 👉 {link}"]))
-            except Exception as e:
-                print(f"[CX] aviso número err: {e}", flush=True)
+            self._avisar_asesora_y_dr(asesora_tel, data.get('copias'), "\n".join([
+                "📱 *Ya tenemos el número*", f"👤 {data.get('nombre') or 'Paciente'}: +{tel}",
+                "(WhatsApp lo tenía oculto)", "📝 " + ' · '.join(cambios), "", f"Atiéndelo desde MedFiles 👉 {link}"]), 'aviso número')
 
     def _push_medfiles_lead(self, body):
         """POST /api/entrada/bot. Devuelve el JSON de respuesta o None."""
@@ -2499,6 +2493,20 @@ class BrainCX:
         except Exception as e:
             print(f"[CX] medfiles lead error: {e}", flush=True)
         return None
+
+    def _avisar_asesora_y_dr(self, asesora_tel, copias, msg, etiqueta):
+        """Todo aviso de un lead va a SU asesora y, en copia, al Dr. (copias que devuelve MedFiles), sin repetir números."""
+        vistos = set()
+        for t in [asesora_tel] + list(copias or []):
+            t = re.sub(r'[^\d]', '', str(t or ''))
+            if not t or t[-10:] in vistos:
+                continue
+            vistos.add(t[-10:])
+            try:
+                self.whapi.send_text(t, msg)
+                print(f"[CX] {etiqueta} → {t[-4:]}", flush=True)
+            except Exception as e:
+                print(f"[CX] {etiqueta} err: {e}", flush=True)
 
     def _recordar_asesora(self, sender_id, texto=''):
         """El paciente dice que no lo han contactado: nota en MedFiles + aviso al WhatsApp de su asesora."""
@@ -2532,11 +2540,7 @@ class BrainCX:
             "",
             f"Escríbele ya desde MedFiles 👉 {base}/crm/whatsapp?persona={d['persona']}" if d.get('persona') else f"Escríbele ya desde MedFiles 👉 {base}/crm",
         ] if x is not None)
-        try:
-            self.whapi.send_text(tel, msg)
-            print(f"[CX] recordatorio a asesora → {tel}", flush=True)
-        except Exception as e:
-            print(f"[CX] recordatorio asesora send err: {e}", flush=True)
+        self._avisar_asesora_y_dr(tel, d.get('copias'), msg, 'recordatorio a asesora')
 
     def _notify_lead(self, fields, sender_id, canal='whatsapp', history=None, ultimo_bot=''):
         """Flujo nuevo: envía el lead a MedFiles + aviso por WhatsApp a la
