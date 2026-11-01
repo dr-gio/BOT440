@@ -1518,8 +1518,10 @@ class BrainCX:
             except Exception as e:
                 print(f"[CX] traducción error (se envía en español): {e}", flush=True)
                 if isinstance(e, urllib.error.HTTPError):
-                    try: revisar_error_ia(e.read().decode()[:400], 'bot-traduccion')
+                    try: revisar_error_ia(e.read().decode()[:400], 'bot-traduccion', e.code)
                     except Exception: pass
+                else:
+                    revisar_error_ia(str(e), 'bot-traduccion', None)
                 salida.append(parte.strip())
         return '\n\n<<<PARTE>>>\n\n'.join(salida) if salida else texto
 
@@ -1571,10 +1573,11 @@ class BrainCX:
                 try: body = e.read().decode()[:400]
                 except: pass
                 print(f"[CX] Claude HTTPError {e.code} body={body!r}", flush=True)
-                revisar_error_ia(body, 'bot-cx')
+                revisar_error_ia(body, 'bot-cx', e.code)
                 return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
             except Exception as e:
                 print(f"[CX] Claude error: {e}", flush=True)
+                revisar_error_ia(str(e), 'bot-cx', None)
                 return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
 
             stop_reason = data.get('stop_reason', '')

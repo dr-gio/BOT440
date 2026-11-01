@@ -320,7 +320,7 @@ def _claude_reply(text):
             messages=[{'role': 'user', 'content': text}],
         )
     except Exception as e:
-        revisar_error_ia(str(e), 'bot-ig')
+        revisar_error_ia(str(e), 'bot-ig', getattr(e, 'status_code', None))
         raise
     return response.content[0].text.strip()
 
