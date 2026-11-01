@@ -23,6 +23,7 @@ Env vars esperadas:
 import os, json, re, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 from core.whapi import WhapiClient
+from core.alerta_ia import revisar_error_ia
 from core.instagram import InstagramClient
 from core.fichas_cx import FICHAS, expandir_fichas, bloque_precio, pide_precio
 from core.pasos_cx import decidir_paso, instruccion_paso, aplicar_paso
@@ -1516,6 +1517,9 @@ class BrainCX:
                 salida.append(ajustar_respuesta_en(traducido or parte.strip()))
             except Exception as e:
                 print(f"[CX] traducción error (se envía en español): {e}", flush=True)
+                if isinstance(e, urllib.error.HTTPError):
+                    try: revisar_error_ia(e.read().decode()[:400], 'bot-traduccion')
+                    except Exception: pass
                 salida.append(parte.strip())
         return '\n\n<<<PARTE>>>\n\n'.join(salida) if salida else texto
 
@@ -1567,6 +1571,7 @@ class BrainCX:
                 try: body = e.read().decode()[:400]
                 except: pass
                 print(f"[CX] Claude HTTPError {e.code} body={body!r}", flush=True)
+                revisar_error_ia(body, 'bot-cx')
                 return "Disculpa, tuve un problema técnico. ¿Puedes repetir? 😊"
             except Exception as e:
                 print(f"[CX] Claude error: {e}", flush=True)

@@ -5,6 +5,7 @@ import urllib.parse
 import urllib.error
 from http.server import BaseHTTPRequestHandler
 import anthropic
+from core.alerta_ia import revisar_error_ia
 
 IG_CX_TOKEN = os.environ.get('IG_CX_PAGE_ACCESS_TOKEN','')
 IG_CX_ACCOUNT_ID = os.environ.get('IG_CX_ACCOUNT_ID','17841400339315123')
@@ -311,12 +312,16 @@ def _save_conversacion(sender_id, sender_name, mensaje, direccion, remitente):
 
 def _claude_reply(text):
     client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY',''))
-    response = client.messages.create(
-        model='claude-haiku-4-5-20251001',
-        max_tokens=200,
-        system=SYSTEM_SIMPLE,
-        messages=[{'role': 'user', 'content': text}],
-    )
+    try:
+        response = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=200,
+            system=SYSTEM_SIMPLE,
+            messages=[{'role': 'user', 'content': text}],
+        )
+    except Exception as e:
+        revisar_error_ia(str(e), 'bot-ig')
+        raise
     return response.content[0].text.strip()
 
 
