@@ -89,7 +89,7 @@ RECORDAR_DATOS = ("Cuando quieras, déjame tus datos para que *nuestra asesora t
 RE_FOTOS = re.compile(r'\b(fotos?|fotitos|im[aá]genes|antes y despu[eé]s|casos reales|resultados reales|'
                       r'(ver|ense[ñn]ar|mostrar|muestr\w*|tienes?|tiene) (unos |algunos |los |sus |de )?(resultados|trabajos|casos))\b', re.I)
 RE_FOTOS_PROPIAS = re.compile(r'(te|les?) (env[ií]o|mando|paso|comparto|adjunto)|enviar(te|les)? (mis|unas|las)|mis fotos|\[(IMAGEN|MEDIA)\]', re.I)
-OFRECE_FOTOS = "📸 Si quieres ver *resultados reales* del Dr. Gio, escríbeme *fotos* 😊"
+FOTOS_CON_FICHA = "📸 Aquí te dejo algunos *resultados reales* del Dr. Gio para que vayas viendo 👇"
 FINANCIACION = ("💳 Y si lo necesitas, puedes *financiar tu cirugía con Finanmed*: créditos de 24 a 72 meses "
                 "con cuota fija (sujetos a su estudio).")
 
@@ -524,9 +524,13 @@ def aplicar_paso(texto, paso, history, mensaje):
     # Preguntó el precio y se le dio un valor: una línea de financiación (una sola vez por conversación)
     if pide_precio(mensaje) and re.search(r'\$\s?\d', cuerpo) and 'Finanmed' not in cuerpo and 'Finanmed' not in previos:
         cuerpo += '\n\n' + FINANCIACION
-    # Se mostró la ficha de un procedimiento con fotos en MedFiles: se ofrecen (una sola vez por conversación)
-    if 'Por lo general es ideal para ti si' in cuerpo and OFRECE_FOTOS not in previos:
+    # Se mostró la ficha de un procedimiento con fotos en MedFiles: van 2 fotos de resultados después de la
+    # información y antes del cierre (una sola vez por procedimiento). Si no hay fotos, process() quita la línea.
+    if 'Por lo general es ideal para ti si' in cuerpo:
         from core.brain_cx import FOTO_PATRON
-        if clave_de(cuerpo) in FOTO_PATRON:
-            cuerpo += '\n\n' + OFRECE_FOTOS
+        # El procedimiento de ESA ficha (no clave_de: la ficha de la lipo menciona la abdominoplastia)
+        c = next((k for k in FOTO_PATRON if _ficha(k) and _ficha(k)[:120] in cuerpo), None)
+        if c and f'<<<FOTOS_ENVIADAS:{c}>>>' not in previos:
+            return (cuerpo + '\n\n' + FOTOS_CON_FICHA + '\n\n' + f'<<<FOTOS:{c}>>>' + '\n\n'
+                    + _cierre(cuerpo, history, mensaje)).strip()
     return _con_cierre(cuerpo, history, mensaje).strip()

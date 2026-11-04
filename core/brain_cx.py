@@ -3984,11 +3984,14 @@ class BrainCX:
         _mf = re.search(r'<<<FOTOS:([a-z_]+)>>>', user_facing or '')
         if _mf:
             _fotos = self._fotos_resultados(_mf.group(1))
+            from core.pasos_cx import sin_fotos, FOTOS_CON_FICHA
             if _fotos:
                 user_facing = user_facing.replace(_mf.group(0), '<<<PARTE>>>' if send else
                                                   '\n'.join(f"📸 {t}: {u}" for t, u in _fotos))
+            elif FOTOS_CON_FICHA in user_facing:
+                # Ficha sin fotos disponibles (o falló la consulta): se quita el anuncio y sigue el mensaje normal
+                user_facing = re.sub(r'\n*' + re.escape(FOTOS_CON_FICHA) + r'\n*' + re.escape(_mf.group(0)), '', user_facing)
             else:
-                from core.pasos_cx import sin_fotos
                 user_facing = sin_fotos(user_facing, _mf.group(0))
 
         _visible = user_facing
@@ -4020,6 +4023,8 @@ class BrainCX:
             # Se guarda lo que vio el paciente (bienvenida/bloques fijos incluidos) + el bloque NOTIFY interno,
             # así el historial que lee la IA en el siguiente mensaje coincide con la conversación real.
             _guardado = re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', user_facing)
+            if _fotos:
+                _guardado += f"\n\n<<<FOTOS_ENVIADAS:{_mf.group(1)}>>>"
             if _fotos and send:
                 _guardado = _guardado.replace(_visible.split('<<<PARTE>>>')[0].strip(),
                                               _visible.split('<<<PARTE>>>')[0].strip() + '\n' + '\n'.join(f"[FOTO enviada: {t}]" for t, _ in _fotos), 1)

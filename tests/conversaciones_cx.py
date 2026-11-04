@@ -210,8 +210,12 @@ ESCENARIOS = {
     # 4-nov: fotos de resultados de MedFiles (se simulan), financiación al dar precio, datos sin correo, bots/empresas
     'fotos_pide': [
         ('Hola', []),
-        ('Quiero información de la lipo', [con_ficha(), tiene('escríbeme *fotos*')]),
+        ('Quiero información de la lipo', [con_ficha(), tiene('para que vayas viendo', 'https://ejemplo.sim/lipo.jpg'), no_tiene('<<<FOTOS'), con_cierre()]),
         ('tienes fotos de resultados?', [tiene('resultados reales', 'Lipoescultura 360', '📸', 'https://ejemplo.sim/lipo.jpg'), con_cierre()]),
+    ],
+    'ficha_sin_fotos_en_medfiles': [
+        ('Hola', []),
+        ('Quiero información de la abdominoplastia', [con_ficha(), no_tiene('para que vayas viendo', '<<<FOTOS'), con_cierre()]),
     ],
     'fotos_sin_procedimiento': [
         ('Hola', []),
