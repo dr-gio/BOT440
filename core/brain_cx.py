@@ -50,13 +50,41 @@ _SB_UA = 'BOT440-CX/1.0 (servidor)'
 _MEDFILES_DEFAULT_URL = 'https://medfiles.drgiovannifuentes.com'
 # CRM viejo (leads_comerciales + push CORE440) — desactivado por defecto.
 _LEGACY_CRM = os.environ.get('CX_LEGACY_CRM', '').strip() == '1'
-# Palabras clave de la pauta "Mamoplastia de aumento todo incluido".
+# Promo vigente: "10 cupos con precio especial" (mamoplastia de aumento y liposucción), noviembre 2026,
+# todas las ciudades. El precio/descuento NO lo dice el bot: lo define la asesora en la asesoría.
+# (La promo vieja "Mamoplastia todo incluido $18M" se suspendió el 4-nov-2026.)
+_PROMO_HASTA = '2026-11-30'   # último día (hora Colombia); después el bot deja de mencionarla
 _PAUTA_MAMO_KW = (
-    'todo incluido', 'mamoplastia incluido', 'senos incluido',
-    'promo mamoplastia', 'promo senos', '18 millones',
-    'mamoplastia de aumento todo', 'paquete mamoplastia',
+    '10 cupos', 'diez cupos', 'los cupos', 'un cupo', 'cupos', 'precio especial',
+    'promo mamoplastia', 'promo senos', 'promo lipo', 'promocion', 'promo ', 'descuento',
+    'paquete mamoplastia', 'mamoplastia incluido', '18 millones',
 )
-_PAUTA_MAMO_LABEL = 'Mamoplastia todo incluido'
+_PAUTA_MAMO_LABEL = 'Promo 10 cupos (noviembre)'
+
+
+def _promo_activa():
+    """True mientras la promo de los 10 cupos está vigente (hasta _PROMO_HASTA, hora Colombia)."""
+    hoy = (_dt.now(_tz.utc) - _td(hours=5)).date().isoformat()
+    return hoy <= _PROMO_HASTA
+
+
+PROMO_CUPOS_TXT = """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROMO VIGENTE: 10 CUPOS CON PRECIO ESPECIAL (hasta el 30 de noviembre)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+El Dr. Gio publicó en Instagram "10 CUPOS" con *precio especial* para
+*mamoplastia de aumento* y *liposucción* durante *noviembre*, en todas
+nuestras ciudades.
+→ Si preguntan por los cupos, la promo, el precio especial o un descuento:
+  confirma que SÍ hay 10 cupos con precio especial este mes y que el
+  *precio especial* se lo da nuestra asesora en su *asesoría virtual
+  gratuita* 💻, según su caso.
+→ NUNCA digas el valor del precio especial ni el porcentaje de descuento.
+→ NO confirmes que ya tiene un cupo: la asesora confirma la disponibilidad.
+→ Solo aplica a mamoplastia de aumento y liposucción. Para otros
+  procedimientos di que esta promo es solo para esas dos cirugías.
+→ En el NOTIFY: pauta: Promo 10 cupos (noviembre).
+"""
 
 
 def _sin_tildes(s: str) -> str:
@@ -196,8 +224,7 @@ el sistema las agrega.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 5. PRECIO Y FINANCIACIÓN — SOLO SI LO PREGUNTAN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NUNCA des el precio si no lo preguntan (excepción: pauta Mamoplastia todo
-incluido, sección 9). Si lo preguntan, en tono cálido y corto:
+NUNCA des el precio si no lo preguntan. Si lo preguntan, en tono cálido y corto:
 "¡Claro, con gusto te cuento! 💙 La [procedimiento] tiene un valor
 *desde $X*. Sabemos que es una inversión importante en ti ✨ El valor
 exacto depende de tu caso: tu *presupuesto personalizado* se entrega
@@ -214,7 +241,7 @@ Valores de referencia (SIEMPRE "desde"):
 • Lipoescultura 360: desde $17.000.000
 • Abdominoplastia: desde $22.000.000
 • Lipoabdominoplastia: desde $25.000.000
-• Mamoplastia de aumento: $18.000.000 todo incluido (ver sección 9)
+• Mamoplastia de aumento: desde $17.000.000
 • Pexia mamaria con implantes: desde $18.000.000
 • Mamoplastia de reducción: desde $20.000.000
 • Explantación mamaria: desde $22.000.000
@@ -318,7 +345,7 @@ ciudad: [ciudad donde vive]
 procedimiento: [procedimiento de interés]
 interes: [asesoria | valoracion]
 modalidad: [presencial | virtual | vacío]
-pauta: [Mamoplastia todo incluido si vino por esa pauta; si no, vacío]
+pauta: [Promo 10 cupos (noviembre) si preguntó por los cupos o la promo; si no, vacío]
 financiacion: [si | no]
 <<<END>>>
 → Emite el NOTIFY UNA sola vez por conversación. Si ya lo emitiste (está
@@ -340,20 +367,13 @@ Cuando estés lista, escríbenos por aquí y con gusto te acompañamos. Tu *ases
 ⛔ En este caso NO emitas <<<NOTIFY>>>.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-9. PAUTA: MAMOPLASTIA DE AUMENTO TODO INCLUIDO
+9. PROMOCIONES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Si el paciente llega por "todo incluido", "mamoplastia"+"incluido",
-"18 millones", "promo senos": aquí SÍ va el precio de una vez.
-*$18.000.000* — incluye: cirugía con el Dr. Gio, clínica certificada,
-anestesiólogo, póliza de seguro, implantes Silimed Eurosilicone, brasier
-postquirúrgico y 5 drenajes linfáticos. Disponible en Barranquilla,
-Bogotá y Medellín, con sede de recuperación en cada ciudad.
-→ Es SOLO para aumento (implantes). Pexia o reducción NO entran en el
-  paquete: eso lo evalúa el Dr. Gio en la valoración.
-→ NO incluye: laboratorios, valoración preanestésica ni la consulta con
-  el Dr. Gio.
-→ No ofrezcas otros procedimientos; resuelve dudas y sigue al paso 6.
-→ En el NOTIFY: pauta: Mamoplastia todo incluido.
+Solo existen las promociones del bloque "PROMO VIGENTE" (si aparece más
+abajo). Si no aparece, NO hay promociones: no inventes promos, paquetes
+"todo incluido" ni descuentos. La promo de mamoplastia "todo incluido"
+por $18.000.000 YA NO EXISTE: si alguien la menciona, di con amabilidad
+que esa promoción terminó y da el valor "desde" normal.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 10. TURISMO MÉDICO (solo idea general)
@@ -485,7 +505,7 @@ REGLAS FINALES
 ❌ No digas que eres una IA más allá de "asistente virtual del Dr. Gio".
 ❌ No digas "WhatsApp" ni "440 Clinic".
 ❌ No agendes ni muestres horarios. No garantices resultados.
-❌ No des precio si no lo preguntan (salvo la pauta todo incluido).
+❌ No des precio si no lo preguntan. No inventes promociones ni descuentos.
 """
 
 # ---------------------------------------------------------------------------
@@ -1544,6 +1564,8 @@ class BrainCX:
             system_blocks = [
                 {"type": "text", "text": CX_SYSTEM, "cache_control": {"type": "ephemeral"}}
             ]
+            if _promo_activa():
+                system_blocks.append({"type": "text", "text": PROMO_CUPOS_TXT})
             if paciente_ctx:
                 system_blocks.append({"type": "text", "text": paciente_ctx})
             payload = json.dumps({
@@ -2228,7 +2250,7 @@ class BrainCX:
                         if m.get('role') == 'user' and isinstance(m.get('content'), str)),
                        text or '')
         low = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', primero or ''))
-        return _PAUTA_MAMO_LABEL if any(k in low for k in _PAUTA_MAMO_KW) else None
+        return _PAUTA_MAMO_LABEL if _promo_activa() and any(k in low for k in _PAUTA_MAMO_KW) else None
 
     def _medfiles_idioma(self, telefono, idioma):
         """Avisa a MedFiles el idioma de la persona (etiqueta EN en el pipeline). Si falla, no pasa nada."""
@@ -3133,57 +3155,30 @@ class BrainCX:
         history = self._load_history(sender_id, canal=canal)
         _is_first_time = len(history) == 0
 
-        # ── DETECCIÓN MAMOPLASTIA TODO INCLUIDO ────────────────────────────
-        # Si el PRIMER mensaje menciona "todo incluido", "mamoplastia incluido",
-        # "senos incluido", "18 millones", responder con el paquete específico
-        # y NO dejar que Claude responda genérico.
-        if _is_first_time:
-            _txt_mamo = (text or '').lower()
-            for _old_c, _new_c in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),('ü','u'),('ñ','n')]:
-                _txt_mamo = _txt_mamo.replace(_old_c, _new_c)
-            _is_mamo_todo = any(kw in _txt_mamo for kw in _PAUTA_MAMO_KW)
-            if _is_mamo_todo:
-                print(f"[CX] MAMOPLASTIA TODO INCLUIDO detectado → {sender_id}: {text[:60]!r}", flush=True)
+        # ── PROMO 10 CUPOS (noviembre) ─────────────────────────────────────
+        # Si el PRIMER mensaje habla de los cupos / la promo / el precio especial,
+        # se confirma la promo sin dar precio (lo da la asesora) y sigue el flujo normal.
+        if _is_first_time and _promo_activa():
+            _txt_promo = _sin_tildes(text or '')
+            if any(kw in _txt_promo for kw in _PAUTA_MAMO_KW):
+                print(f"[CX] PROMO 10 CUPOS detectada → {sender_id}: {text[:60]!r}", flush=True)
                 reply = (
                     "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*. "
                     "Te atiende el asistente virtual del Dr. Gio 🤖\n\n"
-                    "Nuestra *Mamoplastia de Aumento Todo Incluido* tiene un valor de *$18.000.000* ✨ Incluye:\n"
-                    "✅ Cirugía con el Dr. Giovanni Fuentes, cirujano plástico certificado\n"
-                    "✅ Clínica certificada\n"
-                    "✅ Anestesiólogo\n"
-                    "✅ Póliza de seguro\n"
-                    "✅ Implantes Silimed Eurosilicone\n"
-                    "✅ Brasier postquirúrgico\n"
-                    "✅ 5 drenajes linfáticos\n"
-                    "📍 Disponible en *Barranquilla, Bogotá y Medellín*, con sede de recuperación en cada ciudad.\n\n"
-                    "¿Tienes alguna *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\n"
-                    "Tu siguiente paso puede ser:\n\n"
-                    "✅ *Asesoría virtual gratuita* 💻\n"
-                    "Con nuestra asesora experta, por videollamada y sin compromiso. "
-                    "*Ampliamos la información* y resolvemos todas tus dudas.\n\n"
-                    "✅ *Valoración con el Dr. Gio* 👨‍⚕️\n"
-                    "Presencial *$250.000* · Virtual *$160.000*. El Dr. *evalúa tu caso* personalmente.\n\n"
-                    "✨ *#LAbelleza440* · _La perfecta armonía de tu cuerpo_ ✨"
+                    "¡Sí! Este mes de *noviembre* tenemos *10 cupos con precio especial* ✨ para:\n"
+                    "✅ *Mamoplastia de aumento*\n"
+                    "✅ *Liposucción*\n"
+                    "📍 En todas nuestras ciudades.\n\n"
+                    "El *precio especial* te lo da nuestra asesora en tu *asesoría virtual gratuita* 💻, "
+                    "según tu caso, y ahí mismo te confirma la disponibilidad de tu cupo 💙\n\n"
+                    + CIERRE_DUDAS
                 )
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
                 if send:
                     _client = self.instagram if canal.startswith('instagram') else self.whapi
                     try: _client.send_text(sender_id, reply)
-                    except Exception as _e: print(f"[CX] mamo todo reply err: {_e}", flush=True)
+                    except Exception as _e: print(f"[CX] promo cupos reply err: {_e}", flush=True)
                 self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
-                # Flujo nuevo: el lead se crea en MedFiles solo cuando el
-                # paciente deja sus datos (pauta se detecta del historial).
-                if _LEGACY_CRM:
-                    _mamo_canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
-                    try:
-                        self._upsert_lead_comercial(
-                            nombre=sender_name or '—', telefono=self._normalizar_tel(sender_id),
-                            procedimiento='Mamoplastia de aumento todo incluido',
-                            canal=_mamo_canal_crm, prioridad='CALIENTE',
-                            observaciones='Lead de pauta Mamoplastia Todo Incluido $18M — respuesta automática enviada',
-                        )
-                    except Exception as _e:
-                        print(f"[CX] mamo todo upsert err: {_e}", flush=True)
                 return reply
 
         # ── DETECCIÓN DE REFERIDO ──────────────────────────────────────────

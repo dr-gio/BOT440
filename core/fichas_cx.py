@@ -183,7 +183,7 @@ PRECIOS_DESDE = {
     'lipoescultura': ('la *lipoescultura 360*', 'un valor *desde $17.000.000*'),
     'abdominoplastia': ('la *abdominoplastia*', 'un valor *desde $22.000.000*'),
     'lipoabdominoplastia': ('la *lipoabdominoplastia*', 'un valor *desde $25.000.000*'),
-    'mamoplastia_aumento': ('la *mamoplastia de aumento*', 'un valor de *$18.000.000 todo incluido*'),
+    'mamoplastia_aumento': ('la *mamoplastia de aumento*', 'un valor *desde $17.000.000*'),
     'pexia': ('la *pexia mamaria con implantes*', 'un valor *desde $18.000.000*'),
     'reduccion': ('la *mamoplastia de reducción*', 'un valor *desde $20.000.000*'),
     'explantacion': ('la *explantación mamaria*', 'un valor *desde $22.000.000*'),

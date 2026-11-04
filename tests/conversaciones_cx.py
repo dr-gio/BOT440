@@ -204,8 +204,13 @@ ESCENARIOS = {
         ('El doctor pertenece a la sociedad colombiana de cirugia plastica?', [tiene('Sociedad Colombiana', 'cirugiaplastica.org.co'), con_cierre()]),
         ('Donde operan?', [tiene('Barranquilla'), con_cierre()]),
     ],
-    'pauta_mamoplastia': [
-        ('Hola estoy interesado en todo incluido de mamoplastia', [tiene('18.000.000')]),
+    # 4-nov: se suspendió la promo de mamoplastia $18M todo incluido; promo vigente = 10 cupos (sin precio)
+    'promo_10_cupos': [
+        ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'asesoría virtual gratuita'), no_tiene('18.000.000', 'todo incluido', '%'), con_cierre()]),
+    ],
+    'precio_mamoplastia_sin_promo_vieja': [
+        ('Hola', []),
+        ('Cuanto vale la mamoplastia de aumento?', [tiene('17.000.000'), no_tiene('18.000.000', 'todo incluido')]),
     ],
     'hombre_gineco': [
         ('Hola', []),

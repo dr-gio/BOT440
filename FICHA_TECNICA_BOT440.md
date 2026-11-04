@@ -171,7 +171,7 @@ Guion aprobado: `consultorio-app/docs/guion-bot-cirugias.md`. Prompt `CX_SYSTEM`
 
 **Flujo:** bienvenida aprobada ("Centro de Atención del Dr. Giovanni Fuentes", asistente virtual del Dr. Gio,
 `#LAbelleza440`) → info del procedimiento (1ª vez completa/resumida, luego 3–4 líneas) → precio "desde" y
-financiación SOLO si preguntan (excepto pauta Mamoplastia todo incluido $18M, respuesta fija en Python) →
+financiación SOLO si preguntan (la promo $18M todo incluido se suspendió el 4-nov-2026; promo vigente "10 cupos" de noviembre, sin precio, respuesta fija en Python + bloque PROMO_CUPOS_TXT hasta _PROMO_HASTA) →
 el paciente escoge **1 Asesoría virtual gratuita** o **2 Valoración con el Dr.** (presencial $250.000 / virtual $160.000)
 → pide nombre, ciudad, correo (+ modalidad) → cierre "¡Listo, [nombre]! … Ya eres parte de #LAbelleza440" + `<<<NOTIFY>>>`.
 Si no continúa: despedida con @drgiovannifuentes / www.drgio440.com, **sin lead**. El bot **no agenda**
