@@ -2334,7 +2334,8 @@ class BrainCX:
                 if not self._quieta(tel, minutos) or self._medfiles_pausado(tel):
                     continue   # sigue conversando, o alguien del equipo ya le escribió desde MedFiles
                 pedido = ult_bot[idx]
-                self._chat_id = tel + '@lid' if len(re.sub(r'\D', '', tel)) > 13 else ''
+                # contacto_telefono ya puede traer el "@lid" (chat_id completo): no se le agrega otra vez
+                self._chat_id = (tel if tel.endswith('@lid') else tel + '@lid') if len(re.sub(r'\D', '', tel)) > 13 else ''
                 self._es_lid, self._tel_lid, self._idioma = bool(self._chat_id), None, 'es'
                 pend = re.search(r'<<<PENDIENTE>>>(.*?)<<<END_PENDIENTE>>>', pedido, re.S)
                 if pend:
@@ -2344,7 +2345,12 @@ class BrainCX:
                 self._validate_notify_fields(fields, hist, fila.get('contacto_nombre') or '', tel)
                 falt = self._datos_faltantes(fields, hist)
                 fields['incompleto'] = ', '.join(falt) if falt else 'no terminó de responder el pedido de datos'
+                self._ultimo_lead_ok = None
                 res = self._notify_lead(fields, tel, canal='cirugia', history=hist, ultimo_bot=pedido)
+                if self._ultimo_lead_ok is False:
+                    # MedFiles no lo creó: sin la nota, el próximo cron (o el siguiente mensaje de la persona) lo reintenta
+                    print(f"[CX-PEND] {tel[-4:]} MedFiles no creó el lead — se reintenta", flush=True)
+                    continue
                 bloque = '\n'.join(f"{k}: {v}" for k, v in fields.items() if k != 'incompleto')
                 # Nota interna en el historial del bot (la persona no la ve): evita crear el lead dos veces
                 self._save_message(tel, fila.get('contacto_nombre') or None,
@@ -2664,6 +2670,7 @@ class BrainCX:
             body['canal'] = 'whatsapp'
         print(f"[CX] lead → MedFiles interes={interes} modalidad={modalidad} pauta={pauta!r} tel={telefono}", flush=True)
         _resp = self._push_medfiles_lead(body) or {}
+        self._ultimo_lead_ok = bool(_resp.get('ok'))
         # WhatsApp de la asesora asignada (se configura en MedFiles → Configuración → Equipo);
         # si no tiene, el de ASESORA_MEDFILES_TEL.
         _tel_mf = re.sub(r'[^\d]', '', str(((_resp.get('asesora') or {}).get('whatsapp')) or ''))
