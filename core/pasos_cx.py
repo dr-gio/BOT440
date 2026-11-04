@@ -10,6 +10,7 @@ Pasos:
   duda         cualquier pregunta o comentario → respuesta corta de la IA + cierre
   elige        pide la asesoría o la valoración → pedido de datos (ajustar_respuesta_cx)
   datos        responde al pedido de datos → flujo de NOTIFY de siempre
+  fotos        pide ver fotos / resultados / antes y después → fotos reales de MedFiles + cierre
 """
 import re
 from core.fichas_cx import FICHAS, expandir_fichas, bloque_precio, pide_precio
@@ -82,7 +83,43 @@ VERIFICAR = ("¡Sí! 💙 El *Dr. Giovanni Fuentes* es *Cirujano Plástico, Est�
              "y toca *Consultar*: aparece como especialista en *Cirugía Plástica* (RETHUS CMC2017-222322).")
 
 RECORDAR_DATOS = ("Cuando quieras, déjame tus datos para que *nuestra asesora te contacte* 😊\n"
-                  "👤 *Nombre completo* · 📍 *Ciudad* · 📧 *Correo* · ✨ *Procedimiento de interés*")
+                  "👤 *Nombre completo* · 📍 *Ciudad* · ✨ *Procedimiento de interés*")
+
+# Fotos de resultados (4-nov): se mandan cuando las pide; con la ficha se ofrecen en una línea
+RE_FOTOS = re.compile(r'\b(fotos?|fotitos|im[aá]genes|antes y despu[eé]s|casos reales|resultados reales|'
+                      r'(ver|ense[ñn]ar|mostrar|muestr\w*|tienes?|tiene) (unos |algunos |los |sus |de )?(resultados|trabajos|casos))\b', re.I)
+RE_FOTOS_PROPIAS = re.compile(r'(te|les?) (env[ií]o|mando|paso|comparto|adjunto)|enviar(te|les)? (mis|unas|las)|mis fotos|\[(IMAGEN|MEDIA)\]', re.I)
+OFRECE_FOTOS = "📸 Si quieres ver *resultados reales* del Dr. Gio, escríbeme *fotos* 😊"
+FINANCIACION = ("💳 Y si lo necesitas, puedes *financiar tu cirugía con Finanmed*: créditos de 24 a 72 meses "
+                "con cuota fija (sujetos a su estudio).")
+
+
+def pide_fotos(t):
+    return bool(RE_FOTOS.search(t or '')) and not RE_FOTOS_PROPIAS.search(t or '')
+
+
+def _clave_conversada(history):
+    for m in reversed(history or []):
+        if m.get('role') == 'user' and isinstance(m.get('content'), str):
+            c = clave_de(m['content'])
+            if c:
+                return c
+    for m in reversed(history or []):
+        if m.get('role') == 'assistant' and isinstance(m.get('content'), str):
+            c = clave_de(m['content'])
+            if c:
+                return c
+    return None
+
+
+def sin_fotos(texto, marcador):
+    """No hay fotos de ese procedimiento en MedFiles: se cambia el anuncio por remitir a la asesoría e Instagram."""
+    antes, _, despues = texto.partition(marcador)
+    m = re.search(r'en \*([^*]+)\*', antes)
+    proc = m.group(1) if m else 'ese procedimiento'
+    return (f"¡Claro! 💙 Por aquí no tengo fotos de *{proc}*, pero en tu *asesoría virtual gratuita* 💻 nuestra asesora "
+            f"te muestra *casos reales*, y también puedes ver resultados en Instagram *@drgiovannifuentes* 📸"
+            + despues.replace('<<<PARTE>>>', ''))
 
 DISCULPA_CONTACTO = ("¡Mil disculpas por la espera! 🙏💙 Nuestras asesoras han tenido mucha demanda estos días.\n\n"
                      "Ya le avisé nuevamente a tu asesora para que te contacte *lo antes posible* por aquí 📲\n\n"
@@ -236,6 +273,8 @@ def decidir_paso(history, texto):
     if re.fullmatch(r'\s*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ola)[\s!.,😊💙👋]*', t, re.I):
         return {'paso': 'regreso', 'datos_dados': datos_dados, 'datos_pedidos': datos_pedidos and not datos_dados,
                 'proc': _procedimiento_conversado(history)}
+    if pide_fotos(t):
+        return {'paso': 'fotos', 'clave': clave_de(t) or _clave_conversada(history)}
     if datos_dados and RE_GRACIAS.search(t or ''):
         return {'paso': 'post_gracias'}
     if datos_dados and not _es_pregunta(t) and (_es_eleccion(t) or quiere_agendar(t)
@@ -318,6 +357,8 @@ def instruccion_paso(paso):
                 "NO preguntes '¿alguna otra duda?': el sistema agrega el cierre aprobado.")
     if p == 'orientar':
         return "\n\n[PASO ACTUAL — ORIENTAR] Responde solo '¡Te entiendo! 💙' (el sistema agrega las preguntas)."
+    if p == 'fotos':
+        return "\n\n[PASO ACTUAL — FOTOS] Responde solo '¡Claro! 💙' (el sistema manda las fotos de resultados)."
     return ''
 
 
@@ -429,6 +470,12 @@ def aplicar_paso(texto, paso, history, mensaje):
         return f"¡Ya tengo tus datos{coma}! ✅ Nuestra asesora te contactará muy pronto por aquí para agendar {que} 😊"
     if p == 'orientar':
         return ORIENTAR[paso['zona']]
+    if p == 'fotos':
+        clave = paso.get('clave')
+        if not clave:
+            return "¡Con gusto! 💙 ¿De qué *procedimiento* te gustaría ver resultados? 😊"
+        intro = f"¡Claro! 💙 Te comparto resultados reales del Dr. Gio en *{_titulo(clave)}* 👇"
+        return intro + '\n\n' + f'<<<FOTOS:{clave}>>>' + '\n\n' + _cierre(intro, history, mensaje)
     if p == 'reclamo':
         if paso.get('datos_dados'):
             return DISCULPA_CONTACTO
@@ -473,4 +520,13 @@ def aplicar_paso(texto, paso, history, mensaje):
     cuerpo = _quitar_cierres(texto)
     if p == 'recomendar' and 'asesora' not in cuerpo.lower():
         cuerpo += '\n\n' + FRASE_ASESORA
+    previos = '\n'.join(_textos_bot(history))
+    # Preguntó el precio y se le dio un valor: una línea de financiación (una sola vez por conversación)
+    if pide_precio(mensaje) and re.search(r'\$\s?\d', cuerpo) and 'Finanmed' not in cuerpo and 'Finanmed' not in previos:
+        cuerpo += '\n\n' + FINANCIACION
+    # Se mostró la ficha de un procedimiento con fotos en MedFiles: se ofrecen (una sola vez por conversación)
+    if 'Por lo general es ideal para ti si' in cuerpo and OFRECE_FOTOS not in previos:
+        from core.brain_cx import FOTO_PATRON
+        if clave_de(cuerpo) in FOTO_PATRON:
+            cuerpo += '\n\n' + OFRECE_FOTOS
     return _con_cierre(cuerpo, history, mensaje).strip()

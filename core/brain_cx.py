@@ -61,6 +61,36 @@ _PAUTA_MAMO_KW = (
 )
 _PAUTA_MAMO_LABEL = 'Promo 10 cupos (noviembre)'
 
+# Mensajes de otros bots o de empresas (no son pacientes): el bot no les contesta (regla del Dr., 4-nov)
+_RE_BOT_EMPRESA = re.compile(
+    r"(soy (tbot|un bot|un asistente virtual|el asistente virtual|la asistente virtual|tu agente)"
+    r"|mensaje autom[aá]tico|respuesta autom[aá]tica|este n[uú]mero (no|solo) (recibe|es para)"
+    r"|gracias por (comunicarte|contactarte|escribir) (con|a) (el|la|nuestr)"
+    r"|(nuestro|el) horario de atenci[oó]n es|en breve (un asesor|te atenderemos|nos comunicaremos|te responderemos)"
+    r"|equipo comercial de|agente de viajes|somos una (empresa|agencia)|soy \w+,? del equipo (de|comercial)"
+    r"|(te|le) (escribo|escribimos|contacto|contactamos) (de|desde) (la empresa|una agencia|el equipo de)"
+    r"|ofrecemos (servicios|soluciones)|servicios de marketing|aumentar (tus|sus) ventas"
+    r"|^\W*en qu[eé] (te|le) (puedo|podemos) ayudar\W*$)", re.I)
+
+
+def es_bot_o_empresa(texto):
+    t = re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or '').strip()
+    return bool(t) and bool(_RE_BOT_EMPRESA.search(t))
+
+
+# Fotos de resultados (MedFiles → Herramientas de ventas → Resultados y confianza), por procedimiento
+FOTO_PATRON = {
+    'mamoplastia_aumento': 'mamoplastia de aumento',
+    'pexia': 'pexia',
+    'lipoescultura': 'lipoescultura 360',
+    'lipotransferencia': 'lipotransferencia|bbl',
+    'abdominoplastia': 'abdominoplastia',
+    'lipoabdominoplastia': 'lipoabdominoplastia',
+    'miniabdominoplastia': 'miniabdominoplastia',
+    'ginecomastia': 'ginecomastia',
+    'mommy_makeover': 'abdominoplastia|pexia|mamoplastia',
+}
+
 
 def _promo_activa():
     """True mientras la promo de los 10 cupos está vigente (hasta _PROMO_HASTA, hora Colombia)."""
@@ -260,7 +290,9 @@ Valores de referencia (SIEMPRE "desde"):
 Consulta (valoración) con el Dr. Gio: presencial $250.000 · virtual $160.000.
 La consulta es independiente del valor de la cirugía.
 
-Financiación: SOLO si preguntan → "Sí, tenemos planes de financiación 💙
+Cuando das un valor "desde", el sistema agrega solo una línea de
+financiación con Finanmed: NO la escribas tú.
+Financiación: si preguntan → "Sí, tenemos planes de financiación 💙
 nuestra asesora te explica las opciones en tu asesoría virtual gratuita 😊"
 Si dice "no me alcanza" / "es mucho": menciona los planes de financiación
 y ofrece la asesoría virtual gratuita para conocerlos. Si acepta, sigue el
@@ -296,7 +328,6 @@ OPCIÓN 1 — ASESORÍA VIRTUAL GRATUITA. Explica SIEMPRE qué se hace en ella:
 Déjame tus datos y *nuestra asesora te contactará por aquí* para agendar tu asesoría virtual gratuita en el horario que mejor te quede:
 👤 Nombre completo
 📍 Ciudad
-📧 Correo
 Y confírmame: ¿te interesa la [procedimiento] o algún otro procedimiento? 😊"
 
 OPCIÓN 2 — VALORACIÓN CON EL DR. GIO:
@@ -304,7 +335,7 @@ OPCIÓN 2 — VALORACIÓN CON EL DR. GIO:
 💰 Presencial *$250.000* · Virtual *$160.000*
 📍 Presencial en: *Barranquilla* (Carrera 47 #79-191), *Bogotá* (Clínica Intercirugías) o *Medellín* (Clínica AC Quirófanos). La virtual, desde donde estés 💻
 Para que nuestra asesora te la agende, déjame:
-👤 Nombre completo · 📍 Ciudad · 📧 Correo · ¿*presencial* o *virtual*?"
+👤 Nombre completo · 📍 Ciudad · ¿*presencial* o *virtual*?"
 → Si pide directamente una valoración o consulta con el Dr., ve directo a
   la opción 2 (no ofrezcas la asesoría gratuita).
 → QUÉ PIDE (regla del Dr.): "consulta", "consulta virtual" o "videollamada con
@@ -314,8 +345,9 @@ Para que nuestra asesora te la agende, déjame:
   de las dos opciones quiere (no asumas).
 
 DATOS:
-→ Nombre completo y ciudad son necesarios. El correo es deseable: si no lo
-  da, NO insistas; si está mal escrito, pídelo UNA vez.
+→ Nombre completo y ciudad son necesarios. El correo NO se pide (lo pide
+  la asesora); si la persona lo da, guárdalo en el NOTIFY.
+→ Si escribe por Instagram, pide también su número de celular.
 → Si ya dijo el procedimiento, confírmalo y pregunta si le interesa otro.
 → La ciudad es donde VIVE el paciente.
 → Si falta el nombre o la ciudad, pídelo amablemente (una sola pregunta).
@@ -636,7 +668,21 @@ BIENVENIDA_CORTA = ("¡Hola! 💙 Te atiende el *asistente virtual del Dr. Giova
                     "cirujano plástico estético y reconstructivo certificado 🤖")
 
 
-def mensaje_agendar(mensaje, pedir_celular=False):
+def lineas_datos(history, mensaje, pedir_celular=False):
+    """Lo que se pide para crear el lead (regla del Dr., 4-nov): nombre completo y ciudad; el celular si no lo
+    tenemos (número oculto o Instagram); el procedimiento solo si no lo ha dicho. El correo lo pide la asesora."""
+    from core.pasos_cx import clave_de
+    dicho = ' '.join([m.get('content', '') for m in (history or []) if m.get('role') == 'user'
+                      and isinstance(m.get('content'), str)] + [mensaje or ''])
+    lineas = "👤 *Nombre completo*\n📍 *Ciudad*"
+    if pedir_celular:
+        lineas += "\n📱 *Número de celular*"
+    if not clave_de(dicho):
+        lineas += "\n✨ *Procedimiento de interés*"
+    return lineas
+
+
+def mensaje_agendar(mensaje, pedir_celular=False, history=None):
     """Quiere agendar y no ha dicho si asesoría o valoración: escoge y deja los datos en el mismo mensaje."""
     from core.pasos_cx import clave_de, _titulo
     c = clave_de(mensaje or '')
@@ -645,7 +691,7 @@ def mensaje_agendar(mensaje, pedir_celular=False):
             "1️⃣ *Asesoría virtual gratuita* 💻 con nuestra asesora experta en cirugía plástica, por videollamada y sin compromiso\n"
             "2️⃣ *Valoración con el Dr. Gio* 👨‍⚕️: presencial *$250.000* o virtual *$160.000*\n\n"
             "Y déjame tus datos para que *nuestra asesora te contacte por aquí*:\n"
-            "👤 *Nombre completo*\n📍 *Ciudad*\n" + ("📱 *Número de celular*\n" if pedir_celular else "") + "📧 *Correo electrónico*")
+            + lineas_datos(history, mensaje, pedir_celular))
 
 
 CIERRE_DUDAS = ("¿Tienes alguna otra *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\n"
@@ -926,8 +972,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
         texto = (("¡Excelente decisión! 💙\n\n" + explica) if explica else "¡Listo! 💙 ") + (f"*¿Estás {listo} para ser parte de #LAbelleza440?* ✨\n\n"
                  "Déjame estos datos y *nuestra asesora te contactará por aquí* para agendar tu "
                  + ((f"*valoración {modalidad} con el Dr. Gio*" if modalidad else "*valoración con el Dr. Gio*") if valoracion else "*asesoría virtual gratuita*") + ":\n"
-                 "👤 *Nombre completo*\n📍 *Ciudad*\n" + ("📱 *Número de celular*\n" if pedir_celular else "") + "📧 *Correo electrónico*"
-                 + "\n✨ *Procedimiento de interés*"
+                 + lineas_datos(history, mensaje_paciente, pedir_celular)
                  + ("\n💻 ¿La prefieres *presencial* o *virtual*?" if valoracion and not modalidad else ""))
     # Si la IA escribió sus propias opciones o su propio cierre, se quitan: el bloque aprobado va una sola vez
     if re.search(r'asesor[ií]a virtual gratuita.*valoraci[oó]n con el dr', texto, re.I | re.S) \
@@ -966,7 +1011,7 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
             lineas_t.pop()
         texto = '\n'.join(lineas_t).rstrip() + '\n\n' + CIERRE_DUDAS
     if texto == 'agendar · elegir':
-        texto = mensaje_agendar(mensaje_paciente, pedir_celular)
+        texto = mensaje_agendar(mensaje_paciente, pedir_celular, history)
         return (BIENVENIDA_CORTA + '\n\n' + texto) if not hubo_bot else texto
     if not hubo_bot and _caliente and re.search(r'nombre completo', texto, re.I):
         # Primer mensaje y ya pidió agendar (asesoría o valoración): bienvenida corta y de una el pedido de datos
@@ -2301,7 +2346,44 @@ class BrainCX:
             tf = self._tel_valido(f.get('telefono'))
             if not self._numero_lid(history, text) and not (tf and len(tf) <= 13):
                 faltan.append('celular')
+        elif getattr(self, '_canal_ig', False):
+            # Instagram no trae el número: sin celular la asesora no puede escribirle por WhatsApp
+            tf = self._tel_valido(f.get('telefono'))
+            if not self._tel_escrito(history, text) and not (tf and len(tf) <= 13):
+                faltan.append('celular')
         return faltan
+
+    def _tel_escrito(self, history, text=''):
+        """Número de celular que la persona escribió en el chat ('' si no hay)."""
+        textos = [m.get('content') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str)] + [text or '']
+        for t in reversed(textos):
+            t = re.sub(r'^\[[^\]]*\]:\s*', '', t)
+            m = self._RE_CEL.search(t)
+            if m:
+                return '57' + ''.join(m.groups())
+            m = self._RE_INTL.search(t)
+            if m:
+                return re.sub(r'\D', '', m.group(1))
+        return ''
+
+    def _fotos_resultados(self, clave, maximo=2):
+        """Fotos de resultados de MedFiles para ese procedimiento: [(titulo, enlace)]. [] si no hay o falla."""
+        patron = FOTO_PATRON.get(clave or '')
+        _, clave_mf = self._medfiles_cfg()
+        if not patron or not clave_mf or not self.sb_url:
+            return []
+        try:
+            req = urllib.request.Request(
+                f"{self.sb_url}/rest/v1/rpc/bot_fotos_resultados",
+                data=json.dumps({'p_clave': clave_mf, 'p_patron': patron, 'p_max': maximo}).encode(),
+                headers={'apikey': self.sb_key, 'Authorization': f'Bearer {self.sb_key}',
+                         'Content-Type': 'application/json'}, method='POST')
+            with urllib.request.urlopen(req, timeout=6) as r:
+                filas = json.loads(r.read() or b'[]')
+            return [(f.get('titulo') or '', f.get('enlace') or '') for f in filas if f.get('enlace')]
+        except Exception as e:
+            print(f"[CX] fotos resultados err: {e}", flush=True)
+            return []
 
     def _mensaje_faltan(self, f, faltan, interes, history):
         """Pide en un mensaje corto solo lo que falta (una sola vez)."""
@@ -3055,6 +3137,15 @@ class BrainCX:
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             return ''
 
+        # ── OTRO BOT O UNA EMPRESA (no es paciente): no se le contesta; queda en MedFiles para el equipo ──
+        self._canal_ig = self._es_canal_instagram(canal)
+        if es_bot_o_empresa(text):
+            # Solo no se contesta ESTE mensaje (no se bloquea el chat): puede ser la respuesta automática
+            # del WhatsApp Business de una paciente a la que le escribimos primero.
+            print(f"[CX] {sender_id}: mensaje de bot/empresa — no se responde: {text[:60]!r}", flush=True)
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+            return ''
+
         # ── BOT BLOQUEADO: spam/abuso. Guardar entrante y salir silencioso.
         if self._check_bloqueado(sender_id):
             print(f"[CX] bot_bloqueado=True para {sender_id} — guardar entrante y silencio", flush=True)
@@ -3794,7 +3885,8 @@ class BrainCX:
         _en = False   # el guion se arma en español; si la persona escribe en inglés se traduce al final (misma estructura)
         _ingles = getattr(self, '_idioma', 'es') == 'en'
         # Número oculto por WhatsApp (LID) y aún no lo sabemos: el pedido de datos también pide el celular
-        _pedir_cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text))
+        _pedir_cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
+            or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
         user_facing = ajustar_respuesta_cx(user_facing, history, text, pedir_celular=_pedir_cel)
         if not match and not _en:
             try:
@@ -3887,6 +3979,18 @@ class BrainCX:
             print(f"[CX] {sender_id}: llegó otro mensaje mientras se respondía — se descarta esta respuesta", flush=True)
             return ''
 
+        # ── FOTOS DE RESULTADOS: el paso 'fotos' deja <<<FOTOS:clave>>> → se mandan las fotos de MedFiles ──
+        _fotos = []
+        _mf = re.search(r'<<<FOTOS:([a-z_]+)>>>', user_facing or '')
+        if _mf:
+            _fotos = self._fotos_resultados(_mf.group(1))
+            if _fotos:
+                user_facing = user_facing.replace(_mf.group(0), '<<<PARTE>>>' if send else
+                                                  '\n'.join(f"📸 {t}: {u}" for t, u in _fotos))
+            else:
+                from core.pasos_cx import sin_fotos
+                user_facing = sin_fotos(user_facing, _mf.group(0))
+
         _visible = user_facing
         if user_facing and _ingles:
             _visible = self._traducir_en(user_facing, text, history)
@@ -3899,6 +4003,13 @@ class BrainCX:
                     try: client.send_text(sender_id, _parte)
                     except Exception as e: print(f"[CX] parte send err: {e}", flush=True)
                     time.sleep(1.2)
+                    if _k == 0 and _fotos:
+                        for _t, _u in _fotos:
+                            try:
+                                if hasattr(client, 'send_image'): client.send_image(sender_id, _u, _t)
+                                else: client.send_text(sender_id, f"📸 {_t}: {_u}")
+                            except Exception as e: print(f"[CX] foto send err: {e}", flush=True)
+                            time.sleep(1.5)
                 r = client.send_text(sender_id, partes[-1] if partes else _visible)
                 if isinstance(r, dict) and 'error' in r:
                     print(f"[CX] ❌ SEND ERROR canal={canal} error={r.get('error')!r} body={r.get('body','')!r}", flush=True)
@@ -3909,6 +4020,9 @@ class BrainCX:
             # Se guarda lo que vio el paciente (bienvenida/bloques fijos incluidos) + el bloque NOTIFY interno,
             # así el historial que lee la IA en el siguiente mensaje coincide con la conversación real.
             _guardado = re.sub(r'\n*<<<PARTE>>>\n*', '\n\n', user_facing)
+            if _fotos and send:
+                _guardado = _guardado.replace(_visible.split('<<<PARTE>>>')[0].strip(),
+                                              _visible.split('<<<PARTE>>>')[0].strip() + '\n' + '\n'.join(f"[FOTO enviada: {t}]" for t, _ in _fotos), 1)
             if match:
                 _guardado += '\n\n<<<NOTIFY>>>' + match.group(1) + '<<<END>>>'
             if _pendiente_blk:

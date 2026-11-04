@@ -53,6 +53,8 @@ def _falso(req, *a, **k):
 urllib.request.urlopen = _falso
 
 import core.brain_cx as bx  # noqa: E402
+bx.BrainCX._fotos_resultados = lambda self, clave, maximo=2: (
+    [('Lipoescultura 360 con plasma de argón', 'https://ejemplo.sim/lipo.jpg')] if clave == 'lipoescultura' else [])
 
 FILAS = []
 def _cargar(self, sender_id, canal='cirugia'):
@@ -104,7 +106,7 @@ def cierre_corto(): return ('cierre corto (no repite el bloque)', lambda r: CIER
 def menu(): return ('menú para escoger 1 o 2, sin "¿alguna duda?"', lambda r: 'Respóndeme *1* o *2*' in r and 'pregunta o duda' not in r
                     and not re.search(r':\s*\n+\*¿Cómo te gustaría', r))
 def con_ficha(): return ('trae la ficha aprobada', lambda r: FICHA in r)
-def pide_datos(): return ('pide nombre, ciudad, correo y procedimiento', lambda r: all(x in r for x in ('Nombre completo', 'Ciudad', 'Correo electrónico', 'Procedimiento de interés')))
+def pide_datos(): return ('pide nombre y ciudad, sin correo', lambda r: all(x in r for x in ('Nombre completo', 'Ciudad')) and 'Correo electrónico' not in r)
 
 ESCENARIOS = {
     # 22-oct: pidió la consulta en el PRIMER mensaje; el bot dio precios pero no pidió los datos
@@ -205,6 +207,35 @@ ESCENARIOS = {
         ('Donde operan?', [tiene('Barranquilla'), con_cierre()]),
     ],
     # 4-nov: se suspendió la promo de mamoplastia $18M todo incluido; promo vigente = 10 cupos (sin precio)
+    # 4-nov: fotos de resultados de MedFiles (se simulan), financiación al dar precio, datos sin correo, bots/empresas
+    'fotos_pide': [
+        ('Hola', []),
+        ('Quiero información de la lipo', [con_ficha(), tiene('escríbeme *fotos*')]),
+        ('tienes fotos de resultados?', [tiene('resultados reales', 'Lipoescultura 360', '📸', 'https://ejemplo.sim/lipo.jpg'), con_cierre()]),
+    ],
+    'fotos_sin_procedimiento': [
+        ('Hola', []),
+        ('me muestras fotos de antes y despues?', [tiene('qué *procedimiento*')]),
+    ],
+    'fotos_sin_fotos_en_medfiles': [
+        ('Hola', []),
+        ('tienes fotos de blefaroplastia?', [tiene('casos reales', '@drgiovannifuentes'), no_tiene('<<<FOTOS')]),
+    ],
+    'precio_con_financiacion': [
+        ('Hola', []),
+        ('Cuanto vale la abdominoplastia?', [tiene('22.000.000', 'Finanmed'), con_cierre()]),
+    ],
+    'datos_sin_procedimiento_dicho': [
+        ('Hola', []),
+        ('Quiero la asesoría virtual', [pide_datos(), tiene('Procedimiento de interés')]),
+    ],
+    'datos_con_procedimiento_dicho': [
+        ('Hola', []),
+        ('Quiero una asesoría para mamoplastia de aumento', [pide_datos(), no_tiene('Procedimiento de interés')]),
+    ],
+    'bot_empresa_no_responde': [
+        ('¡Hola! Soy TBot, tu agente de viajes para hoteles y vuelos', [('no responde', lambda r: r == '')]),
+    ],
     'promo_10_cupos': [
         ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'asesoría virtual gratuita'), no_tiene('18.000.000', 'todo incluido', '%'), con_cierre()]),
     ],
