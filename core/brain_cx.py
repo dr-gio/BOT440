@@ -81,6 +81,7 @@ def es_bot_o_empresa(texto):
 # Fotos de resultados (MedFiles → Herramientas de ventas → Resultados y confianza), por procedimiento
 FOTO_PATRON = {
     'mamoplastia_aumento': 'mamoplastia de aumento',
+    'blefaroplastia': 'blefaroplastia',
     'pexia': 'pexia',
     'lipoescultura': 'lipoescultura 360',
     'lipotransferencia': 'lipotransferencia|bbl',
