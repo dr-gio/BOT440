@@ -83,6 +83,7 @@ FOTO_PATRON = {
     'mamoplastia_aumento': 'mamoplastia de aumento',
     'blefaroplastia': 'blefaroplastia',
     'pexia': 'pexia',
+    'cambio_implantes': 'cambio de implantes|cambio implantes',
     'lipoescultura': 'lipoescultura 360',
     'lipotransferencia': 'lipotransferencia|bbl',
     'abdominoplastia': 'abdominoplastia',
@@ -216,9 +217,10 @@ Responde con una frase corta de bienvenida al tema (opcional, ej. "¡Excelente! 
 y en la línea siguiente SOLO el marcador de la ficha, que el sistema reemplaza por
 la información aprobada (qué es, para quién es con ✅, combinaciones, recuperación):
 <<<FICHA:clave>>>
-Claves disponibles: abdominoplastia, lipoabdominoplastia, lipoescultura, lipotransferencia, mamoplastia_aumento, pexia, reduccion, explantacion, ginecomastia, blefaroplastia, papada, otoplastia, abdominoplastia_inversa, mommy_makeover, lifting_extremidades, gluteoplastia_implante, miniabdominoplastia, lifting_facial.
+Claves disponibles: abdominoplastia, lipoabdominoplastia, lipoescultura, lipotransferencia, mamoplastia_aumento, pexia, reduccion, cambio_implantes, explantacion, ginecomastia, blefaroplastia, papada, otoplastia, abdominoplastia_inversa, mommy_makeover, lifting_extremidades, gluteoplastia_implante, miniabdominoplastia, lifting_facial.
 Ej.: "lipo"/"liposucción" → lipoescultura; "cola"/"glúteos con mi grasa" → lipotransferencia;
-"senos más grandes" → mamoplastia_aumento; "senos caídos" → pexia.
+"senos más grandes" → mamoplastia_aumento; "senos caídos" → pexia;
+"cambio de implantes/prótesis" (ya tiene implantes) → cambio_implantes; "retirar/sacar implantes" → explantacion.
 Si pide dos procedimientos, pon las dos fichas, una debajo de otra.
 Si ningún procedimiento coincide, escríbelo tú con el mismo formato: qué es,
 "Por lo general es ideal para ti si:" con 3–4 líneas ✅, recuperación y quién lo realiza.
@@ -275,6 +277,7 @@ Valores de referencia (SIEMPRE "desde"):
 • Mamoplastia de aumento: desde $17.000.000
 • Pexia mamaria con implantes: desde $18.000.000
 • Mamoplastia de reducción: desde $20.000.000
+• Cambio de implantes (con o sin pexia): desde $20.000.000
 • Explantación mamaria: desde $22.000.000
 • Mommy makeover: desde $30.000.000 (según los procedimientos combinados)
 • Lipotransferencia glútea: desde $3.000.000 adicionales a la

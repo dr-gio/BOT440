@@ -138,6 +138,7 @@ _CLAVES = [
     (r'abdominoplast|abdomino\b|cirug[ií]a de abdomen', 'abdominoplastia'),
     (r'lipotransfer|\bbbl\b|gl[uú]teos? con (mi )?(propia )?grasa', 'lipotransferencia'),
     (r'gluteoplastia|implantes? de gl[uú]te', 'gluteoplastia_implante'),
+    (r'(cambi|recambi|renov|reemplaz)\w* (de |los |mis |las )*(implantes?|pr[oó]tesis)', 'cambio_implantes'),
     (r'explant|(retir|sac|quit)\w* (los |mis )?(implantes|pr[oó]tesis)', 'explantacion'),
     (r'reducci[oó]n (de (los |mis )?senos|mamaria)|mamoplastia de reducci|reducir (los |mis )?senos|\bla reducci[oó]n\b', 'reduccion'),
     (r'pexia|levantamiento de senos|levantar (los |mis )?senos|senos ca[ií]dos', 'pexia'),
@@ -390,6 +391,8 @@ def _clave_recomendada(texto_ia, mensaje, zona):
         grasa = re.search(r'grasa', m)
         return ('lipoabdominoplastia' if grasa else 'abdominoplastia') if piel else 'lipoescultura'
     if zona == 'senos':
+        if re.search(r'(cambi|recambi|renov|reemplaz)\w* (de |los |mis |las )*(implantes?|pr[oó]tesis)', m):
+            return 'cambio_implantes'
         if re.search(r'reduc|grandes|pesad|espalda', m):
             return 'reduccion'
         if re.search(r'levant|ca[ií]d', m):
