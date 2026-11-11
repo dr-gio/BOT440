@@ -151,6 +151,9 @@ ciudades, para las personas que *tengan indicación y cumplan los requisitos*.
 → Al dejar los datos: "Una de nuestras asesoras te contactará en breve y te
   dirá si cumples los requisitos para el precio especial."
 → NUNCA digas el valor del precio especial ni el porcentaje de descuento.
+→ Si la persona viene por los cupos, NO des precios de liposucción ni de
+  mamoplastia de aumento (ni el "desde"): el precio especial depende de que
+  cumpla los requisitos y se lo da la asesora.
 → NO confirmes que ya tiene un cupo ni que cumple: eso lo dice la asesora.
 → Solo aplica a liposucción y mamoplastia de aumento. Para otros
   procedimientos di que esta promo es solo para esas dos cirugías.
@@ -3346,6 +3349,41 @@ class BrainCX:
                 self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                 return reply
 
+        # ── PROMO 10 CUPOS: pregunta precio → no se dan precios (regla del Dr., 10-nov) ──
+        # Liposucción / mamoplastia (o precio sin decir de qué): el precio especial depende de si cumple
+        # los requisitos → se le piden los datos. Otras cirugías siguen el flujo normal.
+        if not _is_first_time and _promo_activa() and '<<<NOTIFY' not in ' '.join(
+                m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)):
+            _pp = _promo_de_historial(history)
+            _tx = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or ''))
+            if _pp is not None and re.search(r'cuanto (cuesta|vale|sale|me sale|es el (valor|precio)|seria|cobran)|precio|\bvalor\b|\bcuesta\b|\bvale\b|costo|tarifa|descuento', _tx):
+                from core.pasos_cx import clave_de
+                _k = clave_de(_tx)
+                if _k in (None, 'lipoescultura', 'mamoplastia_aumento'):
+                    _e = _PROMO_LIPO if _k == 'lipoescultura' else _PROMO_MAMO if _k == 'mamoplastia_aumento' else (_pp or None)
+                    if not _e:
+                        _e2 = _promo_eleccion(_tx)
+                        _e = (' y '.join(_e2) if isinstance(_e2, list) else _e2) if _e2 else None
+                    if _e:
+                        _cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
+                            or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
+                        reply = ("El *precio especial* de los *10 cupos* depende de tu caso y de que *tengas indicación y cumplas los requisitos* 💙\n\n"
+                                 "Para revisar si " + _PROMO_PEDIDO + f" de tu *{_e.lower()}*, déjame tus datos y en breve una de nuestras "
+                                 "asesoras te contactará para darte toda la información ✨\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                                 + ("\n📱 *Número de celular*" if _cel else ''))
+                    else:
+                        reply = ("El *precio especial* de los *10 cupos* depende de tu caso y de que *tengas indicación y cumplas los requisitos* 💙 "
+                                 "Una de nuestras asesoras te da toda la información.\n\n" + _PROMO_PREGUNTA
+                                 + "\n1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n\nEscribe *1* o *2* 😊")
+                    print(f"[CX] PROMO 10 CUPOS pregunta precio → sin precio ({_e or 'sin escoger'}) {sender_id}", flush=True)
+                    self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                    if send:
+                        _client = self.instagram if canal.startswith('instagram') else self.whapi
+                        try: _client.send_text(sender_id, reply)
+                        except Exception as _ee: print(f"[CX] promo precio reply err: {_ee}", flush=True)
+                    self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                    return reply
+
         # ── DETECCIÓN DE REFERIDO ──────────────────────────────────────────
         # Si el PRIMER mensaje menciona el nombre de una asesora, la asignamos
         # directamente (sin pasar por la rotación).
@@ -3969,6 +4007,26 @@ class BrainCX:
                     self._cambio_opcion(sender_id, history, text, canal)
             except Exception as _e:
                 print(f"[CX] aplicar_paso err: {_e}", flush=True)
+        # Promo 10 cupos sin lead aún: después de responder una duda, en vez del menú "asesoría / valoración"
+        # se vuelve a la promo (escoger lipo o mamoplastia, o dejar los datos si ya escogió)
+        if not match and _promo_activa():
+            _ppx = _promo_de_historial(history)
+            if _ppx is not None and not any('<<<NOTIFY' in (m.get('content') or '') for m in (history or [])
+                                            if m.get('role') == 'assistant' and isinstance(m.get('content'), str)):
+                _i = user_facing.find('¿Tienes alguna otra *pregunta o duda*')
+                _base = (user_facing[:_i] if _i >= 0 else user_facing).rstrip()
+                if re.search(r'nombre completo', _base, re.I):
+                    _cola = None   # escogió asesoría o valoración: sigue el flujo de siempre (pedido de datos aprobado)
+                elif _ppx:
+                    _cola = ("Para revisar si " + _PROMO_PEDIDO + f" de tu *{_ppx.lower()}*, déjame tus datos y en breve una de "
+                             "nuestras asesoras te contactará para darte toda la información 💙\n\n"
+                             "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*")
+                else:
+                    _cola = (_PROMO_PREGUNTA + " (para tu cupo con *precio especial*)\n1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n\n"
+                             "Escribe *1* o *2* 😊")
+                if _cola:
+                    user_facing = (_base + "\n\n" + _cola).strip() if len(_base) > 15 else _cola
+
         _pendiente_blk = None
         if match and not _forzado:
             _f0 = self._parse_notify(match.group(1)) or {}
@@ -4008,7 +4066,7 @@ class BrainCX:
                 if _ciu and not re.search(r'barranquilla|soledad|puerto colombia|malambo', _ciu, re.I):
                     user_facing += ("\n\nComo nos escribes desde *" + _ciu.title() + "*, te contará también sobre nuestros "
                                     "*planes de turismo médico todo incluido* ✈️")
-                _pp = _promo_de_historial(history)
+                _pp = _promo_de_historial(history) if _int.startswith('asesor') else None
                 if _pp:
                     user_facing = (f"¡Listo{', ' + _nom if _nom else ''}! 💙 Una de nuestras asesoras *te contactará en breve* "
                                    f"y te dirá si cumples los requisitos para el *precio especial* de tu *{_pp.lower()}* 😊")

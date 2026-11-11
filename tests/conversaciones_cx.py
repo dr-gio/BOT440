@@ -243,6 +243,28 @@ ESCENARIOS = {
     'promo_10_cupos': [
         ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'Mamoplastia de aumento', 'Nombre completo'), no_tiene('18.000.000', 'todo incluido', '%')]),
     ],
+    'promo_10_cupos_precio': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo'), no_tiene('17.000.000', '$')]),
+    ],
+    'promo_10_cupos_precio_sin_escoger': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('Precio?', [tiene('precio especial', 'Cuál de las dos'), no_tiene('$')]),
+        ('1', [tiene('liposucción', 'Nombre completo')]),
+    ],
+    'promo_10_cupos_otras_dudas': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('cuanto dura la recuperacion de la lipo?', [tiene('Cuál de las dos'), no_tiene('Nombre completo', 'Valoración con el Dr. Gio')]),
+        ('donde quedan?', [tiene('Barranquilla', 'Cuál de las dos'), no_tiene('Valoración con el Dr. Gio')]),
+        ('2', [tiene('mamoplastia de aumento', 'Nombre completo')]),
+        ('tienen financiacion?', [tiene('Nombre completo'), no_tiene('Valoración con el Dr. Gio')]),
+        ('Ana Ruiz, Cali, ana@gmail.com', [tiene('te contactará en breve')]),
+    ],
+    'promo_10_cupos_a_valoracion': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('quiero una valoracion con el doctor', [tiene('Nombre completo', 'valoración'), no_tiene('Cuál de las dos')]),
+        ('Paola Diaz, Barranquilla, presencial, paola@gmail.com', [tiene('valoración')]),
+    ],
     'promo_10_cupos_flujo': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('10 cupos', 'Sociedad Colombiana', '¿Cuál de las dos te interesa?'), no_tiene('18.000.000', '%')]),
         ('2', [tiene('Mamoplastia de aumento', 'Nombre completo', 'Ciudad', 'Correo electrónico')]),
