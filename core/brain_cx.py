@@ -143,6 +143,7 @@ PROMO_BIENVENIDA = (
 # ── PAUTA SENOS (11-nov-2026): "¡Hola! información sobre cirugía de senos" → el Dr. como experto en cirugía mamaria ──
 _SENOS_KW = ('cirugia de senos', 'cirugia de seno', 'cirugia mamaria', 'informacion sobre cirugia de senos')
 _SENOS_PREGUNTA = 'te gustaría mejorar de tus senos?'
+_SENOS_FOTOS = False   # fotos de resultados en la pauta de senos (apagadas por ahora)
 SENOS_BIENVENIDA = (
     "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
     "miembro de la *Sociedad Colombiana de Cirugía Plástica, Estética y Reconstructiva* y *experto en cirugía mamaria "
@@ -3504,7 +3505,8 @@ class BrainCX:
             self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
             _client = self.instagram if canal.startswith('instagram') else self.whapi
             _partes = [_senos_reply]
-            _fotos_s = self._fotos_resultados(_senos_clave) if _senos_clave else []
+            # Fotos de resultados: apagadas por ahora en esta pauta (pedido del Dr., 11-nov). Para prenderlas: _SENOS_FOTOS = True
+            _fotos_s = self._fotos_resultados(_senos_clave) if (_senos_clave and _SENOS_FOTOS) else []
             if _senos_clave:
                 _partes.append(CIERRE_DUDAS)
             if send:
