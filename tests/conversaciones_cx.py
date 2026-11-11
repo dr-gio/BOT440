@@ -85,7 +85,7 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r:
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál de las dos te interesa?' not in r:
         fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
@@ -241,7 +241,12 @@ ESCENARIOS = {
         ('¡Hola! Soy TBot, tu agente de viajes para hoteles y vuelos', [('no responde', lambda r: r == '')]),
     ],
     'promo_10_cupos': [
-        ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'asesoría virtual gratuita'), no_tiene('18.000.000', 'todo incluido', '%'), con_cierre()]),
+        ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'Mamoplastia de aumento', 'Nombre completo'), no_tiene('18.000.000', 'todo incluido', '%')]),
+    ],
+    'promo_10_cupos_flujo': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('10 cupos', 'Sociedad Colombiana', '¿Cuál de las dos te interesa?'), no_tiene('18.000.000', '%')]),
+        ('2', [tiene('Mamoplastia de aumento', 'Nombre completo', 'Ciudad', 'Correo electrónico')]),
+        ('Laura Gómez, Barranquilla, laura.gomez@gmail.com', [tiene('te contactará en breve', 'requisitos', 'mamoplastia de aumento')]),
     ],
     'precio_mamoplastia_sin_promo_vieja': [
         ('Hola', []),

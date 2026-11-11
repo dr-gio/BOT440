@@ -50,16 +50,44 @@ _SB_UA = 'BOT440-CX/1.0 (servidor)'
 _MEDFILES_DEFAULT_URL = 'https://medfiles.drgiovannifuentes.com'
 # CRM viejo (leads_comerciales + push CORE440) — desactivado por defecto.
 _LEGACY_CRM = os.environ.get('CX_LEGACY_CRM', '').strip() == '1'
-# Promo vigente: "10 cupos con precio especial" (mamoplastia de aumento y liposucción), noviembre 2026,
-# todas las ciudades. El precio/descuento NO lo dice el bot: lo define la asesora en la asesoría.
+# Promo vigente: "10 cupos con precio especial" — 10 de liposucción y 10 de mamoplastia de aumento, por lo que
+# queda del año, para quien tenga indicación y cumpla los requisitos. El precio NO lo dice el bot: la asesora
+# contacta a la persona y le dice si cumple. Flujo (10-nov-2026): 1) escoge lipo o mamoplastia, 2) deja nombre
+# y ciudad, 3) se crea el lead con la pauta "Promo 10 cupos · <cirugía>" y se le dice que la asesora la contactará.
 # (La promo vieja "Mamoplastia todo incluido $18M" se suspendió el 4-nov-2026.)
-_PROMO_HASTA = '2026-11-30'   # último día (hora Colombia); después el bot deja de mencionarla
+_PROMO_HASTA = '2026-12-31'   # último día (hora Colombia); después el bot deja de mencionarla
 _PAUTA_MAMO_KW = (
     '10 cupos', 'diez cupos', 'los cupos', 'un cupo', 'cupos', 'precio especial',
     'promo mamoplastia', 'promo senos', 'promo lipo', 'promocion', 'promo ', 'descuento',
     'paquete mamoplastia', 'mamoplastia incluido', '18 millones',
 )
-_PAUTA_MAMO_LABEL = 'Promo 10 cupos (noviembre)'
+_PAUTA_MAMO_LABEL = 'Promo 10 cupos'
+_PROMO_PREGUNTA = '¿Cuál de las dos te interesa?'
+_PROMO_PEDIDO = 'cumples los requisitos para el *precio especial*'
+_PROMO_LIPO, _PROMO_MAMO = 'Liposucción', 'Mamoplastia de aumento'
+
+
+def _promo_eleccion(texto):
+    """Qué escogió entre los cupos: 'Liposucción', 'Mamoplastia de aumento', ambas (lista) o None."""
+    t = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))
+    lipo = bool(re.search(r'(^|\D)1(\D|$)|1️⃣|lipo|grasa|abdomen|cintura|la primera', t))
+    mamo = bool(re.search(r'(^|\D)2(\D|$)|2️⃣|mamo|seno|busto|pecho|mama|implante|aumento|la segunda', t))
+    if lipo and mamo:
+        return [_PROMO_LIPO, _PROMO_MAMO]
+    return _PROMO_LIPO if lipo else _PROMO_MAMO if mamo else None
+
+
+def _promo_de_historial(history):
+    """Si la conversación es de la promo de los cupos: la(s) cirugía(s) que escogió ('' si aún no escoge); None si no."""
+    bots = [m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)]
+    if not any(_PROMO_PREGUNTA in b or _PROMO_PEDIDO in b for b in bots):
+        return None
+    for b in reversed(bots):
+        m = re.search(r'precio especial\* de (?:tu )?\*([^*]+)\*', b)
+        if _PROMO_PEDIDO in b and m:
+            p = m.group(1).strip()
+            return p[:1].upper() + p[1:]
+    return ''
 
 # Mensajes de otros bots o de empresas (no son pacientes): el bot no les contesta (regla del Dr., 4-nov)
 _RE_BOT_EMPRESA = re.compile(
@@ -100,22 +128,33 @@ def _promo_activa():
     return hoy <= _PROMO_HASTA
 
 
+PROMO_BIENVENIDA = (
+    "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
+    "miembro de la *Sociedad Colombiana de Cirugía Plástica, Estética y Reconstructiva*. Te atiende su asistente virtual 🤖\n\n"
+    "¡Sí! Por lo que queda del año tenemos *10 cupos con precio especial* ✨ para:\n"
+    "1️⃣ *Liposucción*\n"
+    "2️⃣ *Mamoplastia de aumento*\n\n"
+    "El precio especial es para las personas que *tengan indicación y cumplan los requisitos* para la cirugía 💙\n\n"
+    + _PROMO_PREGUNTA + " Escribe *1* o *2* 😊"
+)
+
 PROMO_CUPOS_TXT = """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PROMO VIGENTE: 10 CUPOS CON PRECIO ESPECIAL (hasta el 30 de noviembre)
+PROMO VIGENTE: 10 CUPOS CON PRECIO ESPECIAL (por lo que queda del año)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-El Dr. Gio publicó en Instagram "10 CUPOS" con *precio especial* para
-*mamoplastia de aumento* y *liposucción* durante *noviembre*, en todas
-nuestras ciudades.
+El Dr. Gio tiene *10 cupos de liposucción* y *10 cupos de mamoplastia de
+aumento* con *precio especial* por lo que queda del año, en todas nuestras
+ciudades, para las personas que *tengan indicación y cumplan los requisitos*.
 → Si preguntan por los cupos, la promo, el precio especial o un descuento:
-  confirma que SÍ hay 10 cupos con precio especial este mes y que el
-  *precio especial* se lo da nuestra asesora en su *asesoría virtual
-  gratuita* 💻, según su caso.
+  confirma la promo y pregunta cuál de las dos le interesa (liposucción o
+  mamoplastia de aumento). Cuando escoja, pide *nombre completo* y *ciudad*.
+→ Al dejar los datos: "Una de nuestras asesoras te contactará en breve y te
+  dirá si cumples los requisitos para el precio especial."
 → NUNCA digas el valor del precio especial ni el porcentaje de descuento.
-→ NO confirmes que ya tiene un cupo: la asesora confirma la disponibilidad.
-→ Solo aplica a mamoplastia de aumento y liposucción. Para otros
+→ NO confirmes que ya tiene un cupo ni que cumple: eso lo dice la asesora.
+→ Solo aplica a liposucción y mamoplastia de aumento. Para otros
   procedimientos di que esta promo es solo para esas dos cirugías.
-→ En el NOTIFY: pauta: Promo 10 cupos (noviembre).
+→ En el NOTIFY: interes: asesoria · pauta: Promo 10 cupos · [cirugía].
 """
 
 
@@ -381,7 +420,7 @@ ciudad: [ciudad donde vive]
 procedimiento: [procedimiento de interés]
 interes: [asesoria | valoracion]
 modalidad: [presencial | virtual | vacío]
-pauta: [Promo 10 cupos (noviembre) si preguntó por los cupos o la promo; si no, vacío]
+pauta: [Promo 10 cupos · [cirugía] si preguntó por los cupos o la promo; si no, vacío]
 financiacion: [si | no]
 <<<END>>>
 → Emite el NOTIFY UNA sola vez por conversación. Si ya lo emitiste (está
@@ -2722,6 +2761,12 @@ class BrainCX:
         pauta = (fields.get('pauta') or '').strip()
         if not pauta or _sin_tildes(pauta) in ('no', 'ninguna', 'vacio', 'n/a', '-', '—'):
             pauta = self._pauta_from_history(history)
+        # Promo de los cupos: la pauta lleva la cirugía escogida y esa es el procedimiento del lead
+        _promo_proc = _promo_de_historial(history)
+        if _promo_proc is not None:
+            pauta = f"{_PAUTA_MAMO_LABEL} · {_promo_proc}" if _promo_proc else _PAUTA_MAMO_LABEL
+            if _promo_proc:
+                proc = _promo_proc
         financiacion = _sin_tildes(fields.get('financiacion', '')).startswith('si')
 
         # Teléfono: en WhatsApp el sender_id ES el número. En Instagram el
@@ -3257,22 +3302,47 @@ class BrainCX:
             _txt_promo = _sin_tildes(text or '')
             if any(kw in _txt_promo for kw in _PAUTA_MAMO_KW):
                 print(f"[CX] PROMO 10 CUPOS detectada → {sender_id}: {text[:60]!r}", flush=True)
-                reply = (
-                    "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*. "
-                    "Te atiende el asistente virtual del Dr. Gio 🤖\n\n"
-                    "¡Sí! Este mes de *noviembre* tenemos *10 cupos con precio especial* ✨ para:\n"
-                    "✅ *Mamoplastia de aumento*\n"
-                    "✅ *Liposucción*\n"
-                    "📍 En todas nuestras ciudades.\n\n"
-                    "El *precio especial* te lo da nuestra asesora en tu *asesoría virtual gratuita* 💻, "
-                    "según tu caso, y ahí mismo te confirma la disponibilidad de tu cupo 💙\n\n"
-                    + CIERRE_DUDAS
-                )
+                _elec0 = _promo_eleccion(text)
+                if _elec0:
+                    # Ya dijo cuál quiere: la bienvenida y de una el pedido de datos
+                    _proc0 = ' y '.join(_elec0) if isinstance(_elec0, list) else _elec0
+                    _cel0 = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
+                        or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
+                    reply = (PROMO_BIENVENIDA.split('¡Sí!')[0]
+                             + "¡Sí! Por lo que queda del año tenemos *10 cupos con precio especial* ✨ para *liposucción* y "
+                             "*mamoplastia de aumento*, para las personas que *tengan indicación y cumplan los requisitos* 💙\n\n"
+                             "Para revisar si " + _PROMO_PEDIDO + f" de tu *{_proc0.lower()}*, déjame tus datos y en breve una de nuestras "
+                             "asesoras te contactará para darte toda la información 💙\n\n"
+                             "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*" + ("\n📱 *Número de celular*" if _cel0 else ''))
+                else:
+                    reply = PROMO_BIENVENIDA
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
                 if send:
                     _client = self.instagram if canal.startswith('instagram') else self.whapi
                     try: _client.send_text(sender_id, reply)
                     except Exception as _e: print(f"[CX] promo cupos reply err: {_e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                return reply
+
+        # ── PROMO 10 CUPOS: escogió liposucción o mamoplastia → se le piden los datos ──
+        if not _is_first_time and _promo_activa():
+            _ult_b = next((m.get('content') for m in reversed(history or []) if m.get('role') == 'assistant'
+                           and isinstance(m.get('content'), str)), '') or ''
+            _elec = _promo_eleccion(text) if _PROMO_PREGUNTA in _ult_b and '?' not in (text or '') else None
+            if _elec:
+                _proc_p = ' y '.join(_elec) if isinstance(_elec, list) else _elec
+                _cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
+                    or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
+                reply = ("¡Excelente! ✨ Para revisar si " + _PROMO_PEDIDO
+                         + f" de tu *{_proc_p.lower()}*, déjame tus datos y en breve una de nuestras asesoras te contactará "
+                         "para darte toda la información 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                         + ("\n📱 *Número de celular*" if _cel else ''))
+                print(f"[CX] PROMO 10 CUPOS eligió {_proc_p} → {sender_id}", flush=True)
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                if send:
+                    _client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: _client.send_text(sender_id, reply)
+                    except Exception as _e: print(f"[CX] promo elección reply err: {_e}", flush=True)
                 self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                 return reply
 
@@ -3938,6 +4008,10 @@ class BrainCX:
                 if _ciu and not re.search(r'barranquilla|soledad|puerto colombia|malambo', _ciu, re.I):
                     user_facing += ("\n\nComo nos escribes desde *" + _ciu.title() + "*, te contará también sobre nuestros "
                                     "*planes de turismo médico todo incluido* ✈️")
+                _pp = _promo_de_historial(history)
+                if _pp:
+                    user_facing = (f"¡Listo{', ' + _nom if _nom else ''}! 💙 Una de nuestras asesoras *te contactará en breve* "
+                                   f"y te dirá si cumples los requisitos para el *precio especial* de tu *{_pp.lower()}* 😊")
                 user_facing += ("\n\nMientras tanto, conoce *resultados reales y testimonios* del Dr. Gio:\n"
                                 "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n"
                                 "*Ya eres parte de #LAbelleza440* ✨")
