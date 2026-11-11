@@ -111,6 +111,8 @@ FOTO_PATRON = {
     'mamoplastia_aumento': 'mamoplastia de aumento',
     'blefaroplastia': 'blefaroplastia',
     'pexia': 'pexia',
+    'reduccion': 'reducci[oó]n|reduccion',
+    'explantacion': 'explantaci[oó]n|explantacion|retiro de implantes',
     'cambio_implantes': 'cambio de implantes|cambio implantes',
     'lipoescultura': 'lipoescultura 360',
     'lipotransferencia': 'lipotransferencia|bbl',
@@ -137,6 +139,97 @@ PROMO_BIENVENIDA = (
     "El precio especial es para las personas que *tengan indicación y cumplan los requisitos* para la cirugía 💙\n\n"
     + _PROMO_PREGUNTA + " Escribe *1* o *2* 😊"
 )
+
+# ── PAUTA SENOS (11-nov-2026): "¡Hola! información sobre cirugía de senos" → el Dr. como experto en cirugía mamaria ──
+_SENOS_KW = ('cirugia de senos', 'cirugia de seno', 'cirugia mamaria', 'informacion sobre cirugia de senos')
+_SENOS_PREGUNTA = 'te gustaría mejorar de tus senos?'
+SENOS_BIENVENIDA = (
+    "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
+    "miembro de la *Sociedad Colombiana de Cirugía Plástica, Estética y Reconstructiva* y *experto en cirugía mamaria "
+    "estructural avanzada*. Te atiende su asistente virtual 🤖\n\n"
+    "Con gusto te doy información sobre *cirugía de senos* ✨ ¿Qué " + _SENOS_PREGUNTA + "\n"
+    "1️⃣ *Aumentar el tamaño* (mamoplastia de aumento)\n"
+    "2️⃣ *Levantarlos* (pexia mamaria, con o sin implantes)\n"
+    "3️⃣ *Reducirlos* (mamoplastia de reducción, con o sin implantes)\n"
+    "4️⃣ *Cambiar mis implantes*\n"
+    "5️⃣ *Retirar mis implantes* (explantación)\n\n"
+    "Escribe el número 😊"
+)
+SENOS_EXPERTO = {
+    'mamoplastia_aumento': ('Mamoplastia de aumento',
+        "El Dr. Gio no escoge el implante solo por el tamaño que quieres: mide tu tórax y tus tejidos para encontrar el "
+        "*tamaño justo para tu cuerpo*, de modo que el implante quede *bien cubierto por tus propios tejidos* y *se mantenga "
+        "en su lugar* sin descender con el tiempo ✨ El resultado: senos *proporcionados, naturales y duraderos* 💙"),
+    'pexia': ('Pexia mamaria',
+        "En muchos levantamientos solo se quita piel y se sube el pezón, y con el tiempo el seno *se vuelve a caer* 😔\n\n"
+        "El Dr. Gio hace un *Levantamiento Estructural con Brasier Interno Biológico*: con *tus propios tejidos* crea un "
+        "soporte que sostiene el seno *por dentro* (con o sin implantes), para que tu resultado sea *firme, natural y duradero* ✨\n\n"
+        "👙 *Levantamiento en L: sin cicatriz en el escote.* Cuando tu caso lo permite, el Dr. Gio usa esta técnica para que "
+        "puedas lucir tus escotes *sin marcas* 💙"),
+    'reduccion': ('Mamoplastia de reducción',
+        "En la reducción, el Dr. Gio no solo quita volumen: con su técnica de *Brasier Interno Biológico* usa *tus propios "
+        "tejidos* para sostener el seno por dentro (con o sin implantes) y darle una forma *firme y bonita que se mantiene*, "
+        "aliviando el peso en tu espalda y cuello ✨\n\n"
+        "👙 *Reducción en L: sin cicatriz en el escote.* Cuando tu caso lo permite, el Dr. Gio usa esta técnica para que "
+        "puedas lucir tus escotes *sin marcas* 💙"),
+    'cambio_implantes': ('Cambio de implantes',
+        "Cuando un implante se ha movido, endurecido o el seno se ha caído, no basta con cambiarlo: el Dr. Gio *corrige la "
+        "estructura del seno por dentro* y, cuando hace falta, hace un *Brasier Interno Biológico* con tus propios tejidos "
+        "para un resultado *estable y natural* ✨"),
+    'explantacion': ('Explantación mamaria',
+        "Retirar los implantes no es solo sacarlos: si no se trabaja el seno por dentro, puede quedar *vacío o caído* 😔\n\n"
+        "El Dr. Gio retira tus implantes y *reconstruye la estructura del seno* con *tus propios tejidos* y, cuando hace "
+        "falta, con su *Brasier Interno Biológico*, para que tus senos queden *firmes y naturales*, sin implantes ✨"),
+}
+
+
+def _senos_eleccion(texto):
+    """Qué escogió en el menú de senos: clave de SENOS_EXPERTO o None."""
+    t = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))
+    if re.search(r'(^|\D)5(\D|$)|5️⃣|retir|sacar|quitar|explant|la quinta', t):
+        return 'explantacion'
+    if re.search(r'(^|\D)4(\D|$)|4️⃣|cambi\w* (de |mis |los )?(implante|protesis)|la cuarta', t):
+        return 'cambio_implantes'
+    if re.search(r'(^|\D)3(\D|$)|3️⃣|reduc|reducir|muy grandes|la tercera', t):
+        return 'reduccion'
+    if re.search(r'(^|\D)2(\D|$)|2️⃣|levant|pexia|caid|subir|la segunda', t):
+        return 'pexia'
+    if re.search(r'(^|\D)1(\D|$)|1️⃣|aument|agrandar|mas grandes|implante|la primera', t):
+        return 'mamoplastia_aumento'
+    return None
+
+
+def _senos_de_historial(history):
+    """Pauta de senos: la cirugía escogida ('' si aún no escoge); None si la conversación no es de esa pauta."""
+    bots = [m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)]
+    if not any(_SENOS_PREGUNTA in b for b in bots):
+        return None
+    for b in reversed(bots):
+        for _k, (_nom, _txt) in SENOS_EXPERTO.items():
+            if _txt[:60] in b:
+                return _nom
+    return ''
+
+
+SENOS_EXPERTO_TXT = """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CIRUGÍA MAMARIA ESTRUCTURAL (el Dr. Gio es experto)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+→ Brasier Interno Biológico: con los propios tejidos de la paciente se crea un
+  soporte que sostiene el seno por dentro (pexia y reducción, con o sin
+  implantes; cambio de implantes y explantación cuando hace falta), para que el
+  resultado dure y el seno no se vuelva a caer rápido.
+→ Malla GalaFLEX: malla/andamio de P4HB, 100% reabsorbible (el cuerpo la
+  reabsorbe en unos 18 a 24 meses) mientras el tejido propio crece en ella y forma
+  un soporte natural. Se usa cuando el caso lo necesita (sobre todo en
+  levantamientos). No interfiere con mamografías ni ecografías.
+  Si preguntan el costo: "Sí, la malla GalaFLEX tiene un costo adicional;
+  nuestra asesora te explica el valor según tu caso." NUNCA des un valor.
+  NO digas que deja el tejido "X veces más fuerte" ni prometas que es permanente.
+→ Levantamiento/reducción en L: cicatriz alrededor de la areola, vertical y una
+  pequeña en el surco, SIN cicatriz hacia el escote. Se usa cuando el caso lo
+  permite; el Dr. define la técnica en la valoración.
+"""
 
 PROMO_CUPOS_TXT = """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -723,7 +816,7 @@ def lineas_datos(history, mensaje, pedir_celular=False):
     lineas = "👤 *Nombre completo*\n📍 *Ciudad*"
     if pedir_celular:
         lineas += "\n📱 *Número de celular*"
-    if not clave_de(dicho):
+    if not clave_de(dicho) and not _senos_de_historial(history) and not _promo_de_historial(history):
         lineas += "\n✨ *Procedimiento de interés*"
     return lineas
 
@@ -1655,6 +1748,7 @@ class BrainCX:
             system_blocks = [
                 {"type": "text", "text": CX_SYSTEM, "cache_control": {"type": "ephemeral"}}
             ]
+            system_blocks.append({"type": "text", "text": SENOS_EXPERTO_TXT})
             if _promo_activa():
                 system_blocks.append({"type": "text", "text": PROMO_CUPOS_TXT})
             if paciente_ctx:
@@ -2765,6 +2859,11 @@ class BrainCX:
         if not pauta or _sin_tildes(pauta) in ('no', 'ninguna', 'vacio', 'n/a', '-', '—'):
             pauta = self._pauta_from_history(history)
         # Promo de los cupos: la pauta lleva la cirugía escogida y esa es el procedimiento del lead
+        _senos_proc = _senos_de_historial(history)
+        if _senos_proc is not None:
+            pauta = f"Pauta senos · {_senos_proc}" if _senos_proc else 'Pauta senos'
+            if _senos_proc and (not proc or proc == 'consulta general'):
+                proc = _senos_proc
         _promo_proc = _promo_de_historial(history)
         if _promo_proc is not None:
             pauta = f"{_PAUTA_MAMO_LABEL} · {_promo_proc}" if _promo_proc else _PAUTA_MAMO_LABEL
@@ -3383,6 +3482,48 @@ class BrainCX:
                         except Exception as _ee: print(f"[CX] promo precio reply err: {_ee}", flush=True)
                     self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                     return reply
+
+        # ── PAUTA SENOS: bienvenida del experto con menú, y al escoger, su técnica + fotos de resultados ──
+        _tx_s = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or ''))
+        _senos_reply, _senos_clave = None, None
+        if _is_first_time and any(k in _tx_s for k in _SENOS_KW):
+            _senos_clave = _senos_eleccion(_tx_s.replace('cirugia de senos', ''))
+            if not _senos_clave:
+                _senos_reply = SENOS_BIENVENIDA
+        elif not _is_first_time and '?' not in (text or ''):
+            _ult_s = next((m.get('content') for m in reversed(history or []) if m.get('role') == 'assistant'
+                           and isinstance(m.get('content'), str)), '') or ''
+            if _SENOS_PREGUNTA in _ult_s:
+                _senos_clave = _senos_eleccion(text)
+        if _senos_clave and not _senos_reply:
+            _senos_reply = SENOS_EXPERTO[_senos_clave][1]
+            if _is_first_time:   # ya dijo cuál en el primer mensaje: presentación del Dr. + su técnica
+                _senos_reply = SENOS_BIENVENIDA.split('\n\n')[0] + '\n\n' + _senos_reply
+        if _senos_reply:
+            print(f"[CX] PAUTA SENOS → {sender_id}: {('eligió ' + _senos_clave) if _senos_clave else 'bienvenida'}", flush=True)
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+            _client = self.instagram if canal.startswith('instagram') else self.whapi
+            _partes = [_senos_reply]
+            _fotos_s = self._fotos_resultados(_senos_clave) if _senos_clave else []
+            if _senos_clave:
+                _partes.append(CIERRE_DUDAS)
+            if send:
+                for _k, _pt in enumerate(_partes):
+                    try: _client.send_text(sender_id, _pt)
+                    except Exception as _e: print(f"[CX] senos send err: {_e}", flush=True)
+                    if _k == 0 and _fotos_s:
+                        if len(_partes) > 1: time.sleep(1.2)
+                        for _t, _u in _fotos_s:
+                            try:
+                                if hasattr(_client, 'send_image'): _client.send_image(sender_id, _u, _t)
+                                else: _client.send_text(sender_id, f"📸 {_t}: {_u}")
+                            except Exception as _e: print(f"[CX] senos foto err: {_e}", flush=True)
+                            time.sleep(1.5)
+                    elif _k < len(_partes) - 1:
+                        time.sleep(1.2)
+            reply = '\n\n'.join(_partes[:1] + [f"📸 {t}: {u}" for t, u in _fotos_s] + _partes[1:])
+            self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+            return reply
 
         # ── DETECCIÓN DE REFERIDO ──────────────────────────────────────────
         # Si el PRIMER mensaje menciona el nombre de una asesora, la asignamos
@@ -4026,6 +4167,14 @@ class BrainCX:
                              "Escribe *1* o *2* 😊")
                 if _cola:
                     user_facing = (_base + "\n\n" + _cola).strip() if len(_base) > 15 else _cola
+
+        # Pauta senos sin escoger aún: después de responder una duda se vuelve al menú de senos
+        # (si no, un "2" se tomaría como valoración del menú general)
+        if not match and _senos_de_historial(history) == '' and not re.search(r'nombre completo', user_facing, re.I):
+            _i = user_facing.find('¿Tienes alguna otra *pregunta o duda*')
+            _base = (user_facing[:_i] if _i >= 0 else user_facing).rstrip()
+            _menu = SENOS_BIENVENIDA[SENOS_BIENVENIDA.index('¿Qué'):]
+            user_facing = (_base + "\n\n" + _menu).strip() if len(_base) > 15 else _menu
 
         _pendiente_blk = None
         if match and not _forzado:

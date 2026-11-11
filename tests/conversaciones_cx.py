@@ -85,7 +85,7 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál de las dos te interesa?' not in r:
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál de las dos te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r:
         fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
@@ -264,6 +264,26 @@ ESCENARIOS = {
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('quiero una valoracion con el doctor', [tiene('Nombre completo', 'valoración'), no_tiene('Cuál de las dos')]),
         ('Paola Diaz, Barranquilla, presencial, paola@gmail.com', [tiene('valoración')]),
+    ],
+    'pauta_senos_pexia': [
+        ('¡Hola! informacion sobre cirugia de senos', [tiene('experto en cirugía mamaria', 'Levantarlos', 'Escribe el número')]),
+        ('2', [tiene('Brasier Interno Biológico', 'Asesoría virtual gratuita')]),
+        ('cuanto cuesta?', [tiene('18.000.000')]),
+        ('quiero la asesoria', [tiene('Nombre completo')]),
+        ('Marta Ruiz, Medellín', [tiene('te contactará')]),
+    ],
+    'pauta_senos_explantacion': [
+        ('¡Hola! informacion sobre cirugia de senos', [tiene('Retirar mis implantes')]),
+        ('5', [tiene('Retirar los implantes no es solo sacarlos')]),
+    ],
+    'pauta_senos_malla': [
+        ('¡Hola! informacion sobre cirugia de senos', []),
+        ('2', [tiene('en L'), no_tiene('GalaFLEX')]),
+        ('usan malla?', [tiene('GalaFLEX', 'reabsorbible')]),
+        ('la malla tiene costo adicional?', [tiene('costo adicional', 'asesora'), no_tiene('veces más fuerte')]),
+    ],
+    'pauta_senos_aumento_directo': [
+        ('¡Hola! informacion sobre cirugia de senos, quiero aumentar', [tiene('experto en cirugía mamaria', 'tamaño justo'), no_tiene('Escribe el número')]),
     ],
     'promo_10_cupos_flujo': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('10 cupos', 'Sociedad Colombiana', '¿Cuál de las dos te interesa?'), no_tiene('18.000.000', '%')]),
