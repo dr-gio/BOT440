@@ -143,7 +143,7 @@ PROMO_BIENVENIDA = (
 # ── PAUTA SENOS (11-nov-2026): "¡Hola! información sobre cirugía de senos" → el Dr. como experto en cirugía mamaria ──
 _SENOS_KW = ('cirugia de senos', 'cirugia de seno', 'cirugia mamaria', 'informacion sobre cirugia de senos')
 _SENOS_PREGUNTA = 'te gustaría mejorar de tus senos?'
-_SENOS_FOTOS = False   # fotos de resultados en la pauta de senos (apagadas por ahora)
+_SENOS_FOTOS = True    # fotos de resultados en la pauta de senos (si no hay de esa cirugía, sale sin fotos)
 SENOS_BIENVENIDA = (
     "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
     "miembro de la *Sociedad Colombiana de Cirugía Plástica, Estética y Reconstructiva* y *experto en cirugía mamaria "
