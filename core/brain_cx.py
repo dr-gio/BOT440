@@ -2537,8 +2537,15 @@ class BrainCX:
         proc = (f.get('procedimiento') or '').strip()
         if proc.lower() in ('consulta general', 'no especificado', '-', ''):
             proc = ''
-        lineas = [f"¡Perfecto{', ' + nom if nom else ''}! 💙 Ya tengo {que}" + (f" de *{proc}*" if proc else '') + " ✅",
-                  "", "Para que nuestra asesora te agende solo me falta:"]
+        _pp_f = _promo_de_historial(history) if _promo_activa() else None
+        if _pp_f is not None:
+            # Promo 10 cupos: no se ofrece asesoría; la asesora la llama para revisar si califica
+            lineas = [f"¡Perfecto{', ' + nom if nom else ''}! 💙 Ya tengo tu solicitud para los *10 cupos*"
+                      + (f" de tu *{_pp_f.lower()}*" if _pp_f else '') + " ✅",
+                      "", "Para que nuestra asesora te llame y revise si calificas, solo me falta:"]
+        else:
+            lineas = [f"¡Perfecto{', ' + nom if nom else ''}! 💙 Ya tengo {que}" + (f" de *{proc}*" if proc else '') + " ✅",
+                      "", "Para que nuestra asesora te agende solo me falta:"]
         if 'ciudad' in faltan:
             lineas.append("📍 ¿En qué *ciudad* vives?")
         if 'celular' in faltan:
@@ -4156,9 +4163,19 @@ class BrainCX:
         # se vuelve a la promo (escoger lipo o mamoplastia, o dejar los datos si ya escogió)
         if not match and _promo_activa():
             _ppx = _promo_de_historial(history)
-            if _ppx is not None and not any('<<<NOTIFY' in (m.get('content') or '') for m in (history or [])
-                                            if m.get('role') == 'assistant' and isinstance(m.get('content'), str)):
-                _i = user_facing.find('¿Tienes alguna otra *pregunta o duda*')
+            _ya_lead = any('<<<NOTIFY' in (m.get('content') or '') for m in (history or [])
+                           if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
+            # Ya dejó sus datos: no se le ofrece asesoría ni valoración; la asesora la llama para revisar si califica
+            if _ppx is not None and _ya_lead and re.search(r'asesor[ií]a virtual gratuita|siguiente paso', user_facing, re.I):
+                _cortes = [i for i in (user_facing.find('¿Tienes alguna otra *pregunta o duda*'), user_facing.find('Tu siguiente paso'),
+                                       user_facing.find('*¿Cómo te gustaría dar el siguiente paso?*'), user_facing.find('¿Cómo te gustaría dar el siguiente paso')) if i >= 0]
+                _base = (user_facing[:min(_cortes)] if _cortes else '').rstrip()
+                _cola = ("Ya tenemos tu solicitud para los *10 cupos* 💙 Una de nuestras asesoras *te llamará* para revisar "
+                         "si calificas para el *precio especial*" + (f" de tu *{_ppx.lower()}*" if _ppx else '') + " 😊")
+                user_facing = (_base + "\n\n" + _cola).strip() if len(_base) > 15 else _cola
+            if _ppx is not None and not _ya_lead:
+                _i = min([i for i in (user_facing.find('¿Tienes alguna otra *pregunta o duda*'), user_facing.find('*¿Cómo te gustaría dar el siguiente paso?*'),
+                                      user_facing.find('¿Cómo te gustaría dar el siguiente paso')) if i >= 0] or [-1])
                 _base = (user_facing[:_i] if _i >= 0 else user_facing).rstrip()
                 if re.search(r'nombre completo', _base, re.I):
                     _cola = None   # escogió asesoría o valoración: sigue el flujo de siempre (pedido de datos aprobado)
