@@ -2935,7 +2935,9 @@ class BrainCX:
 
         # Aviso por WhatsApp a la asesora (opcional).
         if asesora_tel:
-            if interes == 'valoracion':
+            if (pauta or '').startswith('Promo 10 cupos'):
+                tipo_txt = '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos'
+            elif interes == 'valoracion':
                 tipo_txt = 'Valoración con el Dr.' + (f' ({modalidad})' if modalidad else '')
             else:
                 tipo_txt = 'Asesoría virtual gratuita'
