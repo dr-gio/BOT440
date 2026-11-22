@@ -2811,19 +2811,36 @@ class BrainCX:
             print(f"[CX] medfiles lead error: {e}", flush=True)
         return None
 
-    def _avisar_asesora_y_dr(self, asesora_tel, copias, msg, etiqueta):
-        """Todo aviso de un lead va a SU asesora y, en copia, al Dr. (copias que devuelve MedFiles), sin repetir números."""
-        vistos = set()
-        for t in [asesora_tel] + list(copias or []):
+    def _aviso_equipo(self, tels, msg, etiqueta='aviso equipo'):
+        """Aviso interno (asesora/Dr.): va por MedFiles, que lo manda por Telegram a quien lo tenga vinculado
+        (y por WhatsApp a quien no). Si MedFiles no responde, se manda por WHAPI como antes."""
+        dest, vistos = [], set()
+        for t in tels or []:
             t = re.sub(r'[^\d]', '', str(t or ''))
-            if not t or t[-10:] in vistos:
-                continue
-            vistos.add(t[-10:])
+            if len(t) >= 10 and t[-10:] not in vistos:
+                vistos.add(t[-10:]); dest.append(t)
+        if not dest:
+            return
+        base, clave = self._medfiles_cfg()
+        if clave:
+            try:
+                req = urllib.request.Request(f"{base}/api/equipo/aviso-bot", method='POST',
+                    data=json.dumps({'telefonos': dest, 'texto': msg}).encode(),
+                    headers={'Authorization': f'Bearer {clave}', 'Content-Type': 'application/json'})
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    print(f"[CX] {etiqueta} → MedFiles/Telegram {json.loads(r.read() or b'{}')}", flush=True)
+                return
+            except Exception as e:
+                print(f"[CX] {etiqueta} MedFiles err: {e} — va por WHAPI", flush=True)
+        for t in dest:
             try:
                 self.whapi.send_text(t, msg)
-                print(f"[CX] {etiqueta} → {t[-4:]}", flush=True)
             except Exception as e:
                 print(f"[CX] {etiqueta} err: {e}", flush=True)
+
+    def _avisar_asesora_y_dr(self, asesora_tel, copias, msg, etiqueta):
+        """Todo aviso de un lead va a SU asesora y, en copia, al Dr. (copias que devuelve MedFiles), sin repetir números."""
+        self._aviso_equipo([asesora_tel] + list(copias or []), msg, etiqueta)
 
     def _recordar_asesora(self, sender_id, texto=''):
         """El paciente dice que no lo han contactado: nota en MedFiles + aviso al WhatsApp de su asesora."""
@@ -2877,7 +2894,7 @@ class BrainCX:
             tel_u = sender_id if not self._es_canal_instagram(canal) else (fields.get('telefono') or sender_id)
             if asesora_tel:
                 try:
-                    self.whapi.send_text(asesora_tel,
+                    self._aviso_equipo([asesora_tel],
                         f"🚨 URGENCIA (paciente): {nombre} · Tel {tel_u}\n"
                         f"{(fields.get('mensaje') or '').strip()[:200]}")
                 except Exception as e:
@@ -2890,7 +2907,7 @@ class BrainCX:
             tel_o = re.sub(r'[^\d]', '', str(sender_id if not self._es_canal_instagram(canal) else (fields.get('telefono') or sender_id)))
             if asesora_tel:
                 try:
-                    self.whapi.send_text(asesora_tel,
+                    self._aviso_equipo([asesora_tel],
                         f"💬 *Mensaje para el equipo* (no es de cirugía)\n👤 {nombre} · 📱 +{tel_o}\n"
                         f"{(fields.get('mensaje') or '').strip()[:300]}")
                 except Exception as e:
@@ -3019,18 +3036,7 @@ class BrainCX:
                 f"Atiéndelo desde MedFiles 👉 {_link}",
             ] if x is not None)
             # La asesora y, en copia, el médico/admin (MedFiles → copias) para que esté pendiente
-            _destinos = [asesora_tel] + [c for c in (_resp.get('copias') or []) if c]
-            _vistos = set()
-            for _tel in _destinos:
-                _tel = re.sub(r'[^\d]', '', str(_tel))
-                if not _tel or _tel[-10:] in _vistos:
-                    continue
-                _vistos.add(_tel[-10:])
-                try:
-                    r = self.whapi.send_text(_tel, msg)
-                    print(f"[CX] aviso lead MedFiles → {_tel[-4:]} {r if isinstance(r, dict) and 'error' in r else 'OK'}", flush=True)
-                except Exception as e:
-                    print(f"[CX] aviso lead MedFiles err: {e}", flush=True)
+            self._aviso_equipo([asesora_tel] + [c for c in (_resp.get('copias') or []) if c], msg, 'aviso lead MedFiles')
         else:
             print("[CX] asesora sin WhatsApp (ni en MedFiles ni ASESORA_MEDFILES_TEL) — sin aviso", flush=True)
 
@@ -3640,10 +3646,7 @@ class BrainCX:
                     f"Este lead te mencionó a ti 💙\n"
                     "Asignado directamente sin rotación."
                 )
-                for _rt in (_ref_phone, _ref_sharon, _ref_admin, _ref_drgio):
-                    if not _rt: continue
-                    try: self.whapi.send_text(_rt, _ref_msg)
-                    except Exception as _e: print(f"[CX] referido notify {_rt} err: {_e}", flush=True)
+                self._aviso_equipo([_ref_phone, _ref_sharon, _ref_admin, _ref_drgio], _ref_msg, 'referido notify')
                 # CRM upsert con la asesora asignada directamente
                 _ref_canal_crm = 'instagram' if 'instagram' in (canal or '').lower() else 'whatsapp'
                 _ref_tel_norm = self._normalizar_tel(sender_id)
@@ -3758,11 +3761,7 @@ class BrainCX:
                     sharon = os.environ.get('DRA_SHARON', '').strip()
                     admin  = os.environ.get('ADMIN_CX', '').strip()
                     drgio  = os.environ.get('DRGIO_TEL', '573181800131').strip()
-                    for _tel in (_asesora_phone, sharon, admin, drgio):
-                        if not _tel: continue
-                        try: self.whapi.send_text(_tel, notify_msg)
-                        except Exception as e:
-                            print(f"[CX] recurrente notify {_tel} err: {e}", flush=True)
+                    self._aviso_equipo([_asesora_phone, sharon, admin, drgio], notify_msg, 'recurrente notify')
                     self._save_message(sender_id, sender_name,
                                        "<<<NOTIFY>>>tipo: recurrente<<<END>>>",
                                        'saliente', 'bot', canal=canal)
