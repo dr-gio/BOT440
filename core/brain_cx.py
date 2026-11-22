@@ -1228,9 +1228,14 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
 class BrainCX:
     def __init__(self):
         # WhApi: usa WHAPI_TOKEN_CX si está seteado, si no cae en WHAPI_TOKEN.
-        self.whapi = WhapiClient(
-            token=os.environ.get('WHAPI_TOKEN_CX', os.environ.get('WHAPI_TOKEN', ''))
-        )
+        # WhatsApp: WHATSAPP_PROVEEDOR=meta → API oficial (número nuevo, nov-2026); si no, WHAPI (WHAPI_TOKEN_CX o WHAPI_TOKEN).
+        if os.environ.get('WHATSAPP_PROVEEDOR', '').strip().lower() == 'meta':
+            from core.whatsapp_meta import WhatsAppMetaClient
+            self.whapi = WhatsAppMetaClient()
+        else:
+            self.whapi = WhapiClient(
+                token=os.environ.get('WHAPI_TOKEN_CX', os.environ.get('WHAPI_TOKEN', ''))
+            )
         # InstagramClient — token se elige según cuenta_receptora en process().
         # Precargamos los tokens disponibles aquí.
         self._ig_tokens = {
