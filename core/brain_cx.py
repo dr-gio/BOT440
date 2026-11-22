@@ -143,6 +143,7 @@ PROMO_BIENVENIDA = (
 # ── PAUTA SENOS (11-nov-2026): "¡Hola! información sobre cirugía de senos" → el Dr. como experto en cirugía mamaria ──
 _SENOS_KW = ('cirugia de senos', 'cirugia de seno', 'cirugia mamaria', 'informacion sobre cirugia de senos')
 _SENOS_PREGUNTA = 'te gustaría mejorar de tus senos?'
+_INTER_KW = ('operarme en colombia', 'operarme en barranquilla', 'cirugia en colombia')   # pauta internacional (21-nov-2026)
 _SENOS_FOTOS = True    # fotos de resultados en la pauta de senos (si no hay de esa cirugía, sale sin fotos)
 SENOS_BIENVENIDA = (
     "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
@@ -2436,7 +2437,12 @@ class BrainCX:
                         if m.get('role') == 'user' and isinstance(m.get('content'), str)),
                        text or '')
         low = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', primero or ''))
-        return _PAUTA_MAMO_LABEL if _promo_activa() and any(k in low for k in _PAUTA_MAMO_KW) else None
+        if _promo_activa() and any(k in low for k in _PAUTA_MAMO_KW):
+            return _PAUTA_MAMO_LABEL
+        # Pauta internacional (desde 21-nov-2026): "¡Hola! me interesa operarme en colombia"
+        if any(k in low for k in _INTER_KW):
+            return 'Pauta internacional'
+        return None
 
     def _medfiles_idioma(self, telefono, idioma):
         """Avisa a MedFiles el idioma de la persona (etiqueta EN en el pipeline). Si falla, no pasa nada."""
