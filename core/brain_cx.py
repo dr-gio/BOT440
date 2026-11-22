@@ -938,6 +938,46 @@ def ajustar_respuesta_en(texto):
     return re.sub(r'\n{3,}', '\n\n', texto).strip()
 
 
+# ── PAUTA INTERNACIONAL (21-nov-2026): pacientes que escriben desde otro país ──
+# Saludo aprobado por el Dr. (22-nov): todo se puede empezar sin viajar; el plan incluye traslados, hospedaje, alimentación y enfermería.
+INTER_BIENVENIDA = (
+    "¡Hola! 💙 Bienvenida(o) al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
+    "miembro de la *Sociedad Colombiana de Cirugía Plástica, Estética y Reconstructiva*. Te atiende su asistente virtual 🤖\n\n"
+    "✈️ ¡Qué bueno que quieras operarte en Colombia! Te acompañamos en todo el proceso, *sin que tengas que viajar para empezar*:\n"
+    "1️⃣ *Asesoría virtual gratuita* con nuestra asesora experta\n"
+    "2️⃣ *Valoración virtual con el Dr. Gio*, por videollamada desde tu país\n"
+    "3️⃣ *Plan de turismo médico todo incluido*: traslados desde y hacia el aeropuerto, hospedaje en recovery house u hotel, "
+    "alimentación y enfermería durante tu recuperación\n\n"
+    "Cuéntame: *¿qué te gustaría operarte y desde qué país nos escribes?* 😊"
+)
+
+
+def es_internacional(telefono, history=None, texto=''):
+    """Escribe desde otro país: llegó por la pauta internacional o su número no es de Colombia (+57)."""
+    t = re.sub(r'\D', '', str(telefono or '').split('@')[0])
+    if 11 <= len(t) <= 13 and not t.startswith('57'):
+        return True
+    primero = next((m.get('content') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str)), texto or '')
+    return any(k in _sin_tildes(primero or '') for k in _INTER_KW)
+
+
+def ajustar_internacional(texto):
+    """A quien está en otro país: la valoración con el Dr. solo virtual (no presencial) y cada precio con su valor en dólares."""
+    texto = re.sub(r'[Pp]resencial \*\$250\.000\* · [Vv]irtual \*\$160\.000\*', 'Virtual *$160.000*, por videollamada desde tu país', texto)
+    texto = re.sub(r'presencial \*\$250\.000\* o virtual \*\$160\.000\*', 'virtual *$160.000*, por videollamada desde tu país', texto)
+    texto = re.sub(r'[Ii]n person \*COP 250,000\* · [Vv]irtual \*COP 160,000\*', 'Virtual *COP 160,000*, by video call from your country', texto)
+    trm = trm_hoy()
+    if trm:
+        def _usd(m):
+            valor = float(re.sub(r'[^\d]', '', m.group(2)) or 0)
+            if valor < 100_000 or re.match(r'\*?\s*\(?\s*(aprox|about|≈|~)?\.?\s*US\$', texto[m.end():m.end() + 25], re.I):
+                return m.group(0)
+            paso = 100 if valor >= 10_000_000 else 10
+            return f"{m.group(0)} (aprox. US$ {round(valor / trm / paso) * paso:,.0f})".replace(',', '.')
+        texto = re.sub(r'(\$\s*)(\d{1,3}(?:\.\d{3}){1,})\*?', _usd, texto)
+    return texto
+
+
 # "Videollamada con el doctor/médico" es la valoración virtual; "videollamada con la asesora" es la asesoría.
 # Solo "videollamada" (sin decir con quién) se pregunta: menú 1 o 2.
 VIDEO_DOCTOR = r'\bvide?o ?llamada\b[^.?!\n]{0,25}\b(dr\.?|doc|doctor|m[eé]dico|cirujano|gio)\b'
@@ -3499,6 +3539,17 @@ class BrainCX:
                     self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                     return reply
 
+        # ── PAUTA INTERNACIONAL: saludo propio (todo empieza sin viajar; plan todo incluido) ──
+        if _is_first_time and any(k in _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or '')) for k in _INTER_KW):
+            print(f"[CX] PAUTA INTERNACIONAL → {sender_id}: bienvenida", flush=True)
+            self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+            if send:
+                _client = self.instagram if canal.startswith('instagram') else self.whapi
+                try: _client.send_text(sender_id, INTER_BIENVENIDA)
+                except Exception as _e: print(f"[CX] internacional send err: {_e}", flush=True)
+            self._save_message(sender_id, sender_name, INTER_BIENVENIDA, 'saliente', 'bot', canal=canal)
+            return INTER_BIENVENIDA
+
         # ── PAUTA SENOS: bienvenida del experto con menú, y al escoger, su técnica + fotos de resultados ──
         _tx_s = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or ''))
         _senos_reply, _senos_clave = None, None
@@ -4306,6 +4357,8 @@ class BrainCX:
             else:
                 user_facing = sin_fotos(user_facing, _mf.group(0))
 
+        if user_facing and es_internacional(sender_id, history, text):
+            user_facing = ajustar_internacional(user_facing)
         _visible = user_facing
         if user_facing and _ingles:
             _visible = self._traducir_en(user_facing, text, history)
