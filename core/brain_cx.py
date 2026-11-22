@@ -962,10 +962,10 @@ def es_internacional(telefono, history=None, texto=''):
 
 
 def ajustar_internacional(texto):
-    """A quien está en otro país: la valoración con el Dr. solo virtual (no presencial) y cada precio con su valor en dólares."""
-    texto = re.sub(r'[Pp]resencial \*\$250\.000\* · [Vv]irtual \*\$160\.000\*', 'Virtual *$160.000*, por videollamada desde tu país', texto)
-    texto = re.sub(r'presencial \*\$250\.000\* o virtual \*\$160\.000\*', 'virtual *$160.000*, por videollamada desde tu país', texto)
-    texto = re.sub(r'[Ii]n person \*COP 250,000\* · [Vv]irtual \*COP 160,000\*', 'Virtual *COP 160,000*, by video call from your country', texto)
+    """A quien está en otro país: la valoración con el Dr. solo virtual, a US$ 50 (precio fijo del Dr. para el exterior, 22-nov-2026), y cada precio con su valor en dólares."""
+    texto = re.sub(r'[Pp]resencial \*\$250\.000\* · [Vv]irtual \*\$160\.000\*', 'Virtual *US$ 50*, por videollamada desde tu país', texto)
+    texto = re.sub(r'presencial \*\$250\.000\* o virtual \*\$160\.000\*', 'virtual *US$ 50*, por videollamada desde tu país', texto)
+    texto = re.sub(r'[Ii]n person \*COP 250,000\* · [Vv]irtual \*COP 160,000\*', 'Virtual *US$ 50*, by video call from your country', texto)
     trm = trm_hoy()
     if trm:
         def _usd(m):
