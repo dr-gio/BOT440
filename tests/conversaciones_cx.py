@@ -74,6 +74,8 @@ def _guardar(self, sender_id, sender_name, mensaje, direccion, remitente, canal=
 bx.BrainCX._load_history = _cargar
 bx.BrainCX._save_message = _guardar
 bx.BrainCX._medfiles_pausado = lambda self, tel: False
+# Igual que en producción: ya hay un saliente con NOTIFY (no de urgencia) → no se vuelve a crear el lead
+bx.BrainCX._already_notified_cx = lambda self, tel, canal, hours=24: any(d == 'saliente' and 'NOTIFY' in m and 'urgencia' not in m.lower() for d, m in FILAS)
 bx.BrainCX._check_bloqueado = lambda self, s: False
 
 CIERRE = 'Tu siguiente paso puede ser'
@@ -85,7 +87,7 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál de las dos te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r:
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r:
         fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
@@ -247,26 +249,36 @@ ESCENARIOS = {
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('las dos', [tiene('10-cupos-liposuccion-bot.png', '10-cupos-mamoplastia-bot.png', 'descuento adicional', 'anestesiólogo', 'Nombre completo'), no_tiene('asesoría virtual gratuita')]),
     ],
+    'promo_10_cupos_tres': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('3️⃣', 'descuento adicional')]),
+        ('3', [tiene('10-cupos-liposuccion-bot.png', '10-cupos-mamoplastia-bot.png', 'descuento adicional', 'Nombre completo')]),
+    ],
+    'promo_10_cupos_quiero_sin_datos': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('1', [tiene('10-cupos-liposuccion-bot.png')]),
+        ('QUIERO MI CUPO', [tiene('llamar a este número', 'nombre', 'ciudad'), ('crea el lead', lambda r: any(l.get('pauta', '').startswith('Promo 10 cupos') for l in LEADS))]),
+        ('Ana Ruiz, Barranquilla', [('no crea otro lead', lambda r: len([l for l in LEADS if l.get('pauta')]) == 1)]),
+    ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion-bot.png'), no_tiene('15.000.000')]),
     ],
     'promo_10_cupos_precio_sin_escoger': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
-        ('Precio?', [tiene('precio especial', 'Cuál de las dos', '17.000.000', '15.000.000')]),
+        ('Precio?', [tiene('precio especial', 'Cuál te interesa', '17.000.000', '15.000.000')]),
         ('1', [tiene('liposucción', 'Nombre completo', '10-cupos-liposuccion-bot.png')]),
     ],
     'promo_10_cupos_otras_dudas': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
-        ('cuanto dura la recuperacion de la lipo?', [tiene('Cuál de las dos'), no_tiene('Nombre completo', 'Valoración con el Dr. Gio')]),
-        ('donde quedan?', [tiene('Barranquilla', 'Cuál de las dos'), no_tiene('Valoración con el Dr. Gio')]),
+        ('cuanto dura la recuperacion de la lipo?', [tiene('Cuál te interesa'), no_tiene('Nombre completo', 'Valoración con el Dr. Gio')]),
+        ('donde quedan?', [tiene('Barranquilla', 'Cuál te interesa'), no_tiene('Valoración con el Dr. Gio')]),
         ('2', [tiene('mamoplastia de aumento', 'Nombre completo')]),
         ('tienen financiacion?', [tiene('Nombre completo'), no_tiene('Valoración con el Dr. Gio')]),
-        ('Ana Ruiz, Cali, ana@gmail.com', [tiene('te contactará en breve')]),
+        ('Ana Ruiz, Cali, ana@gmail.com', [tiene('llamar a este número')]),
     ],
     'promo_10_cupos_a_valoracion': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
-        ('quiero una valoracion con el doctor', [tiene('Nombre completo', 'valoración'), no_tiene('Cuál de las dos')]),
+        ('quiero una valoracion con el doctor', [tiene('Nombre completo', 'valoración'), no_tiene('Cuál te interesa')]),
         ('Paola Diaz, Barranquilla, presencial, paola@gmail.com', [tiene('valoración')]),
     ],
     'pauta_senos_pexia': [
@@ -290,9 +302,9 @@ ESCENARIOS = {
         ('¡Hola! informacion sobre cirugia de senos, quiero aumentar', [tiene('experto en cirugía mamaria', 'tamaño justo'), no_tiene('Escribe el número')]),
     ],
     'promo_10_cupos_flujo': [
-        ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('10 cupos', 'Sociedad Colombiana', '¿Cuál de las dos te interesa?'), no_tiene('18.000.000', '%')]),
-        ('2', [tiene('Mamoplastia de aumento', 'Nombre completo', 'Ciudad', 'Correo electrónico')]),
-        ('Laura Gómez, Barranquilla, laura.gomez@gmail.com', [tiene('te contactará en breve', 'requisitos', 'mamoplastia de aumento')]),
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('10 cupos', 'Sociedad Colombiana', '¿Cuál te interesa?'), no_tiene('18.000.000', '%')]),
+        ('2', [tiene('Mamoplastia de aumento', 'Nombre completo', 'Ciudad', 'Correo* (opcional)')]),
+        ('Laura Gómez, Barranquilla, laura.gomez@gmail.com', [tiene('llamar a este número', 'requisitos', 'mamoplastia de aumento')]),
     ],
     'precio_mamoplastia_sin_promo_vieja': [
         ('Hola', []),

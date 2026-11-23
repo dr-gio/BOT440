@@ -62,7 +62,11 @@ _PAUTA_MAMO_KW = (
     'paquete mamoplastia', 'mamoplastia incluido', '18 millones',
 )
 _PAUTA_MAMO_LABEL = 'Promo 10 cupos'
-_PROMO_PREGUNTA = '¿Cuál de las dos te interesa?'
+_PROMO_PREGUNTA = '¿Cuál te interesa?'
+_PROMO_PREGUNTAS = (_PROMO_PREGUNTA, '¿Cuál de las dos te interesa?')   # la vieja (antes del 23-nov), para chats abiertos
+# Menú de la promo (23-nov): se ofrece también hacerse las dos, con descuento adicional (el valor lo da la asesora)
+_PROMO_MENU = "1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n3️⃣ *Las dos* (con *descuento adicional* 🎁)"
+_PROMO_ESCRIBE = "Escribe *1*, *2* o *3* 😊"
 _PROMO_PEDIDO = 'cumples los requisitos para el *precio especial*'
 _PROMO_LIPO, _PROMO_MAMO = 'Liposucción', 'Mamoplastia de aumento'
 # 23-nov-2026 (pedido del Dr.): apenas escoge la cirugía, el bot le manda de una vez la imagen de la promo (con el
@@ -110,7 +114,7 @@ def _promo_eleccion(texto):
     lipo = bool(re.search(r'(^|\D)1(\D|$)|1️⃣|lipo|grasa|abdomen|cintura|la primera', t))
     mamo = bool(re.search(r'(^|\D)2(\D|$)|2️⃣|mamo|seno|busto|pecho|mama|implante|aumento|la segunda', t))
     # «las dos», «ambas», «1 y 2», «las 2»: quiere las dos (antes el bot no lo entendía y se salía de la promo)
-    if (lipo and mamo) or re.search(r'\b(las|los) (dos|2)\b|\bambas?\b|\bambos\b|1 y 2|1 y el 2', t):
+    if (lipo and mamo) or re.search(r'\b(las|los) (dos|2)\b|\bambas?\b|\bambos\b|1 y 2|1 y el 2|(^|\D)3(\D|$)|3️⃣', t):
         return [_PROMO_LIPO, _PROMO_MAMO]
     return _PROMO_LIPO if lipo else _PROMO_MAMO if mamo else None
 
@@ -118,7 +122,7 @@ def _promo_eleccion(texto):
 def _promo_de_historial(history):
     """Si la conversación es de la promo de los cupos: la(s) cirugía(s) que escogió ('' si aún no escoge); None si no."""
     bots = [m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)]
-    if not any(_PROMO_PREGUNTA in b or _PROMO_PEDIDO in b for b in bots):
+    if not any(any(q in b for q in _PROMO_PREGUNTAS) or _PROMO_PEDIDO in b for b in bots):
         return None
     for b in reversed(bots):
         m = re.search(r'precio especial\* de (?:tu )?\*([^*]+)\*', b)
@@ -172,10 +176,9 @@ PROMO_BIENVENIDA = (
     "¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*, *cirujano plástico certificado*, "
     "miembro de la *Sociedad Colombiana de Cirugía Plástica, Estética y Reconstructiva*. Te atiende su asistente virtual 🤖\n\n"
     "¡Sí! Por lo que queda del año tenemos *10 cupos con precio especial* ✨ para:\n"
-    "1️⃣ *Liposucción*\n"
-    "2️⃣ *Mamoplastia de aumento*\n\n"
+    + _PROMO_MENU + "\n\n"
     "El precio especial es para las personas que *tengan indicación y cumplan los requisitos* para la cirugía 💙\n\n"
-    + _PROMO_PREGUNTA + " Escribe *1* o *2* 😊"
+    + _PROMO_PREGUNTA + " " + _PROMO_ESCRIBE
 )
 
 # ── PAUTA SENOS (11-nov-2026): "¡Hola! información sobre cirugía de senos" → el Dr. como experto en cirugía mamaria ──
@@ -2935,7 +2938,7 @@ class BrainCX:
         Con ventajas=True va primero lo que da tranquilidad (clínica, anestesiólogo, póliza, recuperación…)."""
         combo = len(_promo_lista(proc)) > 1
         return ((_PROMO_VENTAJAS + "\n\n" if ventajas else '') + (_PROMO_COMBO + "\n\n" if combo else '') + "Para *apartar tu cupo*, solo déjame tus datos y una de nuestras asesoras te llamará para revisar si "
-                + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo* (opcional)"
                 + ("\n📱 *Número de celular*" if celular else ''))
 
     def _enviar_promo(self, sender_id, canal, intro, cirugias, pedido, send=True):
@@ -3095,7 +3098,7 @@ class BrainCX:
                           if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
         _escribio_quiero = any(m.get('role') == 'user' and isinstance(m.get('content'), str) and _quiere_cupo(m['content'])
                                for m in (history or []))
-        _caliente = (pauta or '').startswith('Promo 10 cupos') and not fields.get('incompleto') and (_vio_precio or _escribio_quiero)
+        _caliente = (pauta or '').startswith('Promo 10 cupos') and (_escribio_quiero or (_vio_precio and not fields.get('incompleto')))
         if _caliente:
             body['caliente'] = 'quiero' if _escribio_quiero else 'datos'
         if getattr(self, '_idioma', 'es') == 'en':
@@ -3121,8 +3124,9 @@ class BrainCX:
         # Aviso por WhatsApp a la asesora (opcional).
         if asesora_tel:
             if (pauta or '').startswith('Promo 10 cupos'):
-                tipo_txt = ('🔥 Promo 10 cupos: ya vio el precio y dejó sus datos, QUIERE SU CUPO. Llámala ya para revisar si cumple los requisitos'
-                            if _caliente else '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos')
+                tipo_txt = ('🔥 Promo 10 cupos: escribió QUIERO MI CUPO. Llámala ya para revisar si cumple los requisitos' if _caliente and _escribio_quiero
+                            else '🔥 Promo 10 cupos: ya vio el precio y dejó sus datos, QUIERE SU CUPO. Llámala ya para revisar si cumple los requisitos' if _caliente
+                            else '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos')
                 if len(_promo_lista(pauta)) > 1:
                     tipo_txt += ' · 🎁 quiere las dos: tiene descuento adicional (dale el valor)'
             elif interes == 'valoracion':
@@ -3613,7 +3617,7 @@ class BrainCX:
         if not _is_first_time and _promo_activa():
             _ult_b = next((m.get('content') for m in reversed(history or []) if m.get('role') == 'assistant'
                            and isinstance(m.get('content'), str)), '') or ''
-            _elec = _promo_eleccion(text) if _PROMO_PREGUNTA in _ult_b and '?' not in (text or '') else None
+            _elec = _promo_eleccion(text) if any(q in _ult_b for q in _PROMO_PREGUNTAS) and '?' not in (text or '') else None
             if _elec:
                 _proc_p = ' y '.join(_elec) if isinstance(_elec, list) else _elec
                 _cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
@@ -3630,17 +3634,31 @@ class BrainCX:
         if not _is_first_time and _promo_activa() and _quiere_cupo(text) and _promo_de_historial(history) is not None:
             _bots_q = ' '.join(m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
             _pp_q = _promo_de_historial(history)
-            if '<<<NOTIFY' not in _bots_q and _pp_q:
-                # Ya escogió la cirugía pero aún no deja sus datos: los datos son lo que aparta el cupo
+            if '<<<NOTIFY' not in _bots_q and _pp_q and not self._es_canal_instagram(canal):
+                # Ya escogió la cirugía y dice QUIERO MI CUPO sin dejar datos (idea del Dr., 23-nov): el lead 🔥 se crea
+                # YA con su número de WhatsApp; nombre y ciudad se piden, pero no se esperan (la asesora los completa al llamar).
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-                _cel_q = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
-                    or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
-                reply = "¡Genial! 💙 " + self._promo_pedido_datos(_pp_q, _cel_q, ventajas=False)
+                _hist_q = list(history or []) + [{'role': 'user', 'content': text}]
+                _nom_q = self._extract_name_from_history(_hist_q, sender_name) or ''
+                _f_q = {'nombre': _nom_q, 'procedimiento': _pp_q, 'interes': 'asesoria',
+                        'pauta': f"{_PAUTA_MAMO_LABEL} · {_pp_q}", 'incompleto': 'nombre y ciudad (escribió QUIERO MI CUPO)'}
+                self._ultimo_lead_ok = None
+                try: self._notify_lead(_f_q, sender_id, canal=canal, history=_hist_q, ultimo_bot='')
+                except Exception as _e: print(f"[CX] quiero cupo lead err: {_e}", flush=True)
+                _cel_q = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text))
+                reply = (f"¡Listo! 💙 Ya quedó tu solicitud para tu cupo de *{_pp_q.lower()}* ✅\n\n"
+                         "Una de nuestras asesoras te va a *llamar a este número* 📞 para revisar si cumples los requisitos. "
+                         "Si no alcanzas a contestar, te escribe por aquí.\n\n"
+                         + ("Como WhatsApp no nos muestra tu número, escríbeme tu *celular* para poder llamarte 📱\n\n" if _cel_q else '')
+                         + "Para que te salude por tu nombre, ¿me dices tu *nombre* y en qué *ciudad* vives? 😊")
                 if send:
-                    _client = self.instagram if canal.startswith('instagram') else self.whapi
+                    _client = self.whapi
                     try: _client.send_text(sender_id, reply)
                     except Exception as _e: print(f"[CX] quiero cupo (sin datos) err: {_e}", flush=True)
-                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                # Nota interna con NOTIFY: evita crear el lead dos veces; lo que escriba después se agrega al lead
+                _bloque_q = '\n'.join(f"{k}: {v}" for k, v in _f_q.items() if k != 'incompleto')
+                self._save_message(sender_id, sender_name, reply + '\n\n<<<NOTIFY>>>\n' + _bloque_q + '\n<<<END>>>',
+                                   'saliente', 'bot', canal=canal)
                 return reply
             if '<<<NOTIFY' in _bots_q:
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
@@ -3686,7 +3704,7 @@ class BrainCX:
                                  + '\n'.join('• ' + v for v in _PROMO_PRECIO.values())
                                  + "\n\nAplica si tienes la *indicación médica* y *cumples los requisitos* 💙 "
                                  "Y si te haces *las dos*, tienes un *descuento adicional* 🎁\n\n" + _PROMO_PREGUNTA
-                                 + "\n1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n\nEscribe *1* o *2* 😊")
+                                 + "\n" + _PROMO_MENU + "\n\n" + _PROMO_ESCRIBE)
                         if send:
                             _client = self.instagram if canal.startswith('instagram') else self.whapi
                             try: _client.send_text(sender_id, reply)
@@ -4386,12 +4404,9 @@ class BrainCX:
                 if re.search(r'nombre completo', _base, re.I):
                     _cola = None   # escogió asesoría o valoración: sigue el flujo de siempre (pedido de datos aprobado)
                 elif _ppx:
-                    _cola = ("Para revisar si " + _PROMO_PEDIDO + f" de tu *{_ppx.lower()}*, déjame tus datos y en breve una de "
-                             "nuestras asesoras te contactará para darte toda la información 💙\n\n"
-                             "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*")
+                    _cola = self._promo_pedido_datos(_ppx, False, ventajas=False)
                 else:
-                    _cola = (_PROMO_PREGUNTA + " (para tu cupo con *precio especial*)\n1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n\n"
-                             "Escribe *1* o *2* 😊")
+                    _cola = (_PROMO_PREGUNTA + " (para tu cupo con *precio especial*)\n" + _PROMO_MENU + "\n\n" + _PROMO_ESCRIBE)
                 if _cola:
                     user_facing = (_base + "\n\n" + _cola).strip() if len(_base) > 15 else _cola
 
@@ -4444,8 +4459,9 @@ class BrainCX:
                                     "*planes de turismo médico todo incluido* ✈️")
                 _pp = _promo_de_historial(history) if _int.startswith('asesor') else None
                 if _pp:
-                    user_facing = (f"¡Listo{', ' + _nom if _nom else ''}! 💙 Una de nuestras asesoras *te contactará en breve* "
-                                   f"y te dirá si cumples los requisitos para el *precio especial* de tu *{_pp.lower()}* 😊")
+                    user_facing = (f"¡Listo{', ' + _nom if _nom else ''}! 💙 Ya quedó tu solicitud para tu cupo de *{_pp.lower()}* ✅\n\n"
+                                   "Una de nuestras asesoras te va a *llamar a este número* 📞 para revisar si cumples los requisitos "
+                                   "para el *precio especial*. Si no alcanzas a contestar, te escribe por aquí 😊")
                 user_facing += ("\n\nMientras tanto, conoce *resultados reales y testimonios* del Dr. Gio:\n"
                                 "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n"
                                 "*Ya eres parte de #LAbelleza440* ✨")
