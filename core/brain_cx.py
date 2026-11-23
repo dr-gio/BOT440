@@ -134,9 +134,19 @@ def _quiere_cupo(texto):
     return bool(_RE_QUIERO_CUPO.search(_sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))))
 
 
+_RE_OTRA_CX = re.compile(r'reduc|pexia|levant|caid|explant|retir|cambio de (implante|protesis)|abdomin|glute|bbl|ginecom|'
+                         r'blefar|papada|otoplast|rino|lifting|brazo')
+
+
 def _promo_eleccion(texto):
     """Qué escogió entre los cupos: 'Liposucción', 'Mamoplastia de aumento', ambas (lista) o None."""
     t = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))
+    # Otra cirugía (reducción, pexia, explante…) o una pregunta larga: NO es escoger del menú de la promo; responde la IA
+    # (23-nov: «me gustaría una reducción de seno, cuánto cuesta» se tomó como mamoplastia de aumento)
+    if _RE_OTRA_CX.search(t):
+        return None
+    if len(t) > 30 and re.search(r'cuanto|donde|como|cuesta|precio|valor|ubicad|queda', t):
+        return None
     lipo = bool(re.search(r'(^|\D)1(\D|$)|1️⃣|lipo|grasa|abdomen|cintura|la primera', t))
     mamo = bool(re.search(r'(^|\D)2(\D|$)|2️⃣|mamo|seno|busto|pecho|mama|implante|aumento|la segunda', t))
     # «las dos», «ambas», «1 y 2», «las 2»: quiere las dos (antes el bot no lo entendía y se salía de la promo)
@@ -3740,7 +3750,7 @@ class BrainCX:
                 m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)):
             _pp = _promo_de_historial(history)
             _tx = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or ''))
-            if _pp is not None and re.search(r'cuanto (cuesta|vale|sale|me sale|es el (valor|precio)|seria|cobran)|precio|\bvalor\b|\bcuesta\b|\bvale\b|costo|tarifa|descuento', _tx):
+            if _pp is not None and not _RE_OTRA_CX.search(_tx) and re.search(r'cuanto (cuesta|vale|sale|me sale|es el (valor|precio)|seria|cobran)|precio|\bvalor\b|\bcuesta\b|\bvale\b|costo|tarifa|descuento', _tx):
                 from core.pasos_cx import clave_de
                 _k = clave_de(_tx)
                 if _k in (None, 'lipoescultura', 'mamoplastia_aumento'):

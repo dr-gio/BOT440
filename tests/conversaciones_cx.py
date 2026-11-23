@@ -264,6 +264,11 @@ ESCENARIOS = {
         ('2', [tiene('Nombre completo', 'Correo* (opcional)'), no_tiene('Ciudad')]),
         ('Ana Ruiz', [tiene('Listo, Ana', 'llamar a este número'), ('crea el lead 🔥 con el nombre', lambda r: any(l.get('nombre') == 'Ana Ruiz' and l.get('caliente') == 'datos' for l in LEADS))]),
     ],
+    'promo_10_cupos_pide_otra_cirugia': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('Buenas tardes. me gustaría una reducción de seno más o menos cuánto cuesta y dónde se encuentran ubicados',
+         [no_tiene('10-cupos-mamoplastia-bot.png', 'Mira tu cupo'), tiene('reducción')]),
+    ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion-bot.png'), no_tiene('15.000.000')]),
