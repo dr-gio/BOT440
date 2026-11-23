@@ -3164,12 +3164,12 @@ class BrainCX:
             _base_mf, _ = self._medfiles_cfg()
             _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
             msg = "\n".join(x for x in [
-                "🆕 *Nuevo lead del asistente*",
+                "🔥 *Nuevo lead: QUIERE SU CUPO*" if _caliente else "🆕 *Nuevo lead del asistente*",
                 "🇺🇸 *HABLA INGLÉS* — atenderlo en inglés" if getattr(self, '_idioma', 'es') == 'en' else None,
                 f"👤 *{nombre}*",
                 f"📱 {_tel_txt}",
                 f"📧 {email or 'sin correo'}",
-                f"📍 {ciudad or 'ciudad sin dato'}",
+                f"📍 {ciudad or ('Ciudad: pregúntasela al llamar' if (pauta or '').startswith('Promo 10 cupos') else 'ciudad sin dato')}",
                 f"✨ {proc}",
                 f"💬 Quiere: *{tipo_txt}*",
                 f"📣 Pauta: {pauta}" if pauta else None,
