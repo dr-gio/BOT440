@@ -2932,7 +2932,7 @@ class BrainCX:
         """Pedido de datos de la promo de los cupos (lleva _PROMO_PEDIDO: así el bot sabe qué cirugía escogió).
         Con ventajas=True va primero lo que da tranquilidad (clínica, anestesiólogo, póliza, recuperación…)."""
         combo = len(_promo_lista(proc)) > 1
-        return ((_PROMO_VENTAJAS + "\n\n" if ventajas else '') + (_PROMO_COMBO + "\n\n" if combo else '') + "Si quieres tu cupo, déjame tus datos y en breve una de nuestras asesoras te contactará para revisar si "
+        return ((_PROMO_VENTAJAS + "\n\n" if ventajas else '') + (_PROMO_COMBO + "\n\n" if combo else '') + "Para *apartar tu cupo*, solo déjame tus datos y una de nuestras asesoras te llamará para revisar si "
                 + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
                 + ("\n📱 *Número de celular*" if celular else ''))
 
@@ -3087,9 +3087,15 @@ class BrainCX:
             'pauta': pauta or None,
             'resumen': resumen,
         }
-        # Escribió «QUIERO MI CUPO» antes de dejar los datos → MedFiles la marca 🔥 y la pone primero
-        if any(m.get('role') == 'user' and isinstance(m.get('content'), str) and _quiere_cupo(m['content']) for m in (history or [])):
-            body['caliente'] = '1'
+        # 🔥 (MedFiles la pone primero): en la promo, dejar los datos DESPUÉS de ver la imagen con el precio ya es
+        # «quiero mi cupo» (regla del Dr., 23-nov). También si escribió QUIERO MI CUPO. No: lead incompleto del cron.
+        _vio_precio = any(_PROMO_MARCA_IMG in (m.get('content') or '') for m in (history or [])
+                          if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
+        _escribio_quiero = any(m.get('role') == 'user' and isinstance(m.get('content'), str) and _quiere_cupo(m['content'])
+                               for m in (history or []))
+        _caliente = (pauta or '').startswith('Promo 10 cupos') and not fields.get('incompleto') and (_vio_precio or _escribio_quiero)
+        if _caliente:
+            body['caliente'] = 'quiero' if _escribio_quiero else 'datos'
         if getattr(self, '_idioma', 'es') == 'en':
             body['idioma'] = 'en'
             body['resumen'] = '🇺🇸 HABLA INGLÉS — atenderlo en inglés\n\n' + (body.get('resumen') or '')
@@ -3113,7 +3119,8 @@ class BrainCX:
         # Aviso por WhatsApp a la asesora (opcional).
         if asesora_tel:
             if (pauta or '').startswith('Promo 10 cupos'):
-                tipo_txt = '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos'
+                tipo_txt = ('🔥 Promo 10 cupos: ya vio el precio y dejó sus datos, QUIERE SU CUPO. Llámala ya para revisar si cumple los requisitos'
+                            if _caliente else '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos')
                 if len(_promo_lista(pauta)) > 1:
                     tipo_txt += ' · 🎁 quiere las dos: tiene descuento adicional (dale el valor)'
             elif interes == 'valoracion':
@@ -3620,10 +3627,23 @@ class BrainCX:
         # Si ya dejó sus datos (lead creado): se marca 🔥 en MedFiles y se le avisa a su asesora para que la llame ya.
         if not _is_first_time and _promo_activa() and _quiere_cupo(text) and _promo_de_historial(history) is not None:
             _bots_q = ' '.join(m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
+            _pp_q = _promo_de_historial(history)
+            if '<<<NOTIFY' not in _bots_q and _pp_q:
+                # Ya escogió la cirugía pero aún no deja sus datos: los datos son lo que aparta el cupo
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                _cel_q = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
+                    or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
+                reply = "¡Genial! 💙 " + self._promo_pedido_datos(_pp_q, _cel_q, ventajas=False)
+                if send:
+                    _client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: _client.send_text(sender_id, reply)
+                    except Exception as _e: print(f"[CX] quiero cupo (sin datos) err: {_e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                return reply
             if '<<<NOTIFY' in _bots_q:
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-                reply = ("¡Listo! 💙 Ya le avisé a tu asesora que *quieres tu cupo*: "
-                         "te llamará muy pronto para revisar si cumples los requisitos 😊")
+                reply = ("¡Ya estás en la lista! 💙 Tu asesora ya tiene tus datos y *te llamará muy pronto* "
+                         "para revisar si cumples los requisitos 😊")
                 if send:
                     _client = self.instagram if canal.startswith('instagram') else self.whapi
                     try: _client.send_text(sender_id, reply)
