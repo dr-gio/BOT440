@@ -104,6 +104,32 @@ def _promo_lista(eleccion):
     return [e for e in (_PROMO_LIPO, _PROMO_MAMO) if e.lower() in (eleccion or '').lower()]
 
 
+_NO_NOMBRE = re.compile(r'\b(quiero|cuanto|cuesta|precio|valor|hola|buen[oa]s?|gracias|como|donde|cuando|info|informacion|'
+                        r'cupos?|si|no|ok|listo|dale|claro|bien|vale|pago|tengo|soy de|vivo|necesito|puedo|me interesa|'
+                        r'ya|que|cual|porque|por que|las dos|ambas|uno|dos)\b'
+                        r'|\b(lipo|mamo|mama|seno|busto|pecho|cirug|abdom|financ|credit|interes|promo|descuent|implant|protes)', re.I)
+
+
+def _nombre_promo(texto):
+    """Si el mensaje es su nombre (lo que se le pidió), devuelve (nombre, correo, resto); si no, None.
+    Acepta «Ana Ruiz», «ana ruiz, anaruiz@gmail.com», «Ana Ruiz Barranquilla»… pero no preguntas ni frases."""
+    t = re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or '').strip()
+    if not t or '?' in t or len(t) > 160:
+        return None
+    em = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', t)
+    sin_em = (t[:em.start()] + ' ' + t[em.end():]) if em else t
+    partes = [x.strip() for x in re.split(r'[,\n;]+', sin_em) if x.strip()]
+    if not partes:
+        return None
+    cand = re.sub(r'^(mi nombre es|me llamo|soy)\s+', '', partes[0], flags=re.I).strip(' .')
+    pal = cand.split()
+    if not (1 <= len(pal) <= 7) or not all(re.fullmatch(r"[A-Za-zÁÉÍÓÚÑÜáéíóúñü'.-]+", w) for w in pal):
+        return None
+    if _NO_NOMBRE.search(_sin_tildes(cand)):
+        return None
+    return (' '.join(w[:1].upper() + w[1:].lower() for w in pal), em.group(0) if em else '', ', '.join(partes[1:]))
+
+
 def _quiere_cupo(texto):
     return bool(_RE_QUIERO_CUPO.search(_sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))))
 
@@ -2938,7 +2964,7 @@ class BrainCX:
         Con ventajas=True va primero lo que da tranquilidad (clínica, anestesiólogo, póliza, recuperación…)."""
         combo = len(_promo_lista(proc)) > 1
         return ((_PROMO_VENTAJAS + "\n\n" if ventajas else '') + (_PROMO_COMBO + "\n\n" if combo else '') + "Para *apartar tu cupo*, solo déjame tus datos y una de nuestras asesoras te llamará para revisar si "
-                + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo* (opcional)"
+                + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📧 *Correo* (opcional)"
                 + ("\n📱 *Número de celular*" if celular else ''))
 
     def _enviar_promo(self, sender_id, canal, intro, cirugias, pedido, send=True):
@@ -3641,7 +3667,7 @@ class BrainCX:
                 _hist_q = list(history or []) + [{'role': 'user', 'content': text}]
                 _nom_q = self._extract_name_from_history(_hist_q, sender_name) or ''
                 _f_q = {'nombre': _nom_q, 'procedimiento': _pp_q, 'interes': 'asesoria',
-                        'pauta': f"{_PAUTA_MAMO_LABEL} · {_pp_q}", 'incompleto': 'nombre y ciudad (escribió QUIERO MI CUPO)'}
+                        'pauta': f"{_PAUTA_MAMO_LABEL} · {_pp_q}", 'incompleto': 'nombre (escribió QUIERO MI CUPO)'}
                 self._ultimo_lead_ok = None
                 try: self._notify_lead(_f_q, sender_id, canal=canal, history=_hist_q, ultimo_bot='')
                 except Exception as _e: print(f"[CX] quiero cupo lead err: {_e}", flush=True)
@@ -3650,7 +3676,7 @@ class BrainCX:
                          "Una de nuestras asesoras te va a *llamar a este número* 📞 para revisar si cumples los requisitos. "
                          "Si no alcanzas a contestar, te escribe por aquí.\n\n"
                          + ("Como WhatsApp no nos muestra tu número, escríbeme tu *celular* para poder llamarte 📱\n\n" if _cel_q else '')
-                         + "Para que te salude por tu nombre, ¿me dices tu *nombre* y en qué *ciudad* vives? 😊")
+                         + "Para que te salude por tu nombre, ¿me dices tu *nombre*? 😊")
                 if send:
                     _client = self.whapi
                     try: _client.send_text(sender_id, reply)
@@ -3671,6 +3697,41 @@ class BrainCX:
                 self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                 try: self._marcar_quiere_cupo(sender_id, canal)
                 except Exception as _e: print(f"[CX] quiero cupo aviso err: {_e}", flush=True)
+                return reply
+
+        # ── PROMO 10 CUPOS: deja su NOMBRE (lo único que se pide; regla del Dr., 23-nov) → lead 🔥 de una ──
+        # El teléfono ya lo tenemos (escribe por WhatsApp); el correo es opcional y la ciudad la pregunta la asesora.
+        if not _is_first_time and _promo_activa() and not self._es_canal_instagram(canal):
+            _bots_n = [m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)]
+            _pp_n = _promo_de_historial(history)
+            _np = _nombre_promo(text) if (_pp_n and _bots_n and _PROMO_PEDIDO in _bots_n[-1]
+                                          and not any('<<<NOTIFY' in b for b in _bots_n)) else None
+            if _np:
+                _nom_n, _em_n, _resto_n = _np
+                _ciu_n = self._ciudad_from_history([{'role': 'user', 'content': text}])
+                if _ciu_n and _nom_n.lower().endswith(' ' + _ciu_n.lower()):
+                    _nom_n = _nom_n[: -len(_ciu_n) - 1].strip()
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                _hist_n = list(history or []) + [{'role': 'user', 'content': text}]
+                _f_n = {'nombre': _nom_n, 'email': _em_n, 'ciudad': _ciu_n, 'procedimiento': _pp_n,
+                        'interes': 'asesoria', 'pauta': f"{_PAUTA_MAMO_LABEL} · {_pp_n}"}
+                print(f"[CX] PROMO 10 CUPOS dejó su nombre → lead 🔥 {sender_id}: {_nom_n!r}", flush=True)
+                self._ultimo_lead_ok = None
+                try: self._notify_lead(_f_n, sender_id, canal=canal, history=_hist_n, ultimo_bot=_bots_n[-1])
+                except Exception as _e: print(f"[CX] promo lead (nombre) err: {_e}", flush=True)
+                _primero = _nom_n.split()[0] if _nom_n else ''
+                reply = (f"¡Listo{', ' + _primero if _primero else ''}! 💙 Ya quedó tu solicitud para tu cupo de *{_pp_n.lower()}* ✅\n\n"
+                         "Una de nuestras asesoras te va a *llamar a este número* 📞 para revisar si cumples los requisitos "
+                         "para el *precio especial*. Si no alcanzas a contestar, te escribe por aquí 😊\n\n"
+                         "Mientras tanto, conoce *resultados reales y testimonios* del Dr. Gio:\n"
+                         "📸 Instagram: *@drgiovannifuentes*\n🌐 Web: *www.drgio440.com*\n\n"
+                         "*Ya eres parte de #LAbelleza440* ✨")
+                if send:
+                    try: self.whapi.send_text(sender_id, reply)
+                    except Exception as _e: print(f"[CX] promo cierre err: {_e}", flush=True)
+                _bloque_n = '\n'.join(f"{k}: {v}" for k, v in _f_n.items() if v)
+                self._save_message(sender_id, sender_name, reply + '\n\n<<<NOTIFY>>>\n' + _bloque_n + '\n<<<END>>>',
+                                   'saliente', 'bot', canal=canal)
                 return reply
 
         # ── PROMO 10 CUPOS: pregunta precio → se le da el precio especial de la imagen (cambio del Dr., 23-nov;

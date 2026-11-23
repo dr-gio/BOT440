@@ -256,8 +256,13 @@ ESCENARIOS = {
     'promo_10_cupos_quiero_sin_datos': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('1', [tiene('10-cupos-liposuccion-bot.png')]),
-        ('QUIERO MI CUPO', [tiene('llamar a este número', 'nombre', 'ciudad'), ('crea el lead', lambda r: any(l.get('pauta', '').startswith('Promo 10 cupos') for l in LEADS))]),
+        ('QUIERO MI CUPO', [tiene('llamar a este número', 'nombre'), ('crea el lead', lambda r: any(l.get('pauta', '').startswith('Promo 10 cupos') for l in LEADS))]),
         ('Ana Ruiz, Barranquilla', [('no crea otro lead', lambda r: len([l for l in LEADS if l.get('pauta')]) == 1)]),
+    ],
+    'promo_10_cupos_solo_nombre': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('2', [tiene('Nombre completo', 'Correo* (opcional)'), no_tiene('Ciudad')]),
+        ('Ana Ruiz', [tiene('Listo, Ana', 'llamar a este número'), ('crea el lead 🔥 con el nombre', lambda r: any(l.get('nombre') == 'Ana Ruiz' and l.get('caliente') == 'datos' for l in LEADS))]),
     ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
@@ -303,7 +308,7 @@ ESCENARIOS = {
     ],
     'promo_10_cupos_flujo': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', [tiene('10 cupos', 'Sociedad Colombiana', '¿Cuál te interesa?'), no_tiene('18.000.000', '%')]),
-        ('2', [tiene('Mamoplastia de aumento', 'Nombre completo', 'Ciudad', 'Correo* (opcional)')]),
+        ('2', [tiene('Mamoplastia de aumento', 'Nombre completo', 'Correo* (opcional)'), no_tiene('📍')]),
         ('Laura Gómez, Barranquilla, laura.gomez@gmail.com', [tiene('llamar a este número', 'requisitos', 'mamoplastia de aumento')]),
     ],
     'precio_mamoplastia_sin_promo_vieja': [
