@@ -82,7 +82,7 @@ _PROMO_VENTAJAS = (
     "Con el Dr. Gio te operas con tranquilidad:\n"
     "✅ *Clínicas habilitadas* y *anestesiólogo certificado*, incluidos en el precio\n"
     "✅ *Póliza de complicaciones* incluida\n"
-    "✅ *Acompañamiento en tu recuperación*, con sede de recuperación en cada ciudad\n"
+    "✅ *Acompañamiento en tu recuperación*, con tus postoperatorios incluidos\n"
     "✅ *Más de 10 años de experiencia*\n"
     "💳 *Planes de financiación* con Finanmed"
 )
@@ -289,8 +289,9 @@ ciudades, para las personas que *tengan indicación y cumplan los requisitos*.
   *Mamoplastia de aumento $15.000.000* (cirugía, clínica, anestesiólogo,
   prótesis mamarias, póliza de complicaciones, brasier posquirúrgico y
   postoperatorios). Cirugías hasta el 31 de diciembre. Se opera en
-  clínicas habilitadas con anestesiólogo certificado, con acompañamiento
-  en la recuperación (sede de recuperación en cada ciudad).
+  clínicas habilitadas con anestesiólogo certificado. Lo que incluye es
+  SOLO lo de la imagen (más clínica y anestesiólogo): no digas que incluye
+  alojamiento, sede de recuperación, transporte ni nada más.
   Hay planes de financiación con Finanmed (sujeta a aprobación de crédito).
   Si pregunta el precio, dilo así, siempre con "aplica si tienes la
   indicación médica y cumples los requisitos". No inventes otros valores,
