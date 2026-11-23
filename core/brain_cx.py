@@ -3160,8 +3160,9 @@ class BrainCX:
         # Aviso por WhatsApp a la asesora (opcional).
         if asesora_tel:
             if (pauta or '').startswith('Promo 10 cupos'):
+                # «QUIERE SU CUPO» solo si lo ESCRIBIÓ (Dr., 23-nov); si solo vio el precio y dejó datos, se dice tal cual
                 tipo_txt = ('🔥 Promo 10 cupos: escribió QUIERO MI CUPO. Llámala ya para revisar si cumple los requisitos' if _caliente and _escribio_quiero
-                            else '🔥 Promo 10 cupos: ya vio el precio y dejó sus datos, QUIERE SU CUPO. Llámala ya para revisar si cumple los requisitos' if _caliente
+                            else '📞 Promo 10 cupos: ya vio el precio y dejó sus datos. Llámala para revisar si cumple los requisitos' if _caliente
                             else '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos')
                 if len(_promo_lista(pauta)) > 1:
                     tipo_txt += ' · 🎁 quiere las dos: tiene descuento adicional (dale el valor)'
@@ -3174,7 +3175,7 @@ class BrainCX:
             _base_mf, _ = self._medfiles_cfg()
             _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
             msg = "\n".join(x for x in [
-                "🔥 *Nuevo lead: QUIERE SU CUPO*" if _caliente else "🆕 *Nuevo lead del asistente*",
+                "🔥 *Nuevo lead: QUIERE SU CUPO*" if _caliente and _escribio_quiero else "🆕 *Nuevo lead del asistente*",
                 "🇺🇸 *HABLA INGLÉS* — atenderlo en inglés" if getattr(self, '_idioma', 'es') == 'en' else None,
                 f"👤 *{nombre}*",
                 f"📱 {_tel_txt}",
