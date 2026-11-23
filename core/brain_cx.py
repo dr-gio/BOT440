@@ -3026,7 +3026,7 @@ class BrainCX:
             return
         link = f"{base}/crm/whatsapp?persona={data['persona']}" if data.get('persona') else f"{base}/crm"
         self._avisar_asesora_y_dr(tel, data.get('copias'), "\n".join([
-            "🔥 *Quiere su cupo*", f"👤 {data.get('nombre') or 'Paciente'} escribió *QUIERO MI CUPO*",
+            "🔥 *QUIERO MI CUPO*", f"👤 {data.get('nombre') or 'Paciente'} escribió *QUIERO MI CUPO*",
             "📞 Llámala ya", "", f"Atiéndela desde MedFiles 👉 {link}"]), 'aviso quiere cupo')
 
     def _notify_lead(self, fields, sender_id, canal='whatsapp', history=None, ultimo_bot=''):
@@ -3179,7 +3179,7 @@ class BrainCX:
                 tipo_txt = ('Vino por la promo 10 cupos pero pide OTRA cirugía (no aplica el precio especial) · '
                             + ('Valoración con el Dr.' if interes == 'valoracion' else 'Asesoría virtual gratuita'))
             elif (pauta or '').startswith('Promo 10 cupos'):
-                # «QUIERE SU CUPO» solo si lo ESCRIBIÓ (Dr., 23-nov); si solo vio el precio y dejó datos, se dice tal cual
+                # «QUIERO MI CUPO» solo si lo ESCRIBIÓ (Dr., 23-nov); si solo vio el precio y dejó datos, se dice tal cual
                 tipo_txt = ('🔥 Promo 10 cupos: escribió QUIERO MI CUPO. Llámala ya para revisar si cumple los requisitos' if _caliente and _escribio_quiero
                             else '📞 Promo 10 cupos: ya vio el precio y dejó sus datos. Llámala para revisar si cumple los requisitos' if _caliente
                             else '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos')
@@ -3194,7 +3194,7 @@ class BrainCX:
             _base_mf, _ = self._medfiles_cfg()
             _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
             msg = "\n".join(x for x in [
-                "🔥 *Nuevo lead: QUIERE SU CUPO*" if _caliente and _escribio_quiero else "🆕 *Nuevo lead del asistente*",
+                "🔥 *Nuevo lead: QUIERO MI CUPO*" if _caliente and _escribio_quiero else "🆕 *Nuevo lead del asistente*",
                 "🇺🇸 *HABLA INGLÉS* — atenderlo en inglés" if getattr(self, '_idioma', 'es') == 'en' else None,
                 f"👤 *{nombre}*",
                 f"📱 {_tel_txt}",
