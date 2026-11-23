@@ -72,9 +72,21 @@ _PROMO_IMG = {
     _PROMO_MAMO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-mamoplastia.png',
 }
 _PROMO_PRECIO = {
-    _PROMO_LIPO: '*Liposucción*: *$17.000.000* · incluye cirugía, póliza de complicaciones, faja posquirúrgica y postoperatorios',
-    _PROMO_MAMO: '*Mamoplastia de aumento*: *$15.000.000* · incluye prótesis mamarias, póliza de complicaciones, brasier posquirúrgico y postoperatorios',
+    _PROMO_LIPO: '*Liposucción*: *$17.000.000* · incluye cirugía, clínica, anestesiólogo, póliza de complicaciones, faja posquirúrgica y postoperatorios',
+    _PROMO_MAMO: '*Mamoplastia de aumento*: *$15.000.000* · incluye cirugía, clínica, anestesiólogo, prótesis mamarias, póliza de complicaciones, brasier posquirúrgico y postoperatorios',
 }
+# Lo que da tranquilidad (pedido del Dr., 23-nov): va con el pedido de datos, justo después de la imagen.
+# Clínica y anestesiólogo SÍ están incluidos en el precio especial (confirmado por el Dr.).
+_PROMO_VENTAJAS = (
+    "Con el Dr. Gio te operas con tranquilidad:\n"
+    "✅ *Clínicas habilitadas* y *anestesiólogo certificado*, incluidos en el precio\n"
+    "✅ *Póliza de complicaciones* incluida\n"
+    "✅ *Acompañamiento en tu recuperación*, con sede de recuperación en cada ciudad\n"
+    "✅ *Más de 10 años de experiencia*\n"
+    "💳 *Planes de financiación* con Finanmed"
+)
+# Lipo + mamoplastia juntas: descuento adicional (pedido del Dr., 23-nov). El bot NO dice el valor: lo da la asesora.
+_PROMO_COMBO = "🎁 Como te interesan *las dos*, tienes un *descuento adicional* por hacerte ambas. Tu asesora te da el valor 😊"
 _PROMO_MARCA_IMG = '📸 Imagen promo 10 cupos'
 # «QUIERO MI CUPO» (lo que pide la imagen): la persona está caliente → MedFiles la marca 🔥 y la pone primero
 _RE_QUIERO_CUPO = re.compile(r'quiero\s+(mi|un|el|ese|uno de los|1)?\s*cupo(?!s)', re.I)
@@ -96,7 +108,8 @@ def _promo_eleccion(texto):
     t = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))
     lipo = bool(re.search(r'(^|\D)1(\D|$)|1️⃣|lipo|grasa|abdomen|cintura|la primera', t))
     mamo = bool(re.search(r'(^|\D)2(\D|$)|2️⃣|mamo|seno|busto|pecho|mama|implante|aumento|la segunda', t))
-    if lipo and mamo:
+    # «las dos», «ambas», «1 y 2», «las 2»: quiere las dos (antes el bot no lo entendía y se salía de la promo)
+    if (lipo and mamo) or re.search(r'\b(las|los) (dos|2)\b|\bambas?\b|\bambos\b|1 y 2|1 y el 2', t):
         return [_PROMO_LIPO, _PROMO_MAMO]
     return _PROMO_LIPO if lipo else _PROMO_MAMO if mamo else None
 
@@ -270,14 +283,20 @@ ciudades, para las personas que *tengan indicación y cumplan los requisitos*.
 → Al dejar los datos: "Una de nuestras asesoras te contactará en breve y te
   dirá si cumples los requisitos para el precio especial."
 → Precio especial (23-nov-2026, ya va en la imagen que el bot le manda al
-  escoger): *Liposucción $17.000.000* (cirugía, póliza de complicaciones,
-  faja posquirúrgica y postoperatorios) · *Mamoplastia de aumento
-  $15.000.000* (prótesis mamarias, póliza de complicaciones, brasier
-  posquirúrgico y postoperatorios). Cirugías hasta el 31 de diciembre.
+  escoger): *Liposucción $17.000.000* (cirugía, clínica, anestesiólogo,
+  póliza de complicaciones, faja posquirúrgica y postoperatorios) ·
+  *Mamoplastia de aumento $15.000.000* (cirugía, clínica, anestesiólogo,
+  prótesis mamarias, póliza de complicaciones, brasier posquirúrgico y
+  postoperatorios). Cirugías hasta el 31 de diciembre. Se opera en
+  clínicas habilitadas con anestesiólogo certificado, con acompañamiento
+  en la recuperación (sede de recuperación en cada ciudad).
   Hay planes de financiación con Finanmed (sujeta a aprobación de crédito).
   Si pregunta el precio, dilo así, siempre con "aplica si tienes la
   indicación médica y cumples los requisitos". No inventes otros valores,
   porcentajes de descuento ni precios de otras cirugías.
+→ Si quiere liposucción Y mamoplastia de aumento: hay un *descuento
+  adicional* por hacerse las dos. NO digas el valor ni el porcentaje: lo
+  da la asesora.
 → Si escribe "QUIERO MI CUPO": pide los datos que falten (nombre completo
   y ciudad) para que la asesora la llame.
 → NO confirmes que ya tiene un cupo ni que cumple: eso lo dice la asesora.
@@ -2909,9 +2928,11 @@ class BrainCX:
         ] if x is not None)
         self._avisar_asesora_y_dr(tel, d.get('copias'), msg, 'recordatorio a asesora')
 
-    def _promo_pedido_datos(self, proc, celular=False):
-        """Pedido de datos de la promo de los cupos (lleva _PROMO_PEDIDO: así el bot sabe qué cirugía escogió)."""
-        return ("Si quieres tu cupo, déjame tus datos y en breve una de nuestras asesoras te contactará para revisar si "
+    def _promo_pedido_datos(self, proc, celular=False, ventajas=True):
+        """Pedido de datos de la promo de los cupos (lleva _PROMO_PEDIDO: así el bot sabe qué cirugía escogió).
+        Con ventajas=True va primero lo que da tranquilidad (clínica, anestesiólogo, póliza, recuperación…)."""
+        combo = len(_promo_lista(proc)) > 1
+        return ((_PROMO_VENTAJAS + "\n\n" if ventajas else '') + (_PROMO_COMBO + "\n\n" if combo else '') + "Si quieres tu cupo, déjame tus datos y en breve una de nuestras asesoras te contactará para revisar si "
                 + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
                 + ("\n📱 *Número de celular*" if celular else ''))
 
@@ -3093,6 +3114,8 @@ class BrainCX:
         if asesora_tel:
             if (pauta or '').startswith('Promo 10 cupos'):
                 tipo_txt = '📞 Promo 10 cupos: llámala para revisar si cumple los requisitos'
+                if len(_promo_lista(pauta)) > 1:
+                    tipo_txt += ' · 🎁 quiere las dos: tiene descuento adicional (dale el valor)'
             elif interes == 'valoracion':
                 tipo_txt = 'Valoración con el Dr.' + (f' ({modalidad})' if modalidad else '')
             else:
@@ -3635,11 +3658,12 @@ class BrainCX:
                         _ya_img = any(_PROMO_MARCA_IMG in (m.get('content') or '') for m in (history or [])
                                       if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
                         reply = self._enviar_promo(sender_id, canal, _precio, [] if _ya_img else _promo_lista(_e),
-                                                   self._promo_pedido_datos(_e, _cel), send)
+                                                   self._promo_pedido_datos(_e, _cel, ventajas=False), send)
                     else:
                         reply = ("Estos son los *10 cupos con precio especial* (cirugías hasta el 31 de diciembre):\n"
                                  + '\n'.join('• ' + v for v in _PROMO_PRECIO.values())
-                                 + "\n\nAplica si tienes la *indicación médica* y *cumples los requisitos* 💙\n\n" + _PROMO_PREGUNTA
+                                 + "\n\nAplica si tienes la *indicación médica* y *cumples los requisitos* 💙 "
+                                 "Y si te haces *las dos*, tienes un *descuento adicional* 🎁\n\n" + _PROMO_PREGUNTA
                                  + "\n1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n\nEscribe *1* o *2* 😊")
                         if send:
                             _client = self.instagram if canal.startswith('instagram') else self.whapi

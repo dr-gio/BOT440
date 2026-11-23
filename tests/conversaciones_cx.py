@@ -243,6 +243,10 @@ ESCENARIOS = {
     'promo_10_cupos': [
         ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'mamoplastia de aumento', 'Nombre completo', '10-cupos-mamoplastia.png'), no_tiene('18.000.000', 'todo incluido', '%')]),
     ],
+    'promo_10_cupos_las_dos': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('las dos', [tiene('10-cupos-liposuccion.png', '10-cupos-mamoplastia.png', 'descuento adicional', 'anestesiólogo', 'Nombre completo'), no_tiene('asesoría virtual gratuita')]),
+    ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion.png'), no_tiene('15.000.000')]),
