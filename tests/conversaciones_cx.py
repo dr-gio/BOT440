@@ -241,20 +241,20 @@ ESCENARIOS = {
         ('¡Hola! Soy TBot, tu agente de viajes para hoteles y vuelos', [('no responde', lambda r: r == '')]),
     ],
     'promo_10_cupos': [
-        ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'mamoplastia de aumento', 'Nombre completo', '10-cupos-mamoplastia.png'), no_tiene('18.000.000', 'todo incluido', '%')]),
+        ('Hola vi lo de los 10 cupos, quiero uno para mamoplastia', [tiene('10 cupos', 'precio especial', 'mamoplastia de aumento', 'Nombre completo', '10-cupos-mamoplastia-bot.png'), no_tiene('18.000.000', 'todo incluido', '%')]),
     ],
     'promo_10_cupos_las_dos': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
-        ('las dos', [tiene('10-cupos-liposuccion.png', '10-cupos-mamoplastia.png', 'descuento adicional', 'anestesiólogo', 'Nombre completo'), no_tiene('asesoría virtual gratuita')]),
+        ('las dos', [tiene('10-cupos-liposuccion-bot.png', '10-cupos-mamoplastia-bot.png', 'descuento adicional', 'anestesiólogo', 'Nombre completo'), no_tiene('asesoría virtual gratuita')]),
     ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
-        ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion.png'), no_tiene('15.000.000')]),
+        ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion-bot.png'), no_tiene('15.000.000')]),
     ],
     'promo_10_cupos_precio_sin_escoger': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('Precio?', [tiene('precio especial', 'Cuál de las dos', '17.000.000', '15.000.000')]),
-        ('1', [tiene('liposucción', 'Nombre completo', '10-cupos-liposuccion.png')]),
+        ('1', [tiene('liposucción', 'Nombre completo', '10-cupos-liposuccion-bot.png')]),
     ],
     'promo_10_cupos_otras_dudas': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),

@@ -66,10 +66,11 @@ _PROMO_PREGUNTA = '¿Cuál de las dos te interesa?'
 _PROMO_PEDIDO = 'cumples los requisitos para el *precio especial*'
 _PROMO_LIPO, _PROMO_MAMO = 'Liposucción', 'Mamoplastia de aumento'
 # 23-nov-2026 (pedido del Dr.): apenas escoge la cirugía, el bot le manda de una vez la imagen de la promo (con el
-# precio) para que no dependa de que la asesora la llame. Son las mismas imágenes del botón «Enviar promo» de MedFiles.
+# precio) para que no dependa de que la asesora la llame. Es la versión «-bot» de la imagen del botón «Enviar promo»:
+# en vez de «Escríbenos: QUIERO MI CUPO» dice «Déjanos tus datos: APARTA TU CUPO» (una sola instrucción).
 _PROMO_IMG = {
-    _PROMO_LIPO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-liposuccion.png',
-    _PROMO_MAMO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-mamoplastia.png',
+    _PROMO_LIPO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-liposuccion-bot.png',
+    _PROMO_MAMO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-mamoplastia-bot.png',
 }
 _PROMO_PRECIO = {
     _PROMO_LIPO: '*Liposucción*: *$17.000.000* · incluye cirugía, clínica, anestesiólogo, póliza de complicaciones, faja posquirúrgica y postoperatorios',
