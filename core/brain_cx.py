@@ -57,7 +57,7 @@ _LEGACY_CRM = os.environ.get('CX_LEGACY_CRM', '').strip() == '1'
 # (La promo vieja "Mamoplastia todo incluido $18M" se suspendió el 4-nov-2026.)
 _PROMO_HASTA = '2026-12-31'   # último día (hora Colombia); después el bot deja de mencionarla
 _PAUTA_MAMO_KW = (
-    '10 cupos', 'diez cupos', 'los cupos', 'un cupo', 'cupos', 'precio especial',
+    '10 cupos', 'diez cupos', 'los cupos', 'un cupo', 'mi cupo', 'cupos', 'precio especial',
     'promo mamoplastia', 'promo senos', 'promo lipo', 'promocion', 'promo ', 'descuento',
     'paquete mamoplastia', 'mamoplastia incluido', '18 millones',
 )
@@ -65,6 +65,30 @@ _PAUTA_MAMO_LABEL = 'Promo 10 cupos'
 _PROMO_PREGUNTA = '¿Cuál de las dos te interesa?'
 _PROMO_PEDIDO = 'cumples los requisitos para el *precio especial*'
 _PROMO_LIPO, _PROMO_MAMO = 'Liposucción', 'Mamoplastia de aumento'
+# 23-nov-2026 (pedido del Dr.): apenas escoge la cirugía, el bot le manda de una vez la imagen de la promo (con el
+# precio) para que no dependa de que la asesora la llame. Son las mismas imágenes del botón «Enviar promo» de MedFiles.
+_PROMO_IMG = {
+    _PROMO_LIPO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-liposuccion.png',
+    _PROMO_MAMO: 'https://medfiles.drgiovannifuentes.com/promo/10-cupos-mamoplastia.png',
+}
+_PROMO_PRECIO = {
+    _PROMO_LIPO: '*Liposucción*: *$17.000.000* · incluye cirugía, póliza de complicaciones, faja posquirúrgica y postoperatorios',
+    _PROMO_MAMO: '*Mamoplastia de aumento*: *$15.000.000* · incluye prótesis mamarias, póliza de complicaciones, brasier posquirúrgico y postoperatorios',
+}
+_PROMO_MARCA_IMG = '📸 Imagen promo 10 cupos'
+# «QUIERO MI CUPO» (lo que pide la imagen): la persona está caliente → MedFiles la marca 🔥 y la pone primero
+_RE_QUIERO_CUPO = re.compile(r'quiero\s+(mi|un|el|ese|uno de los|1)?\s*cupo(?!s)', re.I)
+
+
+def _promo_lista(eleccion):
+    """'Liposucción' | 'Mamoplastia de aumento' | lista | 'Liposucción y Mamoplastia de aumento' → lista de cirugías de la promo."""
+    if isinstance(eleccion, list):
+        return [e for e in eleccion if e in _PROMO_IMG]
+    return [e for e in (_PROMO_LIPO, _PROMO_MAMO) if e.lower() in (eleccion or '').lower()]
+
+
+def _quiere_cupo(texto):
+    return bool(_RE_QUIERO_CUPO.search(_sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))))
 
 
 def _promo_eleccion(texto):
@@ -245,10 +269,17 @@ ciudades, para las personas que *tengan indicación y cumplan los requisitos*.
   mamoplastia de aumento). Cuando escoja, pide *nombre completo* y *ciudad*.
 → Al dejar los datos: "Una de nuestras asesoras te contactará en breve y te
   dirá si cumples los requisitos para el precio especial."
-→ NUNCA digas el valor del precio especial ni el porcentaje de descuento.
-→ Si la persona viene por los cupos, NO des precios de liposucción ni de
-  mamoplastia de aumento (ni el "desde"): el precio especial depende de que
-  cumpla los requisitos y se lo da la asesora.
+→ Precio especial (23-nov-2026, ya va en la imagen que el bot le manda al
+  escoger): *Liposucción $17.000.000* (cirugía, póliza de complicaciones,
+  faja posquirúrgica y postoperatorios) · *Mamoplastia de aumento
+  $15.000.000* (prótesis mamarias, póliza de complicaciones, brasier
+  posquirúrgico y postoperatorios). Cirugías hasta el 31 de diciembre.
+  Hay planes de financiación con Finanmed (sujeta a aprobación de crédito).
+  Si pregunta el precio, dilo así, siempre con "aplica si tienes la
+  indicación médica y cumples los requisitos". No inventes otros valores,
+  porcentajes de descuento ni precios de otras cirugías.
+→ Si escribe "QUIERO MI CUPO": pide los datos que falten (nombre completo
+  y ciudad) para que la asesora la llame.
 → NO confirmes que ya tiene un cupo ni que cumple: eso lo dice la asesora.
 → Solo aplica a liposucción y mamoplastia de aumento. Para otros
   procedimientos di que esta promo es solo para esas dos cirugías.
@@ -2634,8 +2665,10 @@ class BrainCX:
                 idx = max((i for i, c in enumerate(ult_bot) if '<<<PENDIENTE>>>' in c or 'Nombre completo' in c), default=-1)
                 if idx < 0 or any('<<<NOTIFY>>>' in c for c in ult_bot[idx:]) or self._already_notified_cx(tel, 'cirugia'):
                     continue
-                if not self._quieta(tel, minutos) or self._medfiles_pausado(tel):
-                    continue   # sigue conversando, o alguien del equipo ya le escribió desde MedFiles
+                if not self._quieta(tel, minutos):
+                    continue   # sigue conversando
+                # Si una asesora ya le escribe desde MedFiles, igual se crea el lead (antes se saltaba y no quedaba
+                # en el CRM; 23-nov): MedFiles se lo asigna a la asesora que tiene el chat.
                 pedido = ult_bot[idx]
                 # contacto_telefono ya puede traer el "@lid" (chat_id completo): no se le agrega otra vez
                 self._chat_id = (tel if tel.endswith('@lid') else tel + '@lid') if len(re.sub(r'\D', '', tel)) > 13 else ''
@@ -2876,6 +2909,51 @@ class BrainCX:
         ] if x is not None)
         self._avisar_asesora_y_dr(tel, d.get('copias'), msg, 'recordatorio a asesora')
 
+    def _promo_pedido_datos(self, proc, celular=False):
+        """Pedido de datos de la promo de los cupos (lleva _PROMO_PEDIDO: así el bot sabe qué cirugía escogió)."""
+        return ("Si quieres tu cupo, déjame tus datos y en breve una de nuestras asesoras te contactará para revisar si "
+                + _PROMO_PEDIDO + f" de tu *{proc.lower()}* 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
+                + ("\n📱 *Número de celular*" if celular else ''))
+
+    def _enviar_promo(self, sender_id, canal, intro, cirugias, pedido, send=True):
+        """Manda: intro → imagen(es) de la promo 10 cupos → pedido de datos. Devuelve el texto para el historial
+        (con la marca de la imagen, para no mandarla dos veces)."""
+        _client = self.instagram if (canal or '').startswith('instagram') else self.whapi
+        if send:
+            try: _client.send_text(sender_id, intro)
+            except Exception as e: print(f"[CX] promo intro err: {e}", flush=True)
+            for c in cirugias:
+                time.sleep(1.2)
+                try:
+                    if hasattr(_client, 'send_image'): _client.send_image(sender_id, _PROMO_IMG[c], '')
+                    else: _client.send_text(sender_id, _PROMO_IMG[c])
+                except Exception as e: print(f"[CX] promo imagen err ({c}): {e}", flush=True)
+            time.sleep(1.5)
+            try: _client.send_text(sender_id, pedido)
+            except Exception as e: print(f"[CX] promo pedido err: {e}", flush=True)
+        return '\n\n'.join([intro] + [f"{_PROMO_MARCA_IMG} · {c}: {_PROMO_IMG[c]}" for c in cirugias] + [pedido])
+
+    def _marcar_quiere_cupo(self, sender_id, canal):
+        """Escribió «QUIERO MI CUPO» y ya tiene lead: MedFiles la marca 🔥 (lo hace la base al guardar el mensaje);
+        aquí se busca su asesora y se le manda el aviso a su asesora y al Dr. para que la llamen ya."""
+        base, clave = self._medfiles_cfg()
+        if not clave or self._es_canal_instagram(canal):
+            return
+        body = {'accion': 'completar', 'canal': 'whatsapp', 'chat_id': getattr(self, '_chat_id', '') or None,
+                'telefono_chat': str(sender_id)}   # sin nota: la nota 🔥 la pone la base al guardar el mensaje
+        req = urllib.request.Request(f"{base}/api/entrada/bot", data=json.dumps(body, ensure_ascii=False).encode(),
+                                     headers={'X-Clave': clave, 'Content-Type': 'application/json', 'Accept': 'application/json',
+                                              'User-Agent': _BROWSER_UA}, method='POST')
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read() or b'{}')
+        tel = re.sub(r'[^\d]', '', str(((data.get('asesora') or {}).get('whatsapp')) or os.environ.get('ASESORA_MEDFILES_TEL', '')))
+        if not tel:
+            return
+        link = f"{base}/crm/whatsapp?persona={data['persona']}" if data.get('persona') else f"{base}/crm"
+        self._avisar_asesora_y_dr(tel, data.get('copias'), "\n".join([
+            "🔥 *Quiere su cupo*", f"👤 {data.get('nombre') or 'Paciente'} escribió *QUIERO MI CUPO*",
+            "📞 Llámala ya", "", f"Atiéndela desde MedFiles 👉 {link}"]), 'aviso quiere cupo')
+
     def _notify_lead(self, fields, sender_id, canal='whatsapp', history=None, ultimo_bot=''):
         """Flujo nuevo: envía el lead a MedFiles + aviso por WhatsApp a la
         asesora única (ASESORA_MEDFILES_TEL). El dedup <24h lo hace el caller
@@ -2988,6 +3066,9 @@ class BrainCX:
             'pauta': pauta or None,
             'resumen': resumen,
         }
+        # Escribió «QUIERO MI CUPO» antes de dejar los datos → MedFiles la marca 🔥 y la pone primero
+        if any(m.get('role') == 'user' and isinstance(m.get('content'), str) and _quiere_cupo(m['content']) for m in (history or [])):
+            body['caliente'] = '1'
         if getattr(self, '_idioma', 'es') == 'en':
             body['idioma'] = 'en'
             body['resumen'] = '🇺🇸 HABLA INGLÉS — atenderlo en inglés\n\n' + (body.get('resumen') or '')
@@ -3473,16 +3554,19 @@ class BrainCX:
                 print(f"[CX] PROMO 10 CUPOS detectada → {sender_id}: {text[:60]!r}", flush=True)
                 _elec0 = _promo_eleccion(text)
                 if _elec0:
-                    # Ya dijo cuál quiere: la bienvenida y de una el pedido de datos
+                    # Ya dijo cuál quiere: la bienvenida, la imagen de la promo (con el precio) y el pedido de datos
                     _proc0 = ' y '.join(_elec0) if isinstance(_elec0, list) else _elec0
                     _cel0 = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
                         or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
-                    reply = (PROMO_BIENVENIDA.split('¡Sí!')[0]
-                             + "¡Sí! Por lo que queda del año tenemos *10 cupos con precio especial* ✨ para *liposucción* y "
-                             "*mamoplastia de aumento*, para las personas que *tengan indicación y cumplan los requisitos* 💙\n\n"
-                             "Para revisar si " + _PROMO_PEDIDO + f" de tu *{_proc0.lower()}*, déjame tus datos y en breve una de nuestras "
-                             "asesoras te contactará para darte toda la información 💙\n\n"
-                             "👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*" + ("\n📱 *Número de celular*" if _cel0 else ''))
+                    _intro0 = (PROMO_BIENVENIDA.split('¡Sí!')[0]
+                               + "¡Sí! Por lo que queda del año tenemos *10 cupos con precio especial* ✨ para *liposucción* y "
+                               "*mamoplastia de aumento*, para las personas que *tengan indicación y cumplan los requisitos* 💙\n\n"
+                               "Mira tu cupo 👇")
+                    self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                    reply = self._enviar_promo(sender_id, canal, _intro0, _promo_lista(_elec0),
+                                               self._promo_pedido_datos(_proc0, _cel0), send)
+                    self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                    return reply
                 else:
                     reply = PROMO_BIENVENIDA
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
@@ -3502,22 +3586,32 @@ class BrainCX:
                 _proc_p = ' y '.join(_elec) if isinstance(_elec, list) else _elec
                 _cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
                     or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
-                reply = ("¡Excelente! ✨ Para revisar si " + _PROMO_PEDIDO
-                         + f" de tu *{_proc_p.lower()}*, déjame tus datos y en breve una de nuestras asesoras te contactará "
-                         "para darte toda la información 💙\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
-                         + ("\n📱 *Número de celular*" if _cel else ''))
-                print(f"[CX] PROMO 10 CUPOS eligió {_proc_p} → {sender_id}", flush=True)
+                print(f"[CX] PROMO 10 CUPOS eligió {_proc_p} → {sender_id} (se envía la imagen)", flush=True)
                 self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-                if send:
-                    _client = self.instagram if canal.startswith('instagram') else self.whapi
-                    try: _client.send_text(sender_id, reply)
-                    except Exception as _e: print(f"[CX] promo elección reply err: {_e}", flush=True)
+                reply = self._enviar_promo(sender_id, canal, "¡Excelente! ✨ Mira tu cupo con *precio especial* 👇",
+                                           _promo_lista(_elec), self._promo_pedido_datos(_proc_p, _cel), send)
                 self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                 return reply
 
-        # ── PROMO 10 CUPOS: pregunta precio → no se dan precios (regla del Dr., 10-nov) ──
-        # Liposucción / mamoplastia (o precio sin decir de qué): el precio especial depende de si cumple
-        # los requisitos → se le piden los datos. Otras cirugías siguen el flujo normal.
+        # ── PROMO 10 CUPOS: escribió «QUIERO MI CUPO» (lo que pide la imagen) ──
+        # Si ya dejó sus datos (lead creado): se marca 🔥 en MedFiles y se le avisa a su asesora para que la llame ya.
+        if not _is_first_time and _promo_activa() and _quiere_cupo(text) and _promo_de_historial(history) is not None:
+            _bots_q = ' '.join(m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
+            if '<<<NOTIFY' in _bots_q:
+                self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
+                reply = ("¡Listo! 💙 Ya le avisé a tu asesora que *quieres tu cupo*: "
+                         "te llamará muy pronto para revisar si cumples los requisitos 😊")
+                if send:
+                    _client = self.instagram if canal.startswith('instagram') else self.whapi
+                    try: _client.send_text(sender_id, reply)
+                    except Exception as _e: print(f"[CX] quiero cupo reply err: {_e}", flush=True)
+                self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
+                try: self._marcar_quiere_cupo(sender_id, canal)
+                except Exception as _e: print(f"[CX] quiero cupo aviso err: {_e}", flush=True)
+                return reply
+
+        # ── PROMO 10 CUPOS: pregunta precio → se le da el precio especial de la imagen (cambio del Dr., 23-nov;
+        # antes, 10-nov, no se daba) y se le piden los datos. Otras cirugías siguen el flujo normal.
         if not _is_first_time and _promo_activa() and '<<<NOTIFY' not in ' '.join(
                 m.get('content') or '' for m in (history or []) if m.get('role') == 'assistant' and isinstance(m.get('content'), str)):
             _pp = _promo_de_historial(history)
@@ -3530,23 +3624,28 @@ class BrainCX:
                     if not _e:
                         _e2 = _promo_eleccion(_tx)
                         _e = (' y '.join(_e2) if isinstance(_e2, list) else _e2) if _e2 else None
+                    self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
                     if _e:
                         _cel = bool(getattr(self, '_es_lid', False) and not self._numero_lid(history, text)) \
                             or (self._es_canal_instagram(canal) and not self._tel_escrito(history, text))
-                        reply = ("El *precio especial* de los *10 cupos* depende de tu caso y de que *tengas indicación y cumplas los requisitos* 💙\n\n"
-                                 "Para revisar si " + _PROMO_PEDIDO + f" de tu *{_e.lower()}*, déjame tus datos y en breve una de nuestras "
-                                 "asesoras te contactará para darte toda la información ✨\n\n👤 *Nombre completo*\n📍 *Ciudad*\n📧 *Correo electrónico*"
-                                 + ("\n📱 *Número de celular*" if _cel else ''))
+                        _precio = ("El *precio especial* de los *10 cupos* (cirugías hasta el 31 de diciembre):\n"
+                                   + '\n'.join('• ' + _PROMO_PRECIO[c] for c in _promo_lista(_e))
+                                   + "\n\nAplica si tienes la *indicación médica* y *cumples los requisitos* 💙 "
+                                   "También hay *planes de financiación* con Finanmed (sujetos a aprobación de crédito).")
+                        _ya_img = any(_PROMO_MARCA_IMG in (m.get('content') or '') for m in (history or [])
+                                      if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
+                        reply = self._enviar_promo(sender_id, canal, _precio, [] if _ya_img else _promo_lista(_e),
+                                                   self._promo_pedido_datos(_e, _cel), send)
                     else:
-                        reply = ("El *precio especial* de los *10 cupos* depende de tu caso y de que *tengas indicación y cumplas los requisitos* 💙 "
-                                 "Una de nuestras asesoras te da toda la información.\n\n" + _PROMO_PREGUNTA
+                        reply = ("Estos son los *10 cupos con precio especial* (cirugías hasta el 31 de diciembre):\n"
+                                 + '\n'.join('• ' + v for v in _PROMO_PRECIO.values())
+                                 + "\n\nAplica si tienes la *indicación médica* y *cumples los requisitos* 💙\n\n" + _PROMO_PREGUNTA
                                  + "\n1️⃣ *Liposucción*\n2️⃣ *Mamoplastia de aumento*\n\nEscribe *1* o *2* 😊")
-                    print(f"[CX] PROMO 10 CUPOS pregunta precio → sin precio ({_e or 'sin escoger'}) {sender_id}", flush=True)
-                    self._save_message(sender_id, sender_name, text, 'entrante', 'paciente', canal=canal)
-                    if send:
-                        _client = self.instagram if canal.startswith('instagram') else self.whapi
-                        try: _client.send_text(sender_id, reply)
-                        except Exception as _ee: print(f"[CX] promo precio reply err: {_ee}", flush=True)
+                        if send:
+                            _client = self.instagram if canal.startswith('instagram') else self.whapi
+                            try: _client.send_text(sender_id, reply)
+                            except Exception as _ee: print(f"[CX] promo precio reply err: {_ee}", flush=True)
+                    print(f"[CX] PROMO 10 CUPOS pregunta precio → con precio ({_e or 'sin escoger'}) {sender_id}", flush=True)
                     self._save_message(sender_id, sender_name, reply, 'saliente', 'bot', canal=canal)
                     return reply
 
