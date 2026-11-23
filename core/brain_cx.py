@@ -138,6 +138,19 @@ _RE_OTRA_CX = re.compile(r'reduc|pexia|levant|caid|explant|retir|cambio de (impl
                          r'blefar|papada|otoplast|rino|lifting|brazo')
 
 
+def _promo_otra_cx(history, text=''):
+    """Vino por la promo pero pide OTRA cirugía (reducción, pexia, abdominoplastia…) y no escogió lipo ni mamoplastia de
+    aumento: el texto de lo que pidió; '' si no. Esa persona va por el flujo general (asesoría / valoración), sin la promo."""
+    if _promo_de_historial(history) not in (None, ''):
+        return ''
+    textos = [m.get('content') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str)] + [text or '']
+    for t in textos:
+        tt = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', t or ''))
+        if _RE_OTRA_CX.search(tt):
+            return (t or '').strip()[:80]
+    return ''
+
+
 def _promo_eleccion(texto):
     """Qué escogió entre los cupos: 'Liposucción', 'Mamoplastia de aumento', ambas (lista) o None."""
     t = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))
@@ -3081,6 +3094,9 @@ class BrainCX:
             if _senos_proc and (not proc or proc == 'consulta general'):
                 proc = _senos_proc
         _promo_proc = _promo_de_historial(history)
+        if _promo_proc == '' and _promo_otra_cx(history):
+            # Vino por la promo pero pidió otra cirugía: no aplica el precio especial
+            pauta, _promo_proc = f"{_PAUTA_MAMO_LABEL} · pidió otra cirugía", None
         if _promo_proc is not None:
             pauta = f"{_PAUTA_MAMO_LABEL} · {_promo_proc}" if _promo_proc else _PAUTA_MAMO_LABEL
             if _promo_proc:
@@ -3134,7 +3150,7 @@ class BrainCX:
                           if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
         _escribio_quiero = any(m.get('role') == 'user' and isinstance(m.get('content'), str) and _quiere_cupo(m['content'])
                                for m in (history or []))
-        _caliente = (pauta or '').startswith('Promo 10 cupos') and (_escribio_quiero or (_vio_precio and not fields.get('incompleto')))
+        _caliente = (pauta or '').startswith('Promo 10 cupos') and not (pauta or '').endswith('pidió otra cirugía') and (_escribio_quiero or (_vio_precio and not fields.get('incompleto')))
         if _caliente:
             body['caliente'] = 'quiero' if _escribio_quiero else 'datos'
         if getattr(self, '_idioma', 'es') == 'en':
@@ -3159,7 +3175,10 @@ class BrainCX:
 
         # Aviso por WhatsApp a la asesora (opcional).
         if asesora_tel:
-            if (pauta or '').startswith('Promo 10 cupos'):
+            if (pauta or '').endswith('pidió otra cirugía'):
+                tipo_txt = ('Vino por la promo 10 cupos pero pide OTRA cirugía (no aplica el precio especial) · '
+                            + ('Valoración con el Dr.' if interes == 'valoracion' else 'Asesoría virtual gratuita'))
+            elif (pauta or '').startswith('Promo 10 cupos'):
                 # «QUIERE SU CUPO» solo si lo ESCRIBIÓ (Dr., 23-nov); si solo vio el precio y dejó datos, se dice tal cual
                 tipo_txt = ('🔥 Promo 10 cupos: escribió QUIERO MI CUPO. Llámala ya para revisar si cumple los requisitos' if _caliente and _escribio_quiero
                             else '📞 Promo 10 cupos: ya vio el precio y dejó sus datos. Llámala para revisar si cumple los requisitos' if _caliente
@@ -4459,6 +4478,16 @@ class BrainCX:
         # se vuelve a la promo (escoger lipo o mamoplastia, o dejar los datos si ya escogió)
         if not match and _promo_activa():
             _ppx = _promo_de_historial(history)
+            # Pidió OTRA cirugía (no lipo ni mamoplastia de aumento): flujo general, sin menú ni mensajes de la promo
+            # (Dr., 23-nov: «pidió reducción de senos y le mandó todo lo de la pauta»)
+            if _ppx is not None and _promo_otra_cx(history, text):
+                if '10 cupos' not in user_facing:
+                    _i = min([i for i in (user_facing.find('¿Tienes alguna otra *pregunta o duda*'), user_facing.find('Tu siguiente paso'),
+                                          user_facing.find('*¿Cómo te gustaría dar el siguiente paso?*')) if i >= 0] or [-1])
+                    _nota = ("💙 Te cuento: los *10 cupos con precio especial* son solo para *liposucción* y *mamoplastia de aumento*. "
+                             "Para lo que buscas, tu asesora te da el valor según tu caso.")
+                    user_facing = (user_facing[:_i].rstrip() + "\n\n" + _nota + "\n\n" + user_facing[_i:]).strip() if _i >= 0 else user_facing
+                _ppx = None
             _ya_lead = any('<<<NOTIFY' in (m.get('content') or '') for m in (history or [])
                            if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
             # Ya dejó sus datos: no se le ofrece asesoría ni valoración; la asesora la llama para revisar si califica
