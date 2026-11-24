@@ -2245,7 +2245,8 @@ class BrainCX:
         nombre = (fields.get('nombre') or '').strip()
         bad_name = (not nombre or
                     not any(c.isalpha() for c in nombre) or
-                    nombre.lower() in ('.', '—', '-', 'sin nombre', 'no especificado'))
+                    nombre.lower() in ('.', '—', '-', 'sin nombre', 'no especificado') or
+                    not _nombre_promo(nombre))   # (23-nov) «😍Mi Vida😍», «Millones», usuarios… no son nombres
         if bad_name:
             recovered = self._extract_name_from_history(history, sender_name)
             fields['nombre'] = recovered or 'Paciente'
@@ -2810,7 +2811,7 @@ class BrainCX:
         from core.pasos_cx import _procedimiento_conversado
         dicho = ' '.join(m.get('content') or '' for m in (hist or []) if m.get('role') == 'user')
         return {
-            'nombre': self._extract_name_from_history(hist, nombre_perfil) or nombre_perfil or '',
+            'nombre': self._extract_name_from_history(hist, nombre_perfil) or '',   # (23-nov) sin el perfil crudo («😍Mi Vida😍»)
             'interes': self._interes_elegido(hist, pedido),
             'modalidad': 'virtual' if (re.search(r'\bvirtual\b', dicho, re.I) and not re.search(r'asesor[ií]a virtual', dicho, re.I))
                          or re.search(VIDEO_DOCTOR, dicho, re.I) else 'presencial' if re.search(r'\bpresencial\b', dicho, re.I) else '',
