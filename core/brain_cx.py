@@ -57,9 +57,10 @@ _LEGACY_CRM = os.environ.get('CX_LEGACY_CRM', '').strip() == '1'
 # (La promo vieja "Mamoplastia todo incluido $18M" se suspendió el 4-nov-2026.)
 _PROMO_HASTA = '2026-12-31'   # último día (hora Colombia); después el bot deja de mencionarla
 _PAUTA_MAMO_KW = (
-    '10 cupos', 'diez cupos', 'los cupos', 'un cupo', 'mi cupo', 'cupos', 'precio especial',
-    'promo mamoplastia', 'promo senos', 'promo lipo', 'promocion', 'promo ', 'descuento',
-    'paquete mamoplastia', 'mamoplastia incluido', '18 millones',
+    # (23-nov, Dr.) Solo el texto del ANUNCIO de los cupos (o «quiero mi cupo») mete a la persona en el flujo de la promo.
+    # «¿tienen promoción?», «descuento», «precio especial» escritos por su cuenta van por la información general
+    # (si preguntan por la promo, la IA igual la confirma; ver PROMO VIGENTE en el prompt).
+    '10 cupos', 'diez cupos', 'uno de los cupos', 'los 10 cupos', 'mi cupo', 'un cupo', 'el cupo',
 )
 _PAUTA_MAMO_LABEL = 'Promo 10 cupos'
 _PROMO_PREGUNTA = '¿Cuál te interesa?'

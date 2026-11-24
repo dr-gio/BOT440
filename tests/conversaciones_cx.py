@@ -282,6 +282,9 @@ ESCENARIOS = {
         ('2', [tiene('Nombre completo')]),
         ('15millones', [tiene('Nombre completo'), no_tiene('ciudad', 'Ciudad'), ('no crea lead con nombre raro', lambda r: not any((l.get('nombre') or '').lower() == 'millones' for l in LEADS))]),
     ],
+    'organico_pregunta_promocion_no_entra_al_flujo': [
+        ('Hola buenas, ¿tienen alguna promoción en abdominoplastia?', [no_tiene('10-cupos-liposuccion-bot.png', '10-cupos-mamoplastia-bot.png', 'Escribe *1*, *2* o *3*')]),
+    ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion-bot.png'), no_tiene('15.000.000')]),
