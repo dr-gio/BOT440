@@ -87,7 +87,7 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r:
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r and 'Cuando quieras damos el siguiente paso:' not in r and "let's take the next step:" not in r:
         fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
@@ -102,7 +102,8 @@ def reglas_generales(r):
 # Chequeos por turno: (mensaje del paciente, [condiciones sobre la respuesta])
 def tiene(*t): return ('contiene ' + ' / '.join(t), lambda r: all(x.lower() in r.lower() for x in t))
 def no_tiene(*t): return ('NO contiene ' + ' / '.join(t), lambda r: not any(x.lower() in r.lower() for x in t))
-def con_cierre(): return ('termina con el bloque aprobado', lambda r: r.rstrip().endswith('personalmente.') and CIERRE in r)
+def con_cierre(): return ('termina con el bloque aprobado', lambda r: (r.rstrip().endswith('personalmente.') and CIERRE in r)
+                         or (r.rstrip().endswith('Respóndeme *1* o *2* 😊') and 'Cuando quieras damos el siguiente paso:' in r))  # (24-nov) cierre corto si el bloque ya salió
 def sin_cierre(): return ('sin bloque de siguiente paso', lambda r: CIERRE not in r)
 def cierre_corto(): return ('cierre corto (no repite el bloque)', lambda r: CIERRE not in r and 'algo más' in r)
 def menu(): return ('menú para escoger 1 o 2, sin "¿alguna duda?"', lambda r: 'Respóndeme *1* o *2*' in r and 'pregunta o duda' not in r
@@ -290,6 +291,25 @@ ESCENARIOS = {
         ('2', []),
         ('Dólares?', [tiene('pesos colombianos', 'US$'), ('no empieza con «No»', lambda r: not re.match(r'\W*no\b', r.strip(), re.I))]),
         ('Ok y que cuesta el levantamiento', [tiene('18.000.000', 'US$')]),
+    ],
+    'promo_ya_dio_datos_pregunta_otra_cosa': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('Me gustaría un realce de senos sin implantes', []),
+        ('Diana Maria cruz Neiva Huila 3103067361', []),
+        ('Cuanto cuesta un levantamiento sin implantes', [tiene('18.000.000'), ('cierra con el siguiente paso', lambda r: bool(re.search(r'asesor[ií]a virtual|valoraci[oó]n', r, re.I)))]),
+        ('1', []),
+    ],
+    'promo_ya_dio_datos_pide_reduccion': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('2', []),
+        ('Ana Ruiz Santa Marta ana@gmail.com 3001234567', []),
+        ('Buenas me puede cotizar reducción de senos', [tiene('20.000.000'), no_tiene('precio especial* de tu *mamoplastia de aumento'), ('cierra con el siguiente paso', lambda r: bool(re.search(r'asesor[ií]a virtual|valoraci[oó]n', r, re.I)))]),
+        ('1', []),
+    ],
+    'promo_sin_datos_pregunta_salud': [
+        ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
+        ('2', []),
+        ('Yo sufro de epilepsia, si se puede?', [tiene('epilepsia'), ('pide los datos', lambda r: bool(re.search(r'nombre|datos', r, re.I)))]),
     ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),

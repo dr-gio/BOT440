@@ -138,13 +138,17 @@ def _quiere_cupo(texto):
     return bool(_RE_QUIERO_CUPO.search(_sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or ''))))
 
 
-_RE_OTRA_CX = re.compile(r'reduc|pexia|levant|caid|explant|retir|cambio de (implante|protesis)|abdomin|glute|bbl|ginecom|'
+_RE_OTRA_CX = re.compile(r'reduc|pexia|levant|caid|explant|retir|cambio de (implante|protesis)|abdomin|glute|bbl|ginecom|sin (implante|protesis)|realce|maxtopex|'
                          r'blefar|papada|otoplast|rino|lifting|brazo')
 
 
 def _promo_otra_cx(history, text=''):
     """Vino por la promo pero pide OTRA cirugía (reducción, pexia, abdominoplastia…) y no escogió lipo ni mamoplastia de
     aumento: el texto de lo que pidió; '' si no. Esa persona va por el flujo general (asesoría / valoración), sin la promo."""
+    # Lo que pide AHORA (aunque antes haya escogido un cupo): «me puede cotizar reducción de senos» (24-nov, caso Delfa)
+    ahora = _sin_tildes(re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or ''))
+    if ahora and _RE_OTRA_CX.search(ahora):
+        return (text or '').strip()[:80]
     if _promo_de_historial(history) not in (None, ''):
         return ''
     textos = [m.get('content') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str)] + [text or '']
@@ -952,6 +956,11 @@ def mensaje_agendar(mensaje, pedir_celular=False, history=None):
 
 CIERRE_DUDAS = ("¿Tienes alguna otra *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\n"
                 + BLOQUE_SIGUIENTE_PASO)
+# (24-nov) Cierre corto cuando el bloque completo ya salió antes en la conversación (sigue empujando al paso, con 1 o 2)
+CIERRE_PASO_CORTO = ("¿Tienes otra duda? 😊 Cuando quieras damos el siguiente paso:\n"
+                     "1️⃣ *Asesoría virtual gratuita* 💻\n"
+                     "2️⃣ *Valoración con el Dr. Gio* 👨‍⚕️ (presencial *$250.000* · virtual *$160.000*)\n\n"
+                     "Respóndeme *1* o *2* 😊")
 BIENVENIDA_PREGUNTA = "Cuéntame, ¿qué procedimiento te interesa o qué te gustaría mejorar? 😊"
 # Separa la respuesta en dos mensajes de WhatsApp (bienvenida / información) para que no quede un bloque enorme
 PARTE = "\n\n<<<PARTE>>>\n\n"
@@ -4522,23 +4531,43 @@ class BrainCX:
             # Pidió OTRA cirugía (no lipo ni mamoplastia de aumento): flujo general, sin menú ni mensajes de la promo
             # (Dr., 23-nov: «pidió reducción de senos y le mandó todo lo de la pauta»)
             if _ppx is not None and _promo_otra_cx(history, text):
-                if '10 cupos' not in user_facing:
+                _previos_bot = '\n'.join(m.get('content') or '' for m in (history or [])
+                                         if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
+                _ya_lead_otra = '<<<NOTIFY' in _previos_bot
+                # (24-nov) Mandó sus datos (nombre, ciudad, celular o correo) sin haber escogido el paso: se le confirma
+                # que los recibimos y se le pide escoger asesoría o valoración (antes se le repetía la nota de los cupos)
+                _t_datos = re.sub(r'^\[[^\]]{1,80}\]:\s*', '', text or '').strip()
+                _ult_bot = next((m.get('content') or '' for m in reversed(history or [])
+                                 if m.get('role') == 'assistant' and isinstance(m.get('content'), str)), '')
+                if not _ya_lead_otra and '?' not in _t_datos and not _RE_OTRA_CX.search(_sin_tildes(_t_datos)) and (
+                        re.search(r'\d{7,}|@', _t_datos)
+                        or (re.search(r'nombre completo', _ult_bot, re.I) and re.fullmatch(r"[A-Za-zÁÉÍÓÚÑáéíóúñü' ,.]{6,80}", _t_datos))) \
+                        and len(_t_datos.split()) >= 2:
+                    _nom = _t_datos.split()[0].strip(',.').capitalize()
+                    from core.pasos_cx import MENU_OPCIONES
+                    user_facing = f"¡Gracias, {_nom}! 💙 Ya tengo tus datos ✅\n\n" + MENU_OPCIONES
+                # La nota de los cupos va UNA sola vez en la conversación
+                elif '10 cupos' not in user_facing and 'son solo para *liposucción* y *mamoplastia de aumento*' not in _previos_bot:
                     _i = min([i for i in (user_facing.find('¿Tienes alguna otra *pregunta o duda*'), user_facing.find('Tu siguiente paso'),
                                           user_facing.find('*¿Cómo te gustaría dar el siguiente paso?*')) if i >= 0] or [-1])
                     _nota = ("💙 Te cuento: los *10 cupos con precio especial* son solo para *liposucción* y *mamoplastia de aumento*. "
                              "Para lo que buscas, tu asesora te da el valor según tu caso.")
                     user_facing = (user_facing[:_i].rstrip() + "\n\n" + _nota + "\n\n" + user_facing[_i:]).strip() if _i >= 0 else user_facing
+                if _ya_lead_otra and 'Respóndeme *1* o *2*' not in user_facing and 'Tu siguiente paso puede ser' not in user_facing:
+                    user_facing = re.sub(r'\n*Recuerda que \*?nuestra asesora ya tiene tus datos\*?[^\n]*$', '', user_facing.rstrip()).rstrip()
+                    user_facing += "\n\n" + CIERRE_PASO_CORTO
                 _ppx = None
             _ya_lead = any('<<<NOTIFY' in (m.get('content') or '') for m in (history or [])
                            if m.get('role') == 'assistant' and isinstance(m.get('content'), str))
-            # Ya dejó sus datos: no se le ofrece asesoría ni valoración; la asesora la llama para revisar si califica
-            if _ppx is not None and _ya_lead and re.search(r'asesor[ií]a virtual gratuita|siguiente paso', user_facing, re.I):
-                _cortes = [i for i in (user_facing.find('¿Tienes alguna otra *pregunta o duda*'), user_facing.find('Tu siguiente paso'),
-                                       user_facing.find('*¿Cómo te gustaría dar el siguiente paso?*'), user_facing.find('¿Cómo te gustaría dar el siguiente paso')) if i >= 0]
-                _base = (user_facing[:min(_cortes)] if _cortes else '').rstrip()
-                _cola = ("Ya tenemos tu solicitud para los *10 cupos* 💙 Una de nuestras asesoras *te llamará* para revisar "
-                         "si calificas para el *precio especial*" + (f" de tu *{_ppx.lower()}*" if _ppx else '') + " 😊")
-                user_facing = (_base + "\n\n" + _cola).strip() if len(_base) > 15 else _cola
+            # Ya dejó sus datos (24-nov, Dr.): la pauta es la puerta de entrada, no una jaula. Se responde lo que preguntó
+            # (antes se cambiaba por la frase fija «Ya tenemos tu solicitud…» y la persona se quedaba sin respuesta) y,
+            # como filtro, cada respuesta cierra con el siguiente paso: asesoría virtual o valoración con el Dr.
+            if _ppx is not None and _ya_lead:
+                if 'Tu siguiente paso puede ser' not in user_facing and not re.search(r'nombre completo', user_facing, re.I):
+                    _i = user_facing.find('¿Tienes alguna otra *pregunta o duda*')
+                    _base = (user_facing[:_i] if _i >= 0 else user_facing).rstrip()
+                    user_facing = (_base + "\n\n" if len(_base) > 15 else '') + \
+                        "¿Tienes alguna otra *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\n" + BLOQUE_SIGUIENTE_PASO
             if _ppx is not None and not _ya_lead:
                 _i = min([i for i in (user_facing.find('¿Tienes alguna otra *pregunta o duda*'), user_facing.find('*¿Cómo te gustaría dar el siguiente paso?*'),
                                       user_facing.find('¿Cómo te gustaría dar el siguiente paso')) if i >= 0] or [-1])
@@ -4667,6 +4696,20 @@ class BrainCX:
             else:
                 user_facing = sin_fotos(user_facing, _mf.group(0))
 
+        # (24-nov, Dr.) «Tu siguiente paso puede ser…» completo solo la primera vez; si ya salió, el cierre es corto (con 1 o 2)
+        # Ya escogió el paso (o pidió datos / dio las gracias): no se le vuelve a ofrecer «1 o 2»
+        if user_facing and (re.search(r'nombre completo', user_facing, re.I)
+                            or (isinstance(_paso, dict) and _paso.get('paso') in ('post_elige', 'post_gracias'))):
+            user_facing = user_facing.replace("\n\n" + CIERRE_PASO_CORTO, '').replace(CIERRE_PASO_CORTO, '').rstrip()
+            if isinstance(_paso, dict) and _paso.get('paso') in ('post_elige', 'post_gracias') and BLOQUE_SIGUIENTE_PASO in user_facing:
+                user_facing = re.sub(r'\n*¿Tienes alguna (otra )?\*?pregunta o duda\*?[^\n]*\s*$', '',
+                                     user_facing.split(BLOQUE_SIGUIENTE_PASO)[0].rstrip()).rstrip()
+        if user_facing and BLOQUE_SIGUIENTE_PASO in user_facing and any(
+                'Tu siguiente paso puede ser' in (m.get('content') or '') for m in (history or [])
+                if m.get('role') == 'assistant' and isinstance(m.get('content'), str)):
+            _k = user_facing.find(BLOQUE_SIGUIENTE_PASO)
+            _antes = re.sub(r'\n*¿Tienes alguna (otra )?\*?pregunta o duda\*?[^\n]*\s*$', '', user_facing[:_k].rstrip()).rstrip()
+            user_facing = ((_antes + "\n\n") if _antes else '') + CIERRE_PASO_CORTO + user_facing[_k + len(BLOQUE_SIGUIENTE_PASO):]
         if user_facing and es_internacional(sender_id, history, text):
             user_facing = ajustar_internacional(user_facing)
         elif user_facing and pide_dolares(history, text):

@@ -278,6 +278,9 @@ def decidir_paso(history, texto):
         return {'paso': 'fotos', 'clave': clave_de(t) or _clave_conversada(history)}
     if datos_dados and RE_GRACIAS.search(t or ''):
         return {'paso': 'post_gracias'}
+    # (24-nov) Ya dejó sus datos y responde «1» o «2» al cierre corto (Respóndeme 1 o 2): escoge el paso, no se le piden datos otra vez
+    if datos_dados and re.fullmatch(r'\s*(1|2|1️⃣|2️⃣)\s*\W*', t) and 'Respóndeme *1* o *2*' in ultimo:
+        return {'paso': 'post_elige'}
     if datos_dados and not _es_pregunta(t) and (_es_eleccion(t) or quiere_agendar(t)
                                                 or re.search(r'\b(asesor[ií]a|valoraci[oó]n|consulta|presencial|virtual)\b', t, re.I)):
         return {'paso': 'post_elige'}
