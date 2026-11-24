@@ -4095,8 +4095,12 @@ class BrainCX:
         # Siempre expone el sender_id en el prefijo para que Claude lo use en NOTIFY.
         # Formato: [sender_id|sender_name] si hay nombre, [sender_id] si no.
         # En Instagram el sender_id es un IGSID (no teléfono) → el bot debe pedir tel.
-        if sender_name:
-            user_content = f"[{sender_id}|{sender_name}]: {text}"
+        # (23-nov, Dr.) El nombre del perfil solo va si parece un nombre real; si no («M E LI SA», «🥰», un usuario),
+        # la IA no lo adivina ni la llama por él: le pregunta el nombre.
+        _np = _nombre_promo(sender_name or '')
+        _perfil_ok = _np[0] if _np and all(len(w) >= 2 for w in _np[0].split()) else ''
+        if _perfil_ok:
+            user_content = f"[{sender_id}|{_perfil_ok}]: {text}"
         else:
             user_content = f"[{sender_id}]: {text}"
         history.append({'role': 'user', 'content': user_content})
@@ -4514,7 +4518,7 @@ class BrainCX:
                     _cola = self._promo_pedido_datos(_ppx, False, ventajas=False)
                     # Sin pedidos repetidos o contradictorios de la IA («ahora solo necesito tu ciudad…»): el pedido es uno solo
                     _base = '\n\n'.join(b for b in _base.split('\n\n')
-                                          if not re.search(r'necesito tu|d[eé]jame tus datos|me (falta|faltan)|tu \*?ciudad|nombre completo', b, re.I)).rstrip()
+                                          if not re.search(r'necesito|d[eé]jame tus datos|me (falta|faltan)|tu \*?ciudad|nombre completo|apartar tu \*?cupo', b, re.I)).rstrip()
                 else:
                     _cola = (_PROMO_PREGUNTA + " (para tu cupo con *precio especial*)\n" + _PROMO_MENU + "\n\n" + _PROMO_ESCRIBE)
                 if _cola:
