@@ -36,6 +36,10 @@
     {
       "path": "/cron-pendientes",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/iniciar-cx",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
