@@ -538,6 +538,13 @@ Valores de referencia (SIEMPRE "desde"):
   remite a la asesoría virtual gratuita.
 Consulta (valoración) con el Dr. Gio: presencial $250.000 · virtual $160.000.
 La consulta es independiente del valor de la cirugía.
+→ Si pregunta por DÓLARES («¿dólares?», «¿cuánto en dólares?», «¿cobran en USD?»):
+  NUNCA respondas «no». Eso cuenta como que pregunta el precio. Di que los
+  valores se manejan en *pesos colombianos* y que le das el equivalente
+  aproximado en dólares; da el valor *desde* del procedimiento que le
+  interesa (si ya lo dijo, SIEMPRE con su cifra; levantamiento = pexia) y la
+  consulta (la consulta es valor fijo, sin «desde»). Escribe SOLO la cifra en
+  pesos y NUNCA escribas dólares tú: el sistema agrega los dólares al lado.
 
 Cuando das un valor "desde", el sistema agrega solo una línea de
 financiación con Finanmed: NO la escribas tú.
@@ -1074,15 +1081,37 @@ def ajustar_internacional(texto):
     texto = re.sub(r'[Pp]resencial \*\$250\.000\* · [Vv]irtual \*\$160\.000\*', 'Virtual *US$ 50*, por videollamada desde tu país', texto)
     texto = re.sub(r'presencial \*\$250\.000\* o virtual \*\$160\.000\*', 'virtual *US$ 50*, por videollamada desde tu país', texto)
     texto = re.sub(r'[Ii]n person \*COP 250,000\* · [Vv]irtual \*COP 160,000\*', 'Virtual *US$ 50*, by video call from your country', texto)
+    return agregar_usd(texto)
+
+
+_RE_DOLARES = re.compile(r'd[oó]lar|\busd\b|us\s*\$|\bu\$', re.I)
+
+
+def pide_dolares(history, texto=''):
+    """(24-nov) Preguntó por dólares en algún momento («¿Dólares?», «¿cuánto en USD?»)."""
+    dicho = ' '.join(m.get('content', '') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str))
+    return bool(_RE_DOLARES.search(dicho + ' ' + (texto or '')))
+
+
+_RE_USD_DE_LA_IA = re.compile(
+    r',?\s*\(?(?:lo que equivale|que equivale|equivalente|equivale|aproximadamente|aprox\.?|unos|alrededor de|cerca de)?'
+    r'[^.\n$]{0,30}?\*?(?:USD|US\$|U\$)\s*\$?\s*[\d.,]+\*?'
+    r'(?:\s*y\s*\*?(?:USD|US\$|U\$)\s*\$?\s*[\d.,]+\*?)?(?:\s*respectivamente)?\)?', re.I)
+
+
+def agregar_usd(texto):
+    """Cada precio en pesos con su valor aproximado en dólares al lado (TRM del día).
+    Los dólares que haya escrito la IA se quitan (los calcula mal); quedan solo los del sistema."""
     trm = trm_hoy()
     if trm:
+        texto = _RE_USD_DE_LA_IA.sub('', texto)
         def _usd(m):
             valor = float(re.sub(r'[^\d]', '', m.group(2)) or 0)
             if valor < 100_000 or re.match(r'\*?\s*\(?\s*(aprox|about|≈|~)?\.?\s*US\$', texto[m.end():m.end() + 25], re.I):
                 return m.group(0)
             paso = 100 if valor >= 10_000_000 else 10
             return f"{m.group(0)} (aprox. US$ {round(valor / trm / paso) * paso:,.0f})".replace(',', '.')
-        texto = re.sub(r'(\$\s*)(\d{1,3}(?:\.\d{3}){1,})\*?', _usd, texto)
+        texto = re.sub(r'(\$\s*)(\d{1,3}(?:\.\d{3}){1,})\*?(?:\s*pesos(?:\s+colombianos)?\*?|\s*\(pesos colombianos\))?', _usd, texto)
     return texto
 
 
@@ -4640,6 +4669,8 @@ class BrainCX:
 
         if user_facing and es_internacional(sender_id, history, text):
             user_facing = ajustar_internacional(user_facing)
+        elif user_facing and pide_dolares(history, text):
+            user_facing = agregar_usd(user_facing)
         _visible = user_facing
         if user_facing and _ingles:
             _visible = self._traducir_en(user_facing, text, history)

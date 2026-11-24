@@ -285,6 +285,12 @@ ESCENARIOS = {
     'organico_pregunta_promocion_no_entra_al_flujo': [
         ('Hola buenas, ¿tienen alguna promoción en abdominoplastia?', [no_tiene('10-cupos-liposuccion-bot.png', '10-cupos-mamoplastia-bot.png', 'Escribe *1*, *2* o *3*')]),
     ],
+    'senos_levantamiento_pregunta_dolares': [
+        ('¡Hola! informacion sobre cirugia de senos', []),
+        ('2', []),
+        ('Dólares?', [tiene('pesos colombianos', 'US$'), ('no empieza con «No»', lambda r: not re.match(r'\W*no\b', r.strip(), re.I))]),
+        ('Ok y que cuesta el levantamiento', [tiene('18.000.000', 'US$')]),
+    ],
     'promo_10_cupos_precio': [
         ('¡Hola! estoyn interesada en uno de los 10 cupos.', []),
         ('cuanto cuesta la lipo?', [tiene('precio especial', 'requisitos', 'Nombre completo', '17.000.000', '10-cupos-liposuccion-bot.png'), no_tiene('15.000.000')]),
