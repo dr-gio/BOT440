@@ -3267,15 +3267,22 @@ class BrainCX:
             _asesora_nom = ((_resp.get('asesora') or {}).get('nombre') or '').strip()
             _base_mf, _ = self._medfiles_cfg()
             _link = f"{_base_mf}/crm/whatsapp?persona={_resp['persona']}" if _resp.get('persona') else f"{_base_mf}/crm"
+            # (24-nov, Dr.) Ya compró y escribe por lo mismo: no hay lead nuevo, solo aviso a su asesora; si pide OTRA cirugía: recompra
+            _ya_compro, _recompra = bool(_resp.get('ya_compro')), bool(_resp.get('recompra'))
+            _compro = (_resp.get('compro') or '').strip()
             msg = "\n".join(x for x in [
-                "🔥 *Nuevo lead: QUIERO MI CUPO*" if _caliente and _escribio_quiero else "🆕 *Nuevo lead del asistente*",
+                "📩 *Ya es paciente y volvió a escribir*" if _ya_compro
+                else "⭐ *Recompra: ya es paciente y quiere otra cirugía*" if _recompra
+                else "🔥 *Nuevo lead: QUIERO MI CUPO*" if _caliente and _escribio_quiero else "🆕 *Nuevo lead del asistente*",
+                f"🛍️ Ya compró: {_compro}" if (_ya_compro or _recompra) and _compro else None,
+                "No se creó lead nuevo: quedó anotado en su negocio vendido. Atiéndela 🙏" if _ya_compro else None,
                 "🇺🇸 *HABLA INGLÉS* — atenderlo en inglés" if getattr(self, '_idioma', 'es') == 'en' else None,
                 "👤 *Sin nombre* — ⚠️ pídeselo al llamar" if _sin_nombre else f"👤 *{nombre}*",
                 f"📱 {_tel_txt}",
                 f"📧 {email or 'sin correo'}",
                 f"📍 {ciudad or ('Ciudad: pregúntasela al llamar' if (pauta or '').startswith('Promo 10 cupos') else 'ciudad sin dato')}",
                 f"✨ {proc}",
-                f"💬 Quiere: *{tipo_txt}*",
+                f"💬 Quiere: *{tipo_txt}*" if not _ya_compro else None,
                 f"📣 Pauta: {pauta}" if pauta else None,
                 f"👩‍💼 Asesora: *{_asesora_nom}*" if _asesora_nom else "👩‍💼 Asesora: *sin asignar*",
                 f"⚠️ *Datos incompletos* — falta: {fields['incompleto']}. Pídeselos." if fields.get('incompleto') else None,
