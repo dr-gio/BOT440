@@ -106,7 +106,7 @@ def _promo_lista(eleccion):
 
 _NO_NOMBRE = re.compile(r'\b(quiero|cuanto|cuesta|precio|valor|hola|buen[oa]s?|gracias|como|donde|cuando|info|informacion|'
                         r'cupos?|si|no|ok|listo|dale|claro|bien|vale|pago|tengo|soy de|vivo|necesito|puedo|me interesa|'
-                        r'ya|que|cual|porque|por que|las dos|ambas|uno|dos)\b'
+                        r'ya|que|cual|porque|por que|las dos|ambas|uno|dos|millones?|mil|pesos|pero|audio|foto|imagen)\b'
                         r'|\b(lipo|mamo|mama|seno|busto|pecho|cirug|abdom|financ|credit|interes|promo|descuent|implant|protes)', re.I)
 
 
@@ -126,6 +126,9 @@ def _nombre_promo(texto):
     if not (1 <= len(pal) <= 7) or not all(re.fullmatch(r"[A-Za-zÁÉÍÓÚÑÜáéíóúñü'.-]+", w) for w in pal):
         return None
     if _NO_NOMBRE.search(_sin_tildes(cand)):
+        return None
+    # La primera palabra no puede ser una palabra suelta del chat («De», «En», «Mis»…); «de la Rosa» en medio sí vale
+    if _sin_tildes(pal[0]).lower() in ('de', 'del', 'la', 'el', 'en', 'por', 'mis', 'mas', 'yo', 'mama', 'para', 'con', 'un', 'una'):
         return None
     return (' '.join(w[:1].upper() + w[1:].lower() for w in pal), em.group(0) if em else '', ', '.join(partes[1:]))
 
@@ -2206,21 +2209,22 @@ class BrainCX:
                 continue
             txt = (m.get('content') or '').strip()
             low = txt.lower()
-            for pat in ('me llamo ', 'soy ', 'mi nombre es '):
+            # (23-nov) Solo si de verdad parece un nombre (_nombre_promo): antes tomaba la primera palabra y le quitaba
+            # los números, y «15millones» quedaba como «Millones», «pero cuánto…» como «Pero», «soy de Cali» como «De».
+            for pat in ('me llamo ', 'mi nombre es ', 'soy '):
                 if pat in low:
-                    rest = low.split(pat, 1)[1].strip()
-                    cand = rest.split()[0] if rest else ''
-                    cand = ''.join(ch for ch in cand if ch.isalpha())
-                    if len(cand) >= 2:
-                        return cand.title()
+                    rest = txt[low.index(pat) + len(pat):].strip()
+                    if pat == 'soy ' and re.match(r'(de|del|la|el|una?|muy|madre|mama|mamá)\b', rest, re.I):
+                        continue
+                    r = _nombre_promo(re.split(r'[,.;\n]| y ', rest)[0])
+                    if r:
+                        return r[0]
             if i > 0 and history[i-1].get('role') == 'assistant':
                 bot = (history[i-1].get('content') or '').lower()
                 if ('nombre' in bot or 'cómo te llamas' in bot or 'como te llamas' in bot):
-                    cand = txt.replace('.', '').strip().split()
-                    if cand:
-                        first = ''.join(ch for ch in cand[0] if ch.isalpha())
-                        if len(first) >= 2 and first.lower() not in ('si', 'sí', 'no', 'ok'):
-                            return first.title()
+                    r = _nombre_promo(txt)
+                    if r:
+                        return r[0]
         # 3. sender_name como último recurso
         nm = (sender_name or '').strip()
         # Si tiene chars no-alfanuméricos adjacentes (emojis, símbolos), filtrarlos
