@@ -87,7 +87,7 @@ def reglas_generales(r):
     if r.count(CIERRE) > 1: fallas.append('bloque de siguiente paso repetido')
     if r.count('Asesoría virtual gratuita') > 1 and CIERRE in r and 'Excelente decisión' not in r:
         fallas.append('opciones repetidas')
-    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r and 'Cuando quieras damos el siguiente paso:' not in r and "let's take the next step:" not in r:
+    if re.search(r'1️⃣|2️⃣|resp[oó]ndeme \*?1', r, re.I) and '*¿Cómo te gustaría dar el siguiente paso?*' not in r and 'Dime cuál prefieres' not in r and '¿Cuál te interesa?' not in r and 'te gustaría mejorar de tus senos?' not in r and 'Cuando quieras damos el siguiente paso:' not in r and "let's take the next step:" not in r and not re.search(r'\*1\* or \*2\*', r):
         fallas.append('opciones numeradas escritas por la IA')   # el menú aprobado (MENU_OPCIONES) sí puede ir
     if re.search(r'irregularidades|garantiz|resultados? perfect', r, re.I): fallas.append('promesa de resultados')
     if re.search(r'\*\*', r): fallas.append('negrita doble **')
@@ -448,10 +448,24 @@ ESCENARIOS = {
         ('Lo central es apartar una cita de valoración para una blefaroplastia', [pide_datos()]),
         ('Presencial. En lo posible para el día martes. Quedo atento.',
          [tiene('solo me falta', 'ciudad'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
+        # (24-nov, Dr.) Sin nombre escrito no hay lead: primero se le pide el nombre
         ('En la ciudad de Barranquilla.',
-         [tiene('asesora'), ('lead creado con la ciudad', lambda r: any(l.get('interes') == 'valoracion' and l.get('ciudad') == 'Barranquilla' for l in LEADS))]),
+         [tiene('nombre completo'), ('todavía sin lead (falta el nombre)', lambda r: not any(l.get('interes') for l in LEADS))]),
+        ('Carlos Pérez',
+         [tiene('asesora'), ('lead creado con nombre y ciudad', lambda r: any(l.get('interes') == 'valoracion' and l.get('ciudad') == 'Barranquilla'
+                                                                          and 'carlos' in (l.get('nombre') or '').lower() for l in LEADS))]),
     ],
     # Pidió la asesoría, dio solo el nombre y se fue: a los 30 min el cron crea el lead marcado "datos incompletos"
+    # (24-nov, Dr.) Sin nombre real no hay lead: el cron no lo crea (queda en el reporte diario como «a medias»)
+    'cron_sin_nombre_no_crea_lead': [
+        ('Quiero una asesoría virtual', [pide_datos()]),
+        ('Cali', []),
+    ],
+    'nombre_despues_de_ciudad': [
+        ('Quiero una asesoría virtual', [pide_datos()]),
+        ('Cali', [tiene('nombre completo'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
+        ('Laura Gómez', [('crea el lead con su nombre', lambda r: any('laura' in (l.get('nombre') or '').lower() for l in LEADS))]),
+    ],
     'cron_datos_incompletos': [
         ('Quiero una asesoría virtual', [pide_datos()]),
         ('Ana Ruiz', [tiene('solo me falta', 'ciudad'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
@@ -547,7 +561,10 @@ def correr(nombre, turnos):
         bot._medfiles_pausado = lambda tel: False
         hechos = bot.crear_leads_pendientes(minutos=30)
         lead = next((l for l in LEADS if l.get('interes')), None)
-        if not hechos or not lead:
+        if nombre.startswith('cron_sin_nombre'):
+            if hechos or lead:
+                fallas.append('cron: creó un lead SIN nombre')
+        elif not hechos or not lead:
             fallas.append('cron: no creó el lead')
         elif 'INCOMPLETOS' not in (lead.get('resumen') or ''):
             fallas.append('cron: el lead no dice DATOS INCOMPLETOS')

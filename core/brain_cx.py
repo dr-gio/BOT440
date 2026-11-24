@@ -2675,10 +2675,31 @@ class BrainCX:
             self._tel_lid = tel or ''
         return self._tel_lid
 
+    def _nombre_escrito_ok(self, nombre, history, text='', ciudad=''):
+        """El nombre es real y lo escribió la persona en el chat (no el del perfil, ni un emoji, ni la ciudad)."""
+        nom = (nombre or '').strip()
+        if not nom or not _nombre_promo(nom):
+            return False
+        primera = _sin_tildes(nom.split()[0]).lower()
+        if primera in ('paciente', 'cliente', 'usuario', 'sin'):
+            return False
+        _n = _sin_tildes(nom).lower().strip(' .,')
+        _ciudades = [c for c in (ciudad, self._ciudad_from_history((history or []) + [{'role': 'user', 'content': text or ''}])) if c]
+        if any(_n == _sin_tildes(str(c)).lower().strip(' .,') or _n == _sin_tildes(str(c)).lower().split(',')[0].strip()
+               for c in _ciudades):
+            return False
+        escrito = _sin_tildes(' '.join([m.get('content') or '' for m in (history or [])
+                                        if m.get('role') == 'user' and isinstance(m.get('content'), str)] + [text or ''])).lower()
+        return bool(re.search(r'\b' + re.escape(primera) + r'\b', escrito))
+
     def _datos_faltantes(self, f, history, text=''):
         """Datos obligatorios que faltan para crear el lead: ciudad, y celular si WhatsApp lo ocultó.
         (El nombre sale del perfil de WhatsApp; el correo se pide pero no es obligatorio.)"""
         faltan = []
+        # (24-nov, Dr.) Sin nombre real que la persona haya ESCRITO no hay lead: se le pide (no vale el del perfil de
+        # WhatsApp, un emoji, «Paciente», ni la ciudad tomada como nombre: «¡Listo, Cali!»)
+        if not self._nombre_escrito_ok(f.get('nombre'), history, text, f.get('ciudad')):
+            faltan.append('nombre')
         ciudad = (f.get('ciudad') or '').strip().lower()
         if (not ciudad or ciudad in ('desconocida', '-', '—', 'no especificada', 'no especificado')) \
                 and not self._ciudad_from_history((history or []) + [{'role': 'user', 'content': text or ''}]):
@@ -2729,7 +2750,7 @@ class BrainCX:
     def _mensaje_faltan(self, f, faltan, interes, history):
         """Pide en un mensaje corto solo lo que falta (una sola vez)."""
         nom = ((f.get('nombre') or '').strip().split() or [''])[0].capitalize()
-        if nom.lower() in ('paciente', 'sin', ''):
+        if nom.lower() in ('paciente', 'sin', '') or 'nombre' in faltan:
             nom = ''
         mod = (f.get('modalidad') or '').strip().lower()
         que = ('tu *asesoría virtual gratuita*' if interes.startswith('asesor')
@@ -2746,6 +2767,8 @@ class BrainCX:
         else:
             lineas = [f"¡Perfecto{', ' + nom if nom else ''}! 💙 Ya tengo {que}" + (f" de *{proc}*" if proc else '') + " ✅",
                       "", "Para que nuestra asesora te agende solo me falta:"]
+        if 'nombre' in faltan:
+            lineas.append("👤 Tu *nombre completo*")
         if 'ciudad' in faltan:
             lineas.append("📍 ¿En qué *ciudad* vives?")
         if 'celular' in faltan:
@@ -2797,6 +2820,11 @@ class BrainCX:
                 else:
                     fields = self._campos_desde_pedido(hist, pedido, fila.get('contacto_nombre') or '')
                 self._validate_notify_fields(fields, hist, fila.get('contacto_nombre') or '', tel)
+                # (24-nov, Dr.) Sin nombre real NO hay lead: si no lo dio (o es el del perfil de WhatsApp / un emoji),
+                # no se crea. Queda en el reporte diario de las 7 am como «a medias» y el Dr. decide si se le rescata.
+                if not self._nombre_escrito_ok(fields.get('nombre'), hist, '', fields.get('ciudad')):
+                    print(f"[CX-PEND] {tel[-4:]} sin nombre real — no se crea lead", flush=True)
+                    continue
                 falt = self._datos_faltantes(fields, hist)
                 fields['incompleto'] = ', '.join(falt) if falt else 'no terminó de responder el pedido de datos'
                 self._ultimo_lead_ok = None
@@ -4467,7 +4495,18 @@ class BrainCX:
         _ult_bot = next((m.get('content') for m in reversed(history or []) if m.get('role') == 'assistant'
                          and isinstance(m.get('content'), str)), '') or ''
         _pend = re.search(r'<<<PENDIENTE>>>(.*?)<<<END_PENDIENTE>>>', _ult_bot, re.S)
-        if _pend and '<<<NOTIFY>>>' not in full_response and '<<<BLOQUEAR>>>' not in full_response:
+        _pend_nombre_ok = True
+        if _pend:
+            try:
+                _fp = self._parse_notify(_pend.group(1)) or {}
+                self._validate_notify_fields(_fp, history + [{'role': 'user', 'content': text or ''}], sender_name or '', sender_id)
+                _pend_nombre_ok = self._nombre_escrito_ok(_fp.get('nombre'), history, text, _fp.get('ciudad'))
+            except Exception:
+                _pend_nombre_ok = True
+        if _pend and not _pend_nombre_ok:
+            # (24-nov, Dr.) Sin nombre real no se crea el lead «con lo que haya»: queda a medias (reporte diario)
+            print(f"[CX] {sender_id}: datos pendientes sin nombre real — no se crea el lead", flush=True)
+        elif _pend and '<<<NOTIFY>>>' not in full_response and '<<<BLOQUEAR>>>' not in full_response:
             full_response = full_response.rstrip() + '\n\n<<<NOTIFY>>>' + _pend.group(1) + '<<<END>>>'
             _forzado = True
             print(f"[CX] {sender_id}: datos pendientes — se crea el lead con lo que haya", flush=True)
