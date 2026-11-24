@@ -2231,9 +2231,10 @@ class BrainCX:
         has_non_letter_symbol = any(not (ch.isalnum() or ch.isspace()) for ch in nm)
         if has_non_letter_symbol:
             return ''  # 💕TEST💕, 💕 ASHLY 💕 → no confiable
-        letters = sum(1 for ch in nm if ch.isalpha())
-        if letters >= 2 and nm not in ('.', '—', '-'):
-            return nm.split()[0].title()
+        # (23-nov) Solo si el perfil parece nombre real («Laura Gómez»), no «M E LI SA», «Mafe» de 1 letra ni usuarios
+        r = _nombre_promo(nm)
+        if r and all(len(w) >= 2 for w in r[0].split()):
+            return r[0]
         return ''
 
     def _validate_notify_fields(self, fields, history, sender_name, sender_id):
@@ -3038,6 +3039,7 @@ class BrainCX:
         asesora única (ASESORA_MEDFILES_TEL). El dedup <24h lo hace el caller
         (_already_notified_cx)."""
         nombre = (fields.get('nombre') or '').strip() or 'Paciente'
+        _sin_nombre = _sin_tildes(nombre).lower() in ('paciente', 'sin nombre', 'desconocido', 'desconocida', '.', '-')
         proc = (fields.get('procedimiento') or '').strip() or 'consulta general'
         ciudad = (fields.get('ciudad') or '').strip()
         if ciudad.lower() in ('desconocida', '—', '-'):
@@ -3138,7 +3140,7 @@ class BrainCX:
             resumen = "Notas del bot: " + ' · '.join(notas) + "\n\n" + resumen
 
         body = {
-            'nombre': nombre,
+            'nombre': '' if _sin_nombre else nombre,
             'telefono': telefono,
             'email': email,
             'ciudad': ciudad or None,
@@ -3200,7 +3202,7 @@ class BrainCX:
             msg = "\n".join(x for x in [
                 "🔥 *Nuevo lead: QUIERO MI CUPO*" if _caliente and _escribio_quiero else "🆕 *Nuevo lead del asistente*",
                 "🇺🇸 *HABLA INGLÉS* — atenderlo en inglés" if getattr(self, '_idioma', 'es') == 'en' else None,
-                f"👤 *{nombre}*",
+                "👤 *Sin nombre* — ⚠️ pídeselo al llamar" if _sin_nombre else f"👤 *{nombre}*",
                 f"📱 {_tel_txt}",
                 f"📧 {email or 'sin correo'}",
                 f"📍 {ciudad or ('Ciudad: pregúntasela al llamar' if (pauta or '').startswith('Promo 10 cupos') else 'ciudad sin dato')}",
@@ -4510,6 +4512,9 @@ class BrainCX:
                     _cola = None   # escogió asesoría o valoración: sigue el flujo de siempre (pedido de datos aprobado)
                 elif _ppx:
                     _cola = self._promo_pedido_datos(_ppx, False, ventajas=False)
+                    # Sin pedidos repetidos o contradictorios de la IA («ahora solo necesito tu ciudad…»): el pedido es uno solo
+                    _base = '\n\n'.join(b for b in _base.split('\n\n')
+                                          if not re.search(r'necesito tu|d[eé]jame tus datos|me (falta|faltan)|tu \*?ciudad|nombre completo', b, re.I)).rstrip()
                 else:
                     _cola = (_PROMO_PREGUNTA + " (para tu cupo con *precio especial*)\n" + _PROMO_MENU + "\n\n" + _PROMO_ESCRIBE)
                 if _cola:
