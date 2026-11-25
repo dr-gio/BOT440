@@ -108,6 +108,11 @@ def _promo_lista(eleccion):
 _NO_NOMBRE = re.compile(r'\b(quiero|cuanto|cuesta|precio|valor|hola|buen[oa]s?|gracias|como|donde|cuando|info|informacion|'
                         r'cupos?|si|no|ok|listo|dale|claro|bien|vale|pago|tengo|soy de|vivo|necesito|puedo|me interesa|'
                         r'ya|que|cual|porque|por que|las dos|ambas|uno|dos|millones?|mil|pesos|pero|audio|foto|imagen)\b'
+                        # (25-nov) nacionalidades: «Soy mexicana» no es un nombre
+                        r'|\b(mexican[oa]s?|colombian[oa]s?|venezolan[oa]s?|panamen[oa]s?|peruan[oa]s?|ecuatorian[oa]s?|chilen[oa]s?|'
+                        r'argentin[oa]s?|espanol[a]?|american[oa]s?|estadounidense|dominican[oa]s?|costarricense|cuban[oa]s?|'
+                        r'puertorriquen[oa]s?|guatemaltec[oa]s?|honduren[oa]s?|salvadoren[oa]s?|nicaraguense|boliviano?a?|paraguay[oa]s?|'
+                        r'uruguay[oa]s?|extranjer[oa]s?|latin[oa]s?|real|anuncio)\b'
                         r'|\b(lipo|mamo|mama|seno|busto|pecho|cirug|abdom|financ|credit|interes|promo|descuent|implant|protes)', re.I)
 
 
@@ -117,6 +122,8 @@ def _nombre_promo(texto):
     t = re.sub(r'^\[[^\]]{1,80}\]:\s*', '', texto or '').strip()
     if not t or '?' in t or len(t) > 160:
         return None
+    # «Nombre: Paola Vargas» / «Nombre;paola vargas» (25-nov)
+    t = re.sub(r'^(mi\s+)?nombre(\s+completo)?\s*[:;=\-]\s*', '', t, flags=re.I).strip()
     em = re.search(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}', t)
     sin_em = (t[:em.start()] + ' ' + t[em.end():]) if em else t
     partes = [x.strip() for x in re.split(r'[,\n;]+', sin_em) if x.strip()]
