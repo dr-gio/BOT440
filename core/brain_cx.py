@@ -503,7 +503,9 @@ el sistema las agrega.
   orienta con preguntas (ver ORIENTAR ANTES DE RECOMENDAR) y luego tradúcelo:
   piel floja/hijos → abdominoplastia; solo grasa localizada → lipoescultura 360; más busto → mamoplastia de
   aumento; senos caídos → pexia mamaria; senos grandes/dolor de espalda →
-  mamoplastia de reducción; más cola → lipotransferencia glútea; pecho en
+  mamoplastia de reducción; más cola → lipotransferencia glútea («trasplante
+  mamario» o «grasa a los senos» NO es la glútea: es aumento de senos con su
+  propia grasa → <<<FICHA:mamoplastia_aumento>>> y explica que también se puede con su grasa); pecho en
   hombre → ginecomastia; papada → lipo de papada; párpados → blefaroplastia;
   orejas → otoplastia. Si no estás seguro, NO adivines: explica lo más
   probable, pregunta para confirmar o remite a la asesoría virtual gratuita.
@@ -1097,7 +1099,13 @@ def ajustar_internacional(texto):
     texto = re.sub(r'[Pp]resencial \*\$250\.000\* · [Vv]irtual \*\$160\.000\*', 'Virtual *US$ 50*, por videollamada desde tu país', texto)
     texto = re.sub(r'presencial \*\$250\.000\* o virtual \*\$160\.000\*', 'virtual *US$ 50*, por videollamada desde tu país', texto)
     texto = re.sub(r'[Ii]n person \*COP 250,000\* · [Vv]irtual \*COP 160,000\*', 'Virtual *US$ 50*, by video call from your country', texto)
-    return agregar_usd(texto)
+    # (25-nov) La consulta virtual del exterior es US$ 50 fijo: el «$160.000 (aprox. US$ 40)» que escriba la IA → US$ 50
+    texto = re.sub(r'\*?\$\s?160\.000\*?(\s*\((?:aprox\.?|aproximadamente)?\s*US\$\s?\d+\))?', '*US$ 50*', texto)
+    # (25-nov) agregar_usd borra los dólares que escribe la IA: se protege el US$ 50 del sistema (antes quedaba
+    # «Valoración con el Dr., por videollamada desde tu país)» sin precio)
+    texto = texto.replace('*US$ 50*', '\x00VALEXT\x00')
+    texto = agregar_usd(texto)
+    return texto.replace('\x00VALEXT\x00', '*US$ 50*')
 
 
 _RE_DOLARES = re.compile(r'd[oó]lar|\busd\b|us\s*\$|\bu\$', re.I)
@@ -1160,6 +1168,20 @@ def _es_hombre(history, mensaje):
     return nombre in _NOMBRES_HOMBRE or (nombre.endswith('o') and nombre not in _NOMBRES_MUJER_EN_O)
 
 
+_RE_GRASA_SENOS = re.compile(r'(tra[ns]{1,2}plant\w*|transferencia|grasa|lipoinjert\w*|lipotransf\w*)\W+(?:\w+\W+){0,3}?(mamari\w*|senos?|busto|pechos?)', re.I)
+_RE_GLUTEO = re.compile(r'gl[uú]te|nalga|\bcola\b|pompis|trasero|cadera', re.I)
+NOTA_GRASA_SENOS = ("💡 Si lo que buscas es *aumentar los senos con tu propia grasa* (lipotransferencia mamaria), también se puede: "
+                    "da un aumento *más discreto y natural*. En tu *asesoría virtual gratuita* te explicamos qué te conviene más: "
+                    "implantes, tu propia grasa o una combinación 😊")
+
+
+def _grasa_a_senos(history, mensaje):
+    """(25-nov) «Lipoescultura y trasplantes mamarios»: la grasa va a los SENOS, no a los glúteos."""
+    dicho = ' '.join(m.get('content', '') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str))
+    dicho = _sin_tildes(dicho + ' ' + (mensaje or ''))
+    return bool(_RE_GRASA_SENOS.search(dicho)) and not _RE_GLUTEO.search(dicho)
+
+
 def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
     """Aplica las reglas del guion que no deben depender de la IA:
     - no repetir la bienvenida si ya hubo conversación;
@@ -1176,7 +1198,16 @@ def ajustar_respuesta_cx(texto, history, mensaje_paciente, pedir_celular=False):
         intro = intro if len(intro) <= 350 else ''
         intro = re.sub(r'[:,]?\s*(te cuento|aqu[ií] (va|tienes)|esta es)[^.!\n]*[:.]?\s*$', '', intro, flags=re.I).strip()
         fichas = [m.group(0) for m in re.finditer(r'<<<FICHA:[a-z_]+>>>', texto)]
+        _nota_senos = False
+        if '<<<FICHA:lipotransferencia>>>' in fichas and _grasa_a_senos(history, mensaje_paciente):
+            fichas = [f for f in fichas if f != '<<<FICHA:lipotransferencia>>>']
+            if '<<<FICHA:mamoplastia_aumento>>>' not in fichas:
+                fichas.append('<<<FICHA:mamoplastia_aumento>>>')
+            texto = texto.replace('<<<FICHA:lipotransferencia>>>', '<<<FICHA:mamoplastia_aumento>>>')
+            _nota_senos = True
         cuerpo, hubo_ficha = expandir_fichas('\n\n'.join(fichas))
+        if _nota_senos:
+            cuerpo += '\n\n' + NOTA_GRASA_SENOS
         # Si en este mensaje pregunta el precio, se responde primero (antes la ficha lo tapaba y el paciente se iba)
         precio = bloque_precio(re.findall(r'<<<FICHA:([a-z_]+)>>>', texto)) if pide_precio(mensaje_paciente) else ''
         if precio:
