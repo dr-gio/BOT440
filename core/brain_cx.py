@@ -4555,7 +4555,7 @@ class BrainCX:
             full_response = full_response.rstrip() + '\n\n<<<NOTIFY>>>' + _pend.group(1) + '<<<END>>>'
             _forzado = True
             print(f"[CX] {sender_id}: datos pendientes — se crea el lead con lo que haya", flush=True)
-        elif (not _pend and 'Nombre completo' in _ult_bot and '<<<NOTIFY>>>' not in full_response
+        elif (not _pend and re.search(r'nombre completo', _ult_bot, re.I) and '<<<NOTIFY>>>' not in full_response   # (25-nov) también el rescate («tu *nombre completo*»)
               and '<<<BLOQUEAR>>>' not in full_response and '?' not in (text or '') and self._trae_datos(text)):
             # Respondió al pedido de datos (aunque sea a medias) y la IA no armó el lead: se arma aquí con lo que se sabe;
             # abajo se pide lo que falte (una vez) o se crea el lead si ya está completo

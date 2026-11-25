@@ -461,6 +461,10 @@ ESCENARIOS = {
         ('Quiero una asesoría virtual', [pide_datos()]),
         ('Cali', []),
     ],
+    'rescate_responde_nombre': [
+        ('Lilis Paola López Doria', [tiene('Lilis'), tiene('ciudad'), no_tiene('¿Tienes otra duda?')]),
+        ('Vivo en Bogotá', [('crea el lead con su nombre', lambda r: any('lilis' in (l.get('nombre') or '').lower() for l in LEADS))]),
+    ],
     'nombre_despues_de_ciudad': [
         ('Quiero una asesoría virtual', [pide_datos()]),
         ('Cali', [tiene('nombre completo'), ('todavía sin lead', lambda r: not any(l.get('interes') for l in LEADS))]),
@@ -529,6 +533,12 @@ CHATS = {'numero_oculto': ('147484932362413', '147484932362413@lid')}   # (sende
 
 
 PREVIOS = {   # conversación que ya existía antes de la prueba (direccion, texto)
+    # (25-nov) Lilis Paola: el rescate le pidió nombre y ciudad; contestó con su nombre y el bot no le agradeció
+    'rescate_responde_nombre': [('entrante', '¡Hola! informacion sobre cirugia de senos'),
+                                ('saliente', '¡Hola! 💙 Bienvenida al *Centro de Atención del Dr. Giovanni Fuentes*. ¿Qué te gustaría mejorar de tus senos?\n1️⃣ *Aumentar el tamaño*\n2️⃣ *Levantarlos*\n\nEscribe el número 😊'),
+                                ('entrante', '1'),
+                                ('saliente', 'La *mamoplastia de aumento* aumenta el volumen con implantes ✨\n\n¿Tienes alguna otra *pregunta o duda* que te pueda resolver antes de dar el siguiente paso? 😊\n\nTu siguiente paso puede ser:\n\n✅ *Asesoría virtual gratuita* 💻\n\n✅ *Valoración con el Dr. Gio* 👨‍⚕️'),
+                                ('saliente', '¡Hola Paola! 💙 Te escribo por el *aumento de senos* que consultaste. El Dr. Gio elige el implante según tu cuerpo para que quede natural. ¿Te gustaría una *asesoría virtual gratuita*? Solo dime tu *nombre completo* y tu *ciudad* ✨')],
     'lead_de_instagram': [('saliente', '¡Hola, Paola! 💙 Te escribimos del *Centro de Atención del Dr. Giovanni Fuentes*. Recibimos tus datos por Instagram '
                            'para tu *lipoescultura* ✨\n\nMuy pronto *nuestra asesora te contactará por aquí*…\n\n<<<NOTIFY>>>\nnombre: Paola Bañuelos\n'
                            'telefono: 523329703337\nemail: p@gmail.com\nciudad: \nprocedimiento: lipoescultura\ninteres: asesoria\nmodalidad: \n<<<END>>>')],
