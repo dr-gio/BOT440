@@ -545,6 +545,39 @@ PREVIOS = {   # conversación que ya existía antes de la prueba (direccion, tex
 }
 
 
+# Instagram: el sender es el id de Instagram (no un teléfono) y el bot pide el WhatsApp para la asesora
+CANAL = {n: 'instagram_cx' for n in ('ig_comentario_pexia', 'ig_dm_lipo', 'ig_no_paciente', 'ig_sin_telefono')}
+for _n in CANAL:
+    CHATS[_n] = ('1529897497728498', '')
+_PRIVADO_PEXIA = '¡Hola! 😊 Vi tu pregunta sobre la recuperación de la pexia. Con gusto te cuento todo. ¿Ya te has hecho alguna cirugía antes o sería la primera?'
+PREVIOS['ig_comentario_pexia'] = [
+    ('entrante', '[Comentó en una publicación de Instagram «😍 Una pexia mamaria puede devolverte la seguridad en ti misma y redefinir tu belleza, te espero para hacerlo realidad»]: ¿Cuánto tiempo toma la recuperación después de una pexia?'),
+    ('saliente', _PRIVADO_PEXIA)]
+_lead_ig = lambda tel: (lambda r: any(l.get('telefono', '').endswith(tel) and l.get('canal') == 'instagram' for l in LEADS))
+_sin_lead = lambda r: not any(l.get('interes') for l in LEADS)
+ESCENARIOS['ig_comentario_pexia'] = [
+    ('Sería la primera', [('habla de la recuperación de la pexia', lambda r: re.search(r'recuperaci|semana', r, re.I))]),
+    ('Y cuánto cuesta?', [('da el precio desde', lambda r: '$' in r)]),
+    ('1', [('pide nombre y WhatsApp', lambda r: re.search(r'nombre', r, re.I) and re.search(r'whatsapp|celular|n[uú]mero', r, re.I))]),
+    ('Laura Pérez, de Cartagena, mi WhatsApp es 3001234567', [('crea el lead con su WhatsApp', _lead_ig('3001234567'))]),
+]
+ESCENARIOS['ig_dm_lipo'] = [
+    ('Hola, quiero info de la lipo', [('no manda a WhatsApp con link', lambda r: 'wa.me' not in r)]),
+    ('Cuánto vale?', [('da el precio desde', lambda r: '$' in r)]),
+    ('2', [('pide nombre y WhatsApp', lambda r: re.search(r'nombre', r, re.I) and re.search(r'whatsapp|celular|n[uú]mero', r, re.I))]),
+    ('Ana Ruiz Barranquilla 3109876543', [('crea el lead con su WhatsApp', _lead_ig('3109876543'))]),
+]
+ESCENARIOS['ig_no_paciente'] = [
+    ('Hola Doctor!! Qué tal estás?', []),
+    ('Estuve viendo tu perfil y lo de +3.000 pacientes en la bio da muchísima confianza. Te pregunto por curiosidad: hoy la mayoría de tus pacientes te llegan por Instagram o por recomendación? Trabajo en marketing para médicos', [('no crea lead', _sin_lead)]),
+]
+ESCENARIOS['ig_sin_telefono'] = [
+    ('Hola me interesa la mamoplastia de aumento', []),
+    ('1', []),
+    ('Me llamo Carolina Gómez, soy de Medellín', [('pide el WhatsApp', lambda r: re.search(r'whatsapp|celular|n[uú]mero', r, re.I)), ('no crea lead sin teléfono', lambda r: not any(l.get('telefono') for l in LEADS))]),
+]
+
+
 def correr(nombre, turnos):
     FILAS.clear(); LEADS.clear()
     FILAS.extend(PREVIOS.get(nombre, []))
@@ -554,7 +587,7 @@ def correr(nombre, turnos):
     fallas = []
     for i, (msg, checks) in enumerate(turnos, 1):
         try:
-            r = bot.process(sender, perfil, msg, canal='cirugia', send=False, chat_id=chat) or ''
+            r = bot.process(sender, perfil, msg, canal=CANAL.get(nombre, 'cirugia'), send=False, chat_id=chat) or ''
         except Exception as e:
             fallas.append(f'turno {i} "{msg[:30]}": ERROR {e}')
             continue

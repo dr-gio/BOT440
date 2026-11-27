@@ -1085,6 +1085,16 @@ INTER_BIENVENIDA = (
 )
 
 
+def ajustar_instagram(texto):
+    """En Instagram la conversación sigue aquí, pero la asesora contacta por WhatsApp (decisión del Dr., 26-nov-2026)."""
+    texto = re.sub(r'te contactar[aá] por aqu[ií]', 'te contactará por WhatsApp', texto)
+    texto = re.sub(r'te escribe por aqu[ií]', 'te escribe por WhatsApp', texto)
+    texto = re.sub(r'📱 \*N[uú]mero de celular\*', '📱 *Número de WhatsApp*', texto)
+    texto = re.sub(r'📱 Tu n[uú]mero de \*celular\*', '📱 Tu número de *WhatsApp*', texto)
+    texto = texto.replace('📸 Instagram: *@drgiovannifuentes*\n', '')   # ya está en su Instagram
+    return texto
+
+
 def es_internacional(telefono, history=None, texto=''):
     """Escribe desde otro país: llegó por la pauta internacional o su número no es de Colombia (+57)."""
     t = re.sub(r'\D', '', str(telefono or '').split('@')[0])
@@ -2793,7 +2803,7 @@ class BrainCX:
         mod = (f.get('modalidad') or '').strip().lower()
         que = ('tu *asesoría virtual gratuita*' if interes.startswith('asesor')
                else f"tu *valoración {mod + ' ' if mod in ('presencial', 'virtual') else ''}con el Dr. Gio*")
-        proc = (f.get('procedimiento') or '').strip()
+        proc = (f.get('procedimiento') or '').strip().replace('_', ' ')
         if proc.lower() in ('consulta general', 'no especificado', '-', ''):
             proc = ''
         _pp_f = _promo_de_historial(history) if _promo_activa() else None
@@ -3238,7 +3248,14 @@ class BrainCX:
         if financiacion:
             notas.append("Interesado en financiación")
         if self._es_canal_instagram(canal):
-            notas.append("Canal: Instagram")
+            # Llegó por un comentario en una publicación (MedFiles deja el comentario al inicio de la conversación)
+            _coment = next((m.get('content') for m in (history or []) if m.get('role') == 'user' and isinstance(m.get('content'), str)
+                            and '[Comentó en una publicación de Instagram' in m['content']), None)
+            if _coment:
+                _c = _coment[_coment.index('[Comentó en una publicación de Instagram'):].split('\n')[0]
+                notas.append("Canal: Instagram · llegó por un COMENTARIO → " + _c.replace('[Comentó en una publicación de Instagram', 'comentó en la publicación').replace(']:', ':')[:300])
+            else:
+                notas.append("Canal: Instagram")
         if fields.get('incompleto'):
             notas.append(f"⚠️ DATOS INCOMPLETOS — falta: {fields['incompleto']} (pídeselos)")
         resumen = self._resumen_conversacion(history, ultimo_bot)
@@ -4794,10 +4811,12 @@ class BrainCX:
             _k = user_facing.find(BLOQUE_SIGUIENTE_PASO)
             _antes = re.sub(r'\n*¿Tienes alguna (otra )?\*?pregunta o duda\*?[^\n]*\s*$', '', user_facing[:_k].rstrip()).rstrip()
             user_facing = ((_antes + "\n\n") if _antes else '') + CIERRE_PASO_CORTO + user_facing[_k + len(BLOQUE_SIGUIENTE_PASO):]
-        if user_facing and es_internacional(sender_id, history, text):
+        if user_facing and es_internacional('' if self._es_canal_instagram(canal) else sender_id, history, text):
             user_facing = ajustar_internacional(user_facing)
         elif user_facing and pide_dolares(history, text):
             user_facing = agregar_usd(user_facing)
+        if user_facing and self._es_canal_instagram(canal):
+            user_facing = ajustar_instagram(user_facing)
         _visible = user_facing
         if user_facing and _ingles:
             _visible = self._traducir_en(user_facing, text, history)
