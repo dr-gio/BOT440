@@ -545,8 +545,19 @@ PREVIOS = {   # conversación que ya existía antes de la prueba (direccion, tex
 }
 
 
+# Reclamo en el PRIMER mensaje (28-nov, caso @titinas1111): sin bienvenida ni precios; disculpa y pide datos
+_sin_bienvenida_ni_precio = lambda r: not re.search(r'Bienvenida|\$\s?\d|250\.000|160\.000', r)
+ESCENARIOS['ig_reclamo_valoracion'] = [
+    ('Me programaron una valoración y no me la an echo', [('no manda bienvenida ni precios', _sin_bienvenida_ni_precio),
+        ('pide disculpas', lambda r: re.search(r'pena|disculp|lament', r, re.I)),
+        ('pide nombre y WhatsApp', lambda r: re.search(r'nombre', r, re.I) and re.search(r'whatsapp', r, re.I))])]
+ESCENARIOS['reclamo_primer_mensaje_wa'] = [
+    ('Buenas, tenía una cita de asesoría el martes y nadie me llamó', [('no manda bienvenida ni precios', _sin_bienvenida_ni_precio),
+        ('pide disculpas', lambda r: re.search(r'pena|disculp|lament', r, re.I)), ('pide el nombre', lambda r: re.search(r'nombre', r, re.I)),
+        ('no pide el WhatsApp (ya lo tiene)', lambda r: not re.search(r'whatsapp', r, re.I))])]
+
 # Instagram: el sender es el id de Instagram (no un teléfono) y el bot pide el WhatsApp para la asesora
-CANAL = {n: 'instagram_cx' for n in ('ig_comentario_pexia', 'ig_dm_lipo', 'ig_no_paciente', 'ig_sin_telefono')}
+CANAL = {n: 'instagram_cx' for n in ('ig_comentario_pexia', 'ig_dm_lipo', 'ig_no_paciente', 'ig_sin_telefono', 'ig_reclamo_valoracion')}
 for _n in CANAL:
     CHATS[_n] = ('1529897497728498', '')
 _PRIVADO_PEXIA = '¡Hola! 😊 Vi tu pregunta sobre la recuperación de la pexia. Con gusto te cuento todo. ¿Ya te has hecho alguna cirugía antes o sería la primera?'
