@@ -3065,6 +3065,20 @@ class BrainCX:
             except Exception as e:
                 print(f"[CX] {etiqueta} err: {e}", flush=True)
 
+    def _aviso_admin(self, msg):
+        """Aviso solo al Dr. (admin/médico en MedFiles, por Telegram), cuando aún no hay asesora ni teléfono."""
+        base, clave = self._medfiles_cfg()
+        if not clave:
+            return
+        try:
+            req = urllib.request.Request(f"{base}/api/equipo/aviso-bot", method='POST',
+                data=json.dumps({'telefonos': [], 'admin': True, 'texto': msg}, ensure_ascii=False).encode(),
+                headers={'Authorization': f'Bearer {clave}', 'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                print(f"[CX] aviso admin → {json.loads(r.read() or b'{}')}", flush=True)
+        except Exception as e:
+            print(f"[CX] aviso admin err: {e}", flush=True)
+
     def _avisar_asesora_y_dr(self, asesora_tel, copias, msg, etiqueta):
         """Todo aviso de un lead va a SU asesora y, en copia, al Dr. (copias que devuelve MedFiles), sin repetir números."""
         self._aviso_equipo([asesora_tel] + list(copias or []), msg, etiqueta)
@@ -4530,10 +4544,18 @@ class BrainCX:
         except Exception as _e:
             print(f"[CX] decidir_paso err: {_e}", flush=True)
             _paso = {'paso': 'libre'}
+        _paso['instagram'] = self._es_canal_instagram(canal)
         print(f"[CX] paso={_paso}", flush=True)
         paciente_ctx += instruccion_paso(_paso)
         if _paso.get('paso') == 'reclamo' and _paso.get('datos_dados') and not self._es_canal_instagram(canal):
             self._recordar_asesora(sender_id, text)
+        elif _paso.get('paso') == 'reclamo':
+            # Aún sin datos (o por Instagram): aviso inmediato al Dr. con lo que escribió (28-nov, caso @titinas1111)
+            self._aviso_admin("\n".join([
+                "⚠️ *Reclamo por " + ('Instagram' if self._es_canal_instagram(canal) else 'WhatsApp') + "*",
+                f"👤 {sender_name or 'Sin nombre'}" + ('' if self._es_canal_instagram(canal) else f" · +{re.sub(r'[^0-9]', '', str(sender_id))}"),
+                f"💬 «{(text or '')[:300]}»",
+                "El bot le pidió sus datos para buscarla. Revísalo en MedFiles → Chats."]))
 
         # Idioma de la conversación: lo marca el primer mensaje de la persona y se mantiene,
         # salvo que después escriba claramente en español.

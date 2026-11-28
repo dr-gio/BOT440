@@ -257,19 +257,34 @@ def quiere_agendar(t):
     return bool(RE_AGENDAR.search(t or '')) and not _es_pregunta(t or '')
 
 
+# Reclamos: no la contactaron, una cita/valoración que no se hizo, la dejaron esperando
+RE_RECLAMO_CITA = re.compile(
+    r'(me|nos) (programaron|agendaron|asignaron|dieron|separaron|apartaron) (una |la |mi )?(cita|valoraci|consulta|asesor[ií]a|videollamada|llamada)|'
+    r'(ten[ií]a|tengo) (una |mi )?(cita|valoraci[oó]n|consulta|asesor[ií]a)[^.?!]{0,40}(no|nunca|nadie)|'
+    r'no me (la|lo|las|los) (han|ha) (hecho|realizado|dado)\b|no me (la|lo|las|los) (hicieron|hizo|realizaron)\b|'
+    r'(no|nunca) (me )?(hicieron|realizaron|atendieron|conectaron) (la |mi )?(cita|valoraci|consulta|asesor[ií]a|videollamada)', re.I)
+RE_RECLAMO = re.compile(
+    r'no me (han|ha) (escrito|contactado|llamado|respondido|atendido|contestado)|nadie me (ha )?(escrito|contactado|llamado|respondi|contest)|'
+    r'sigo esperando|todav[ií]a no me|a[uú]n no me|cu[aá]ndo me (escriben|contactan|llaman)|me dejaron (esperando|plantad)|'
+    r'(nunca|no) me (llamaron|contestaron|escribieron|atendieron)|p[eé]simo servicio|mal servicio|qu[eé] falta de seriedad|'
+    + RE_RECLAMO_CITA.pattern, re.I)
+RECLAMO_CITA = ("¡Qué pena contigo! 🙏💙 Quiero revisar qué pasó con tu {cita}.\n\n"
+                "¿Me regalas tu *nombre completo*{wa} para buscarte y que te contacten *hoy mismo*?")
+
+
 def decidir_paso(history, texto):
     bots = _textos_bot(history)
     t = texto or ''
+    todo = '\n'.join(bots)
+    datos_dados = bool(re.search(r'ya eres parte de #labelleza440|<<<NOTIFY|asesora ya tiene tus datos', todo, re.I))
+    # Reclamo (28-nov, Dr.): también en el PRIMER mensaje (antes salía la bienvenida con precios, caso @titinas1111
+    # «me programaron una valoración y no me la han hecho»). Cita/valoración que no se hizo → se piden datos para buscarla.
+    if RE_RECLAMO.search(t):
+        return {'paso': 'reclamo', 'datos_dados': datos_dados, 'cita': bool(RE_RECLAMO_CITA.search(t))}
     if not bots:
         return {'paso': 'bienvenida'}
     ultimo = bots[-1]
-    todo = '\n'.join(bots)
-    datos_dados = bool(re.search(r'ya eres parte de #labelleza440|<<<NOTIFY|asesora ya tiene tus datos', todo, re.I))
     datos_pedidos = bool(re.search(r'nombre completo', todo, re.I))
-    # Reclamo: "no me han escrito / contactado"
-    if re.search(r'no me (han|ha) (escrito|contactado|llamado|respondido|atendido)|nadie me (ha )?(escrito|contactado|llamado)|'
-                 r'sigo esperando|todav[ií]a no me|a[uú]n no me|cu[aá]ndo me (escriben|contactan|llaman)', t, re.I):
-        return {'paso': 'reclamo', 'datos_dados': datos_dados}
     # Vuelve a escribir solo para saludar: se retoma la conversación (no se pregunta de nuevo el procedimiento)
     if re.fullmatch(r'\s*(hola|holi|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|hey|ola)[\s!.,😊💙👋]*', t, re.I):
         return {'paso': 'regreso', 'datos_dados': datos_dados, 'datos_pedidos': datos_pedidos and not datos_dados,
@@ -485,6 +500,9 @@ def aplicar_paso(texto, paso, history, mensaje):
     if p == 'reclamo':
         if paso.get('datos_dados'):
             return DISCULPA_CONTACTO
+        if paso.get('cita'):
+            que = 'valoración' if re.search(r'valoraci', mensaje or '', re.I) else 'asesoría' if re.search(r'asesor', mensaje or '', re.I) else 'cita'
+            return RECLAMO_CITA.format(cita=que, wa=' y tu *número de WhatsApp*' if paso.get('instagram') else '')
         return FALTAN_DATOS_CONTACTO + '\n' + RECORDAR_DATOS.split('\n', 1)[1]
     if p == 'regreso':
         proc = paso.get('proc')
